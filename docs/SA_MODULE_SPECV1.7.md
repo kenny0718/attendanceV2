@@ -143,3 +143,13 @@ Restore 前必做：
 - 匯出 company A → 輸出不得包含 company B 的任何資料
 - 還原到 company A → 還原後查詢不得看到 company B 的資料
 - 備份檔混入其他 company_id → restore 必須 fail fast（拒絕）
+
+---
+
+### 17. API Error Handling & Status Code Rules
+
+Decision Principle:
+- If the error is caused by FastAPI/Pydantic schema validation → 422
+- If the error is caused by system-level business rules → 400
+
+

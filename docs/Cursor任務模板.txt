@@ -1,3 +1,28 @@
+【狀態碼 Guardrail（不可違反）】
+
+本專案 API 錯誤狀態碼必須嚴格遵守以下判斷原則，不得自行調整或「統一簡化」：
+
+判斷原則：
+- 如果錯誤是由 FastAPI / Pydantic 的 schema 或型別驗證產生 → 必須使用 422
+- 如果錯誤是由系統層規則、業務邏輯、或安全規則產生 → 必須使用 400
+- 認證 / 授權錯誤 → 使用 401 / 403
+- 未捕捉的例外 → 使用 500（必須回 JSON）
+
+明確規則：
+- 缺少必要的 Tenant Header（X-Company-ID）屬於【系統規則錯誤】，必須回 400
+- 不得因為 FastAPI 預設行為，將系統規則錯誤誤判為 422
+- 不得將所有錯誤統一改為 400 或 422
+
+API 回應格式規則：
+- 所有 /api/* 的成功與錯誤回應，必須是 JSON
+- 嚴禁回傳 HTML error page（避免 WAF / Proxy 誤判）
+
+Tenant 規則（再次強調）：
+- company_id 只能由後端從 X-Company-ID Header 注入
+- request body / querystring 中的 company_id 必須忽略
+- 發現跨公司操作必須 fail fast（直接拒絕）
+
+
 請先完整閱讀以下文件（不可跳過）：
 1) docs/SA_MODULE_SPEC_v1.7.md
 2) docs/CURSOR_MODULE_RULES.md
