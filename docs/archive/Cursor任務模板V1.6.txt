@@ -1,5 +1,5 @@
 請先完整閱讀以下文件（不可跳過）：
-1) docs/SA_MODULE_SPEC_v1.7.md
+1) docs/SA_MODULE_SPEC_v1.6.md
 2) docs/CURSOR_MODULE_RULES.md
 3) docs/ENVIRONMENT_LOCK.md
 
@@ -43,19 +43,6 @@
   - 派車不影響出勤成立
   - SSID 只能作為 evidence（預設不得作為唯一 APPROVED 依據）
   - 所有 /api/* 錯誤回應必須是 JSON（不得回 HTML error page）
-
-【P0：Tenant Isolation（永遠必做）】
-1) 所有 Tenant Data 的 CRUD 查詢必須強制 company_id == current_company_id（不可漏）
-2) company_id 只能由後端注入/覆寫（禁止信任 request body/querystring 的 company_id）
-
-【P0：Backup/Restore（僅當本任務涉及備份/還原時才必做）】
-3) 單一公司備份：每張 Tenant Data 表匯出必須加 company_id filter（禁止整表掃出後再過濾）
-4) 單一公司還原：寫入時覆寫 company_id=target_company_id；若備份檔混入其他 company_id 必須 fail fast
-5) Restore 前必做 Company Consistency Check + FK Closure Check
-
-【測試要求】
-- 只要本模組有 Tenant Data CRUD，必須新增/更新 Tenant Isolation 測試（跨公司不可讀/不可寫）
-- 若本任務涉及備份/還原，必須新增/更新 Backup/Restore 測試必過
 
 在開始寫程式前，請先用條列方式回覆：
 - 你理解的模組邊界

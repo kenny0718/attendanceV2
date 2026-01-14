@@ -17,14 +17,17 @@ class AttendanceService:
         """初始化服務"""
         self.event_bus = get_event_bus()
     
-    def mock_create_attendance(self) -> str:
+    def mock_create_attendance(self, company_id: str) -> str:
         """建立假的考勤記錄（用於測試）
+        
+        Args:
+            company_id: 公司 ID（由 tenant context 注入）
         
         Returns:
             attendance_record_id (UUID string)
         """
         attendance_record_id = str(uuid4())
-        logger.info(f"建立假考勤記錄: {attendance_record_id}")
+        logger.info(f"建立假考勤記錄: {attendance_record_id}, company_id: {company_id}")
         return attendance_record_id
     
     def approve_attendance(
