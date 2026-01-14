@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     
     app_name: str = "Attendance V2 API"
     debug: bool = False
+    
+    # 資料庫設定
+    database_url: str = "postgresql://postgres:postgres@localhost:5432/attendance_v2"
 
 
 # 全域設定實例

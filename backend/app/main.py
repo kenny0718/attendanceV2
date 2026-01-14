@@ -6,7 +6,10 @@ from fastapi import FastAPI
 
 from app.core.event_bus import get_event_bus
 from app.core.config import settings
+from app.core.database import init_db
 from app.modules.attendance.api import router as attendance_router
+from app.modules.notifications.api import router as notifications_router
+from app.modules.notifications.event_handlers import register_event_handlers
 
 # 設定日誌
 logging.basicConfig(
@@ -23,11 +26,20 @@ app = FastAPI(
 
 # 註冊路由
 app.include_router(attendance_router)
+app.include_router(notifications_router)
 
 
 @app.on_event("startup")
 async def startup_event():
-    """應用啟動時初始化 EventBus 並註冊 demo 訂閱者"""
+    """應用啟動時初始化資料庫與 EventBus"""
+    # 初始化資料庫
+    try:
+        init_db()
+        logger.info("資料庫初始化成功")
+    except Exception as e:
+        logger.warning(f"資料庫初始化失敗（可能尚未設定 PostgreSQL）: {e}")
+    
+    # 初始化 EventBus
     event_bus = get_event_bus()
     
     # 註冊 demo 訂閱者
@@ -35,9 +47,9 @@ async def startup_event():
         """Demo 事件處理器"""
         logger.info(f"[Demo Handler] 收到事件 test.event，payload: {payload}")
     
-    def attendance_approved_handler(payload: Dict[str, Any]) -> None:
-        """Attendance 核准事件處理器（Demo）"""
-        logger.info(f"[Attendance Approved Handler] 收到事件 attendance.approved")
+    def attendance_approved_demo_handler(payload: Dict[str, Any]) -> None:
+        """Attendance 核准事件處理器（Demo，用於 log）"""
+        logger.info(f"[Demo Handler] 收到事件 attendance.approved")
         logger.info(f"  - company_id: {payload.get('company_id')}")
         logger.info(f"  - employee_id: {payload.get('employee_id')}")
         logger.info(f"  - attendance_record_id: {payload.get('attendance_record_id')}")
@@ -45,8 +57,12 @@ async def startup_event():
         logger.info(f"  - approved_by: {payload.get('approved_by', 'N/A')}")
     
     event_bus.subscribe("test.event", demo_handler)
-    event_bus.subscribe("attendance.approved", attendance_approved_handler)
-    logger.info("EventBus 已初始化，demo 訂閱者已註冊")
+    event_bus.subscribe("attendance.approved", attendance_approved_demo_handler)
+    
+    # 註冊 notifications 事件處理器
+    register_event_handlers()
+    
+    logger.info("EventBus 已初始化，所有訂閱者已註冊")
 
 
 @app.get("/health")

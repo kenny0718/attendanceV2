@@ -152,4 +152,43 @@ Decision Principle:
 - If the error is caused by FastAPI/Pydantic schema validation → 422
 - If the error is caused by system-level business rules → 400
 
+---
+## 18. 租戶安全資料模型設計原則（支援單一租戶備份與還原）
+
+本系統屬於多租戶（Multi-Tenant）架構，所有屬於租戶資料（Tenant Data）的資料表，
+在設計時必須同時滿足「租戶隔離（Tenant Isolation）」與
+「未來單一租戶備份 / 還原（Single-Tenant Backup / Restore）」的需求。
+
+為避免日後在備份、還原或資料搬遷時發生資料衝突或安全風險，
+租戶資料模型必須遵守以下原則：
+
+### 18.1 主鍵（Primary Key）設計原則
+- 所有租戶資料表的主鍵 **建議使用 UUID**，不得依賴自動遞增整數（INT / SERIAL）。
+- 使用 UUID 的目的：
+  - 避免在「單一租戶資料還原」時，與既有資料產生 ID 衝突
+  - 支援跨環境（測試 / 正式 / 還原）的資料搬移
+- UUID 應由**後端應用程式產生**（例如 uuid4），不得依賴資料庫 Extension。
+
+### 18.2 company_id 為租戶隔離的唯一依據
+- 所有租戶資料表 **必須包含 company_id 欄位**。
+- company_id 是判斷資料歸屬租戶的唯一依據。
+- 所有資料存取（CRUD）必須強制以 company_id 作為過濾條件。
+
+### 18.3 索引（Index）設計原則
+- 所有租戶資料表 **必須對 company_id 建立索引（Index）**。
+- 目的：
+  - 提升依 company_id 查詢資料的效能
+  - 支援高效率的「單一租戶資料匯出 / 備份」
+- 禁止先查詢整張表再由應用程式過濾 company_id。
+
+### 18.4 單一租戶資料備份 / 還原支援
+- 資料模型設計必須支援以下操作：
+  - 能夠依 company_id 一次查詢並匯出該租戶的所有資料
+  - 還原資料時可安全寫入指定 company_id
+- 本章節僅規範「資料模型與查詢設計原則」，
+  **不代表本階段必須實作備份或還原 API 功能**。
+
+本章節為設計原則說明，
+不改變既有 Tenant Isolation 與安全規範，
+僅作為後續模組（如備份、還原、資料搬遷）實作時的依據。
 
