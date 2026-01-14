@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.database import init_db
 from app.modules.attendance.api import router as attendance_router
 from app.modules.notifications.api import router as notifications_router
+from app.modules.backup.api import router as backup_router
 from app.modules.notifications.event_handlers import register_event_handlers
 
 # 設定日誌
@@ -27,6 +28,7 @@ app = FastAPI(
 # 註冊路由
 app.include_router(attendance_router)
 app.include_router(notifications_router)
+app.include_router(backup_router)
 
 
 @app.on_event("startup")
