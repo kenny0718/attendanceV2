@@ -1,12 +1,17 @@
-"""Attendance API 路由"""
+"""Attendance API 路由
+
+Phase 4: 注入 db Session
+"""
 
 import logging
 from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from app.modules.attendance.service import get_attendance_service
 from app.core.tenant_context import get_current_company_id, get_current_user_id
+from app.core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -36,18 +41,19 @@ class ApproveResponse(BaseModel):
 
 @router.post("/mock-create", response_model=MockCreateResponse)
 async def mock_create_attendance(
-    current_company_id: str = Depends(get_current_company_id)
+    current_company_id: str = Depends(get_current_company_id),
+    db: Session = Depends(get_db)
 ):
-    """建立假的考勤記錄（用於測試）
+    """建立考勤記錄（Phase 4: 真正寫 DB）
     
-    Tenant Isolation:
+    Tenant Isolation P0:
     - company_id 從 Header (X-Company-ID) 注入
     - Phase 2 將改為從 JWT token 解析
     
     Returns:
         包含 attendance_record_id 的回應
     """
-    service = get_attendance_service()
+    service = get_attendance_service(db)
     attendance_record_id = service.mock_create_attendance(
         company_id=current_company_id
     )
@@ -60,19 +66,21 @@ async def approve_attendance(
     attendance_record_id: str,
     request: ApproveRequest,
     current_company_id: str = Depends(get_current_company_id),
-    current_user_id: str | None = Depends(get_current_user_id)
+    current_user_id: str | None = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
 ):
-    """核准考勤記錄
+    """核准考勤記錄（Phase 4: 真正寫 DB）
     
     此端點會：
     1. 從 tenant context 注入 company_id（不信任 request body）
-    2. 組裝 payload
+    2. 更新資料庫（只能核准屬於該公司的記錄）
     3. 發出 attendance.approved 事件
     4. 回傳操作結果
     
     Tenant Isolation (P0):
     - company_id 從 Header (X-Company-ID) 強制注入
     - 不接受 request body 的 company_id
+    - 只能核准屬於該公司的記錄（否則 404）
     - Phase 2 將改為從 JWT token 解析
     
     Args:
@@ -80,11 +88,15 @@ async def approve_attendance(
         request: 核准請求（包含 employee_id, approved_by）
         current_company_id: 當前公司 ID（從 tenant context 注入）
         current_user_id: 當前使用者 ID（從 tenant context 注入，選填）
+        db: 資料庫 Session
     
     Returns:
         操作結果與發出的 payload
+    
+    Raises:
+        HTTPException: 404 若記錄不存在或不屬於該公司
     """
-    service = get_attendance_service()
+    service = get_attendance_service(db)
     
     # company_id 由後端注入，不信任 request body
     result = service.approve_attendance(

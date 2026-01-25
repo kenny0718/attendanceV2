@@ -1,11 +1,17 @@
-"""Attendance 服務層"""
+"""Attendance 服務層
+
+Phase 4: 改為真正寫 DB
+"""
 
 import logging
 from datetime import datetime
 from typing import Dict, Any
-from uuid import uuid4
+from uuid import UUID
+from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
 from app.core.event_bus import get_event_bus
+from app.modules.attendance.repo import get_attendance_repository
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +19,22 @@ logger = logging.getLogger(__name__)
 class AttendanceService:
     """考勤服務"""
     
-    def __init__(self):
-        """初始化服務"""
+    def __init__(self, db: Session):
+        """初始化服務
+        
+        Args:
+            db: SQLAlchemy Session
+        """
+        self.db = db
+        self.repo = get_attendance_repository(db)
         self.event_bus = get_event_bus()
     
     def mock_create_attendance(self, company_id: str) -> str:
-        """建立假的考勤記錄（用於測試）
+        """建立考勤記錄（Phase 4: 真正寫 DB）
+        
+        Tenant Isolation P0:
+        - company_id 由 tenant_context 注入
+        - 不信任 request body 的 company_id
         
         Args:
             company_id: 公司 ID（由 tenant context 注入）
@@ -26,9 +42,14 @@ class AttendanceService:
         Returns:
             attendance_record_id (UUID string)
         """
-        attendance_record_id = str(uuid4())
-        logger.info(f"建立假考勤記錄: {attendance_record_id}, company_id: {company_id}")
-        return attendance_record_id
+        # Phase 4: 真正寫入資料庫
+        record = self.repo.create_attendance_record(
+            company_id=company_id,
+            employee_id="emp-mock-001"  # Phase 4 暫用固定值，Phase 5+ 從 request 取得
+        )
+        
+        logger.info(f"建立考勤記錄: {record.id}, company_id: {company_id}")
+        return str(record.id)
     
     def approve_attendance(
         self,
@@ -37,7 +58,11 @@ class AttendanceService:
         employee_id: str,
         approved_by: str | None = None
     ) -> Dict[str, Any]:
-        """核准考勤記錄
+        """核准考勤記錄（Phase 4: 真正寫 DB）
+        
+        Tenant Isolation P0:
+        - 只能核准屬於該公司的記錄
+        - 若記錄不存在或不屬於該公司 → 404
         
         Args:
             attendance_record_id: 考勤記錄 ID
@@ -47,13 +72,38 @@ class AttendanceService:
         
         Returns:
             操作結果
+        
+        Raises:
+            HTTPException: 404 若記錄不存在或不屬於該公司
         """
+        # Phase 4: 真正更新資料庫
+        try:
+            record_id = UUID(attendance_record_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Invalid attendance_record_id format"}
+            )
+        
+        record = self.repo.approve_attendance_record(
+            company_id=company_id,
+            record_id=record_id,
+            approved_by=approved_by
+        )
+        
+        # Tenant Isolation P0: 若記錄不存在或不屬於該公司 → 404
+        if record is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": "Attendance record not found or does not belong to this company"}
+            )
+        
         # 組裝 payload
         payload = {
             "company_id": company_id,
             "employee_id": employee_id,
             "attendance_record_id": attendance_record_id,
-            "approved_at": datetime.utcnow().isoformat() + "Z",
+            "approved_at": record.approved_at.isoformat() + "Z",
         }
         
         # 如果有提供核准人，加入 payload
@@ -68,17 +118,13 @@ class AttendanceService:
         return {"ok": True, "payload": payload}
 
 
-# 全域服務實例
-_service_instance: AttendanceService | None = None
-
-
-def get_attendance_service() -> AttendanceService:
-    """取得 AttendanceService 單例
+def get_attendance_service(db: Session) -> AttendanceService:
+    """取得 AttendanceService 實例
+    
+    Args:
+        db: SQLAlchemy Session
     
     Returns:
         AttendanceService 實例
     """
-    global _service_instance
-    if _service_instance is None:
-        _service_instance = AttendanceService()
-    return _service_instance
+    return AttendanceService(db)

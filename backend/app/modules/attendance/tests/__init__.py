@@ -1,1 +1,1 @@
-"""Attendance 模組測試"""
+"""Attendance tests package"""
