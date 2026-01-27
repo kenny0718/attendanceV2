@@ -10,12 +10,14 @@ from uuid import UUID
 from datetime import datetime
 
 from app.modules.notifications.models import Notification
+from app.modules.attendance.models import AttendanceRecord
 
 logger = logging.getLogger(__name__)
 
-# Phase 3: 支援的 Tenant Data 資料表
+# Phase 5: 支援的 Tenant Data 資料表
 TENANT_DATA_TABLES = {
     "notifications": Notification,
+    "attendance_records": AttendanceRecord,
 }
 
 

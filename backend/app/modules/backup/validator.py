@@ -99,9 +99,9 @@ class BackupValidator:
         
         檢查外鍵閉包：所有被引用的資料必須存在於備份集內。
         
-        Phase 3: notifications 表沒有外鍵，此為 stub 實作。
-        Phase 4+: 當有外鍵時（例如 attendance_records.employee_id -> employees.id），
-                 必須檢查所有被引用的 employee_id 都在 employees 表內。
+        Phase 5: notifications 與 attendance_records 表沒有外鍵，此為 stub 實作。
+        Phase 6+: 當有外鍵時（例如 employees.manager_id -> employees.id），
+                 必須檢查所有被引用的資料都在備份集內。
         
         Args:
             backup_data: 備份資料
@@ -109,19 +109,19 @@ class BackupValidator:
         Raises:
             ValueError: FK Closure 檢查失敗
         """
-        # Phase 3: notifications 表沒有外鍵，直接通過
-        logger.info("FK Closure Check 通過（Phase 3: 無外鍵）")
+        # Phase 5: notifications 與 attendance_records 表沒有外鍵，直接通過
+        logger.info("FK Closure Check 通過（Phase 5: notifications 與 attendance_records 無外鍵）")
         
-        # Phase 4+ 範例實作：
-        # if "attendance_records" in backup_data["data"]:
+        # Phase 6+ 範例實作（當有外鍵時）：
+        # if "employees" in backup_data["data"]:
         #     employee_ids_in_backup = {
-        #         emp["id"] for emp in backup_data["data"].get("employees", [])
+        #         emp["id"] for emp in backup_data["data"]["employees"]
         #     }
-        #     for record in backup_data["data"]["attendance_records"]:
-        #         if record["employee_id"] not in employee_ids_in_backup:
+        #     for employee in backup_data["data"]["employees"]:
+        #         if employee.get("manager_id") and employee["manager_id"] not in employee_ids_in_backup:
         #             raise ValueError(
-        #                 f"FK Closure 失敗: attendance_record 引用的 "
-        #                 f"employee_id={record['employee_id']} 不在備份集內"
+        #                 f"FK Closure 失敗: employee 引用的 "
+        #                 f"manager_id={employee['manager_id']} 不在備份集內"
         #             )
     
     @staticmethod

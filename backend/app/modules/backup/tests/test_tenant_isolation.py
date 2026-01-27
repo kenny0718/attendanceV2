@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.core.database import Base, get_db
 from app.modules.notifications.repo import NotificationRepository
+from app.modules.attendance.repo import AttendanceRepository
 
 # 測試用資料庫（in-memory SQLite）
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -331,6 +332,242 @@ class TestBackupTenantIsolation:
         event_types = {n.event_type for n in notifications}
         assert "existing" in event_types
         assert "new" in event_types
+        
+        db.close()
+
+
+class TestBackupAttendanceRecordsTenantIsolation:
+    """Attendance Records Tenant Isolation 測試（Phase 5）"""
+    
+    def setup_method(self):
+        """每個測試前清空資料"""
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+    
+    def test_export_attendance_records_only_exports_target_company(self):
+        """測試：匯出 attendance_records 時只匯出指定公司資料（P0）"""
+        # 準備資料：A 公司 2 筆，B 公司 3 筆
+        db = TestingSessionLocal()
+        attendance_repo = AttendanceRepository(db)
+        
+        for i in range(2):
+            attendance_repo.create_attendance_record(
+                company_id="company-A",
+                employee_id=f"emp-A-{i}"
+            )
+        
+        for i in range(3):
+            attendance_repo.create_attendance_record(
+                company_id="company-B",
+                employee_id=f"emp-B-{i}"
+            )
+        
+        db.close()
+        
+        # 匯出 A 公司
+        headers = {"X-Company-ID": "company-A"}
+        response = client.post("/api/backup/export", headers=headers)
+        
+        assert response.status_code == 200
+        data = response.json()
+        
+        # 驗證：只有 A 公司的 2 筆 attendance_records
+        assert data["metadata"]["company_id"] == "company-A"
+        assert "attendance_records" in data["data"]
+        assert len(data["data"]["attendance_records"]) == 2
+        
+        # 驗證：所有資料都是 A 公司
+        for record in data["data"]["attendance_records"]:
+            assert record["company_id"] == "company-A"
+            assert record["employee_id"].startswith("emp-A-")
+    
+    def test_restore_attendance_records_overwrites_company_id(self):
+        """測試：還原 attendance_records 時覆寫 company_id（P0）"""
+        # 準備備份檔（A 公司的 attendance_records）
+        backup_data = {
+            "metadata": {
+                "company_id": "company-A",
+                "exported_at": "2026-01-27T12:00:00.000000Z",
+                "version": "1.0",
+                "tables": ["attendance_records"]
+            },
+            "data": {
+                "attendance_records": [
+                    {
+                        "id": "660e8400-e29b-41d4-a716-446655440001",
+                        "company_id": "company-A",  # 原始是 A 公司
+                        "employee_id": "emp-001",
+                        "approved_by": "manager-001",
+                        "approved_at": "2026-01-27T11:00:00.000000Z",
+                        "created_at": "2026-01-27T10:00:00.000000Z"
+                    }
+                ]
+            }
+        }
+        
+        # 還原到 B 公司
+        headers = {"X-Company-ID": "company-B"}
+        response = client.post(
+            "/api/backup/restore",
+            headers=headers,
+            json=backup_data
+        )
+        
+        assert response.status_code == 200
+        result = response.json()
+        assert result["ok"] is True
+        assert result["target_company_id"] == "company-B"
+        assert result["summary"]["attendance_records"] == 1
+        
+        # 驗證：資料的 company_id 已被覆寫為 B
+        db = TestingSessionLocal()
+        attendance_repo = AttendanceRepository(db)
+        
+        # B 公司有 1 筆 attendance_record
+        record = attendance_repo.get_attendance_record("company-B", "660e8400-e29b-41d4-a716-446655440001")
+        assert record is not None
+        assert record.company_id == "company-B"  # 已覆寫
+        assert record.employee_id == "emp-001"
+        
+        # A 公司沒有這筆資料
+        record_a = attendance_repo.get_attendance_record("company-A", "660e8400-e29b-41d4-a716-446655440001")
+        assert record_a is None
+        
+        db.close()
+    
+    def test_restore_attendance_records_with_clear_existing_only_clears_target_company(self):
+        """測試：clear_existing=true 時，只刪除該 company 的 attendance_records，不影響其他 company（P0）"""
+        # 準備現有資料：A 公司 2 筆，B 公司 3 筆
+        db = TestingSessionLocal()
+        attendance_repo = AttendanceRepository(db)
+        
+        for i in range(2):
+            attendance_repo.create_attendance_record(
+                company_id="company-A",
+                employee_id=f"emp-A-{i}"
+            )
+        
+        for i in range(3):
+            attendance_repo.create_attendance_record(
+                company_id="company-B",
+                employee_id=f"emp-B-{i}"
+            )
+        
+        db.commit()
+        db.close()
+        
+        # 準備備份檔（要還原到 A 公司）
+        backup_data = {
+            "metadata": {
+                "company_id": "company-source",
+                "exported_at": "2026-01-27T12:00:00Z",
+                "version": "1.0"
+            },
+            "data": {
+                "attendance_records": [
+                    {
+                        "id": "660e8400-e29b-41d4-a716-446655440099",
+                        "company_id": "company-source",
+                        "employee_id": "emp-new",
+                        "approved_by": None,
+                        "approved_at": None,
+                        "created_at": "2026-01-27T10:00:00Z"
+                    }
+                ]
+            }
+        }
+        
+        # 還原到 A 公司（clear_existing=true）
+        headers = {"X-Company-ID": "company-A"}
+        response = client.post(
+            "/api/backup/restore?clear_existing=true",
+            headers=headers,
+            json=backup_data
+        )
+        
+        assert response.status_code == 200
+        result = response.json()
+        assert result["summary"]["attendance_records"] == 1
+        
+        # 驗證：A 公司只有新資料（舊資料已清空）
+        db = TestingSessionLocal()
+        attendance_repo = AttendanceRepository(db)
+        
+        # 查詢 A 公司的所有記錄（使用 repo 的內部方法）
+        records_a = db.query(attendance_repo.model).filter(
+            attendance_repo.model.company_id == "company-A"
+        ).all()
+        assert len(records_a) == 1
+        assert records_a[0].employee_id == "emp-new"
+        
+        # 驗證：B 公司的資料不受影響（仍有 3 筆）
+        records_b = db.query(attendance_repo.model).filter(
+            attendance_repo.model.company_id == "company-B"
+        ).all()
+        assert len(records_b) == 3
+        
+        db.close()
+    
+    def test_export_and_restore_mixed_tables(self):
+        """測試：同時匯出/還原 notifications 和 attendance_records"""
+        # 準備資料：A 公司有 notifications 和 attendance_records
+        db = TestingSessionLocal()
+        notification_repo = NotificationRepository(db)
+        attendance_repo = AttendanceRepository(db)
+        
+        notification_repo.create_notification(
+            company_id="company-A",
+            event_type="test.event",
+            event_payload={"test": "data"}
+        )
+        
+        attendance_repo.create_attendance_record(
+            company_id="company-A",
+            employee_id="emp-001"
+        )
+        
+        db.close()
+        
+        # 匯出 A 公司
+        headers_a = {"X-Company-ID": "company-A"}
+        export_response = client.post("/api/backup/export", headers=headers_a)
+        assert export_response.status_code == 200
+        backup_data = export_response.json()
+        
+        # 驗證：包含兩張表
+        assert "notifications" in backup_data["data"]
+        assert "attendance_records" in backup_data["data"]
+        assert len(backup_data["data"]["notifications"]) == 1
+        assert len(backup_data["data"]["attendance_records"]) == 1
+        
+        # 還原到 B 公司
+        headers_b = {"X-Company-ID": "company-B"}
+        restore_response = client.post(
+            "/api/backup/restore",
+            headers=headers_b,
+            json=backup_data
+        )
+        assert restore_response.status_code == 200
+        result = restore_response.json()
+        
+        # 驗證：兩張表都還原成功
+        assert result["summary"]["notifications"] == 1
+        assert result["summary"]["attendance_records"] == 1
+        
+        # 驗證：B 公司有兩種資料，且 company_id 都是 B
+        db = TestingSessionLocal()
+        notification_repo = NotificationRepository(db)
+        attendance_repo = AttendanceRepository(db)
+        
+        notifications_b = notification_repo.get_notifications("company-B")
+        assert len(notifications_b) == 1
+        assert notifications_b[0].company_id == "company-B"
+        
+        records_b = db.query(attendance_repo.model).filter(
+            attendance_repo.model.company_id == "company-B"
+        ).all()
+        assert len(records_b) == 1
+        assert records_b[0].company_id == "company-B"
         
         db.close()
 
