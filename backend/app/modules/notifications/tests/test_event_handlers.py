@@ -1,8 +1,6 @@
 """事件處理器測試"""
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base
 from app.modules.notifications.repo import NotificationRepository
@@ -17,22 +15,17 @@ engine = create_engine(
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # 建立測試資料表
-Base.metadata.create_all(bind=engine)
-
 
 class TestEventHandlers:
     """事件處理器測試"""
     
     def setup_method(self):
-        """每個測試前清空資料"""
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-        
+        """每個測試前清空資料"""        
         # 覆寫 SessionLocal（讓 event handler 使用測試 DB）
         import app.modules.notifications.event_handlers as handlers
         handlers.SessionLocal = TestingSessionLocal
     
-    def test_handle_attendance_approved_success(self):
+    def test_handle_attendance_approved_success(self, test_db):
         """測試：成功處理 attendance.approved 事件"""
         payload = {
             "company_id": "company-test",
@@ -46,18 +39,15 @@ class TestEventHandlers:
         handle_attendance_approved(payload)
         
         # 驗證：資料已寫入
-        db = TestingSessionLocal()
+        db = test_db
         repo = NotificationRepository(db)
         notifications = repo.get_notifications("company-test")
         
         assert len(notifications) == 1
         assert notifications[0].company_id == "company-test"
         assert notifications[0].event_type == "attendance.approved"
-        assert notifications[0].event_payload == payload
-        
-        db.close()
-    
-    def test_handle_attendance_approved_fail_fast_missing_company_id(self):
+        assert notifications[0].event_payload == payload    
+    def test_handle_attendance_approved_fail_fast_missing_company_id(self, test_db):
         """測試：Fail-fast - payload 缺少 company_id 應拋出錯誤"""
         payload = {
             "employee_id": "emp-001",
@@ -73,12 +63,10 @@ class TestEventHandlers:
         assert "company_id" in str(exc_info.value)
         
         # 驗證：資料未寫入
-        db = TestingSessionLocal()
+        db = test_db
         repo = NotificationRepository(db)
         notifications = repo.get_all_notifications_for_company("any-company")
-        assert len(notifications) == 0
-        db.close()
-    
+        assert len(notifications) == 0    
     def test_handle_attendance_approved_fail_fast_empty_company_id(self):
         """測試：Fail-fast - payload 的 company_id 為空應拋出錯誤"""
         payload = {
@@ -109,7 +97,7 @@ class TestEventHandlers:
         
         assert "company_id" in str(exc_info.value)
     
-    def test_handle_attendance_approved_multiple_companies(self):
+    def test_handle_attendance_approved_multiple_companies(self, test_db):
         """測試：處理多個公司的事件，正確隔離"""
         # 處理 A 公司事件
         payload_a = {
@@ -130,7 +118,7 @@ class TestEventHandlers:
         handle_attendance_approved(payload_b)
         
         # 驗證：各公司資料正確隔離
-        db = TestingSessionLocal()
+        db = test_db
         repo = NotificationRepository(db)
         
         notifications_a = repo.get_notifications("company-A")
@@ -141,11 +129,8 @@ class TestEventHandlers:
         notifications_b = repo.get_notifications("company-B")
         assert len(notifications_b) == 1
         assert notifications_b[0].company_id == "company-B"
-        assert notifications_b[0].event_payload["employee_id"] == "emp-B-001"
-        
-        db.close()
-    
-    def test_handle_attendance_approved_uses_payload_company_id_as_source_of_truth(self):
+        assert notifications_b[0].event_payload["employee_id"] == "emp-B-001"    
+    def test_handle_attendance_approved_uses_payload_company_id_as_source_of_truth(self, test_db):
         """測試：使用 payload.company_id 作為 Source of Truth 寫入 DB"""
         payload = {
             "company_id": "company-from-payload",
@@ -157,7 +142,7 @@ class TestEventHandlers:
         handle_attendance_approved(payload)
         
         # 驗證：DB 中的 company_id 與 payload 一致
-        db = TestingSessionLocal()
+        db = test_db
         repo = NotificationRepository(db)
         notifications = repo.get_notifications("company-from-payload")
         
@@ -166,5 +151,3 @@ class TestEventHandlers:
         
         # 驗證：event_payload 也保留了原始 company_id（供稽核）
         assert notifications[0].event_payload["company_id"] == "company-from-payload"
-        
-        db.close()

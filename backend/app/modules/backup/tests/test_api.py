@@ -2,60 +2,28 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from app.main import app
-from app.core.database import Base, get_db
 from app.modules.notifications.repo import NotificationRepository
 from app.modules.attendance.repo import AttendanceRepository
 
-# 測試用資料庫（in-memory SQLite）
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def override_get_db():
-    """覆寫 get_db dependency（測試用）"""
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-
-# 建立測試資料表
-Base.metadata.create_all(bind=engine)
-
 client = TestClient(app)
-
 
 class TestBackupExportAPI:
     """Backup Export API 測試"""
     
     def setup_method(self):
-        """每個測試前清空資料"""
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-    
-    def test_export_success(self):
+        """每個測試前清空資料"""    
+    def test_export_success(self, test_db):
         """測試：成功匯出"""
         # 準備資料
-        db = TestingSessionLocal()
+        db = test_db
         repo = NotificationRepository(db)
         repo.create_notification(
             company_id="company-test",
             event_type="test.event",
             event_payload={"test": "data"}
-        )
-        db.close()
-        
+        )        
         # 匯出
         headers = {"X-Company-ID": "company-test"}
         response = client.post("/api/backup/export", headers=headers)
@@ -101,15 +69,11 @@ class TestBackupExportAPI:
         assert response.status_code == 400
         assert response.headers["content-type"] == "application/json"
 
-
 class TestBackupRestoreAPI:
     """Backup Restore API 測試"""
     
     def setup_method(self):
-        """每個測試前清空資料"""
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-    
+        """每個測試前清空資料"""    
     def test_restore_success(self):
         """測試：成功還原"""
         backup_data = {
@@ -214,19 +178,15 @@ class TestBackupRestoreAPI:
         assert response.status_code == 400
         assert response.headers["content-type"] == "application/json"
 
-
 class TestBackupIntegration:
     """Backup 整合測試（Export → Restore）"""
     
     def setup_method(self):
-        """每個測試前清空資料"""
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-    
-    def test_export_and_restore_roundtrip(self):
+        """每個測試前清空資料"""    
+    def test_export_and_restore_roundtrip(self, test_db):
         """測試：匯出 → 還原 → 資料正確"""
         # 步驟 1: 準備原始資料
-        db = TestingSessionLocal()
+        db = test_db
         repo = NotificationRepository(db)
         
         for i in range(5):
@@ -234,10 +194,7 @@ class TestBackupIntegration:
                 company_id="company-source",
                 event_type=f"event-{i}",
                 event_payload={"index": i}
-            )
-        
-        db.close()
-        
+            )        
         # 步驟 2: 匯出
         headers_source = {"X-Company-ID": "company-source"}
         export_response = client.post("/api/backup/export", headers=headers_source)
@@ -254,7 +211,7 @@ class TestBackupIntegration:
         assert restore_response.status_code == 200
         
         # 步驟 4: 驗證資料
-        db = TestingSessionLocal()
+        db = test_db
         repo = NotificationRepository(db)
         
         # 目標公司有 5 筆資料
@@ -268,31 +225,22 @@ class TestBackupIntegration:
         # 事件類型正確
         event_types = {n.event_type for n in notifications}
         assert event_types == {f"event-{i}" for i in range(5)}
-        
-        db.close()
-
 
 class TestBackupAttendanceRecordsAPI:
     """Backup API 測試（Attendance Records，Phase 5）"""
     
     def setup_method(self):
-        """每個測試前清空資料"""
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-    
-    def test_export_includes_attendance_records(self):
+        """每個測試前清空資料"""    
+    def test_export_includes_attendance_records(self, test_db):
         """測試：匯出包含 attendance_records"""
         # 準備資料
-        db = TestingSessionLocal()
+        db = test_db
         attendance_repo = AttendanceRepository(db)
         
         attendance_repo.create_attendance_record(
             company_id="company-test",
             employee_id="emp-001"
-        )
-        
-        db.close()
-        
+        )        
         # 匯出
         headers = {"X-Company-ID": "company-test"}
         response = client.post("/api/backup/export", headers=headers)
@@ -350,20 +298,17 @@ class TestBackupAttendanceRecordsAPI:
         assert "attendance_records" in result["summary"]
         assert result["summary"]["attendance_records"] == 1
     
-    def test_export_and_restore_attendance_records_roundtrip(self):
+    def test_export_and_restore_attendance_records_roundtrip(self, test_db):
         """測試：attendance_records 匯出 → 還原 → 資料正確"""
         # 步驟 1: 準備原始資料
-        db = TestingSessionLocal()
+        db = test_db
         attendance_repo = AttendanceRepository(db)
         
         for i in range(3):
             attendance_repo.create_attendance_record(
                 company_id="company-source",
                 employee_id=f"emp-{i:03d}"
-            )
-        
-        db.close()
-        
+            )        
         # 步驟 2: 匯出
         headers_source = {"X-Company-ID": "company-source"}
         export_response = client.post("/api/backup/export", headers=headers_source)
@@ -380,7 +325,7 @@ class TestBackupAttendanceRecordsAPI:
         assert restore_response.status_code == 200
         
         # 步驟 4: 驗證資料
-        db = TestingSessionLocal()
+        db = test_db
         attendance_repo = AttendanceRepository(db)
         
         # 目標公司有 3 筆資料
@@ -396,5 +341,3 @@ class TestBackupAttendanceRecordsAPI:
         # employee_id 正確
         employee_ids = {r.employee_id for r in records}
         assert employee_ids == {f"emp-{i:03d}" for i in range(3)}
-        
-        db.close()
