@@ -4,8 +4,10 @@
 """
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Tuple
+from datetime import datetime
 from sqlalchemy.orm import Session
+from sqlalchemy import desc, asc, or_, cast, String
 
 from app.modules.audit.models import AuditLog
 
@@ -78,6 +80,163 @@ class AuditLogRepository:
         )
         
         return audit_log
+    
+    def list_logs(
+        self,
+        company_id: str,
+        filters: Dict[str, Any],
+        page: int,
+        page_size: int,
+        sort: str
+    ) -> Tuple[List[AuditLog], int]:
+        """查詢稽核紀錄（分頁）
+        
+        Args:
+            company_id: 公司 ID（tenant isolation）
+            filters: 篩選條件 dict
+                - event_type: 事件類型
+                - actor: 執行者
+                - date_from: 開始日期
+                - date_to: 結束日期
+                - q: 關鍵字搜尋
+            page: 頁碼（從 1 開始）
+            page_size: 每頁筆數
+            sort: 排序欄位（例如：-created_at, created_at, action）
+        
+        Returns:
+            Tuple[List[AuditLog], int]: (items, total)
+        """
+        # 基礎查詢：必須套用 tenant isolation
+        query = self.db.query(AuditLog).filter(AuditLog.company_id == company_id)
+        
+        # 篩選：event_type (對應到 action 欄位)
+        if filters.get("event_type"):
+            query = query.filter(AuditLog.action == filters["event_type"])
+        
+        # 篩選：actor
+        if filters.get("actor"):
+            query = query.filter(AuditLog.actor == filters["actor"])
+        
+        # 篩選：date_from
+        if filters.get("date_from"):
+            query = query.filter(AuditLog.created_at >= filters["date_from"])
+        
+        # 篩選：date_to
+        if filters.get("date_to"):
+            query = query.filter(AuditLog.created_at <= filters["date_to"])
+        
+        # 篩選：關鍵字搜尋（搜尋 action, actor, error, meta）
+        if filters.get("q"):
+            keyword = f"%{filters['q']}%"
+            query = query.filter(
+                or_(
+                    AuditLog.action.ilike(keyword),
+                    AuditLog.actor.ilike(keyword),
+                    AuditLog.error.ilike(keyword),
+                    cast(AuditLog.meta, String).ilike(keyword)
+                )
+            )
+        
+        # 計算總數
+        total = query.count()
+        
+        # 排序（allowlist 防止 SQL injection）
+        if sort.startswith("-"):
+            # 降序
+            sort_field = sort[1:]
+            if sort_field == "created_at":
+                query = query.order_by(desc(AuditLog.created_at))
+            elif sort_field == "action":
+                query = query.order_by(desc(AuditLog.action))
+            else:
+                # 預設降序 created_at
+                query = query.order_by(desc(AuditLog.created_at))
+        else:
+            # 升序
+            if sort == "created_at":
+                query = query.order_by(asc(AuditLog.created_at))
+            elif sort == "action":
+                query = query.order_by(asc(AuditLog.action))
+            else:
+                # 預設降序 created_at
+                query = query.order_by(desc(AuditLog.created_at))
+        
+        # 分頁
+        offset = (page - 1) * page_size
+        items = query.offset(offset).limit(page_size).all()
+        
+        return items, total
+    
+    def export_logs(
+        self,
+        company_id: str,
+        filters: Dict[str, Any],
+        sort: str,
+        limit: int = 5000
+    ) -> List[AuditLog]:
+        """匯出稽核紀錄（不分頁，有筆數限制）
+        
+        Args:
+            company_id: 公司 ID（tenant isolation）
+            filters: 篩選條件（同 list_logs）
+            sort: 排序欄位
+            limit: 最大筆數（預設 5000）
+        
+        Returns:
+            List[AuditLog]: 稽核紀錄列表
+        """
+        # 基礎查詢：必須套用 tenant isolation
+        query = self.db.query(AuditLog).filter(AuditLog.company_id == company_id)
+        
+        # 篩選：event_type
+        if filters.get("event_type"):
+            query = query.filter(AuditLog.action == filters["event_type"])
+        
+        # 篩選：actor
+        if filters.get("actor"):
+            query = query.filter(AuditLog.actor == filters["actor"])
+        
+        # 篩選：date_from
+        if filters.get("date_from"):
+            query = query.filter(AuditLog.created_at >= filters["date_from"])
+        
+        # 篩選：date_to
+        if filters.get("date_to"):
+            query = query.filter(AuditLog.created_at <= filters["date_to"])
+        
+        # 篩選：關鍵字搜尋
+        if filters.get("q"):
+            keyword = f"%{filters['q']}%"
+            query = query.filter(
+                or_(
+                    AuditLog.action.ilike(keyword),
+                    AuditLog.actor.ilike(keyword),
+                    AuditLog.error.ilike(keyword),
+                    cast(AuditLog.meta, String).ilike(keyword)
+                )
+            )
+        
+        # 排序（allowlist）
+        if sort.startswith("-"):
+            sort_field = sort[1:]
+            if sort_field == "created_at":
+                query = query.order_by(desc(AuditLog.created_at))
+            elif sort_field == "action":
+                query = query.order_by(desc(AuditLog.action))
+            else:
+                query = query.order_by(desc(AuditLog.created_at))
+        else:
+            if sort == "created_at":
+                query = query.order_by(asc(AuditLog.created_at))
+            elif sort == "action":
+                query = query.order_by(asc(AuditLog.action))
+            else:
+                query = query.order_by(desc(AuditLog.created_at))
+        
+        # 限制筆數
+        items = query.limit(limit).all()
+        
+        return items
 
 
 def get_audit_log_repository(db: Session) -> AuditLogRepository:
@@ -90,4 +249,3 @@ def get_audit_log_repository(db: Session) -> AuditLogRepository:
         AuditLogRepository: Repository 實例
     """
     return AuditLogRepository(db)
-
