@@ -11,7 +11,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from app.core.database import get_db
 from app.modules.tenants.repo import TenantRepository
 from app.modules.tenants.models import Tenant
-from app.modules.audit.models import AuditLog
+from app.modules.audit.models import AuditLog, AuditRetentionPolicy
 from datetime import datetime
 
 
@@ -44,25 +44,25 @@ class AuditLogSQLite(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
+class AuditRetentionPolicySQLite(Base):
+    """SQLite-compatible AuditRetentionPolicy model"""
+    __tablename__ = "audit_retention_policies"
+    
+    company_id = Column(String(255), primary_key=True)
+    retention_days = Column(Integer, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 @pytest.fixture
 def test_db():
     """Create test database with all tables (SQLite for unit tests)"""
-    from app.main import app
-    
     # Create tables
     Tenant.__table__.create(bind=engine, checkfirst=True)
     AuditLogSQLite.__table__.create(bind=engine, checkfirst=True)
+    AuditRetentionPolicySQLite.__table__.create(bind=engine, checkfirst=True)
     
     db = TestingSessionLocal()
-    
-    # Override FastAPI's get_db to use SQLite test DB
-    def override_get_db():
-        try:
-            yield db
-        finally:
-            pass  # Don't close, let fixture manage lifecycle
-    
-    app.dependency_overrides[get_db] = override_get_db
     
     # Create test tenants
     tenant_repo = TenantRepository(db)
@@ -77,10 +77,31 @@ def test_db():
         yield db
     finally:
         db.close()
-        app.dependency_overrides.clear()
+        AuditRetentionPolicySQLite.__table__.drop(bind=engine, checkfirst=True)
         AuditLogSQLite.__table__.drop(bind=engine, checkfirst=True)
         Tenant.__table__.drop(bind=engine, checkfirst=True)
 
+
+
+
+@pytest.fixture(scope="function", autouse=True)
+def override_get_db_for_all_tests(test_db):
+    """Auto-apply get_db override for all audit tests (uses SQLite)"""
+    from app.main import app
+    
+    # Override get_db to use the test_db session (with tables and tenants already created)
+    def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass  # Don't close here, let test_db fixture manage it
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    yield
+    
+    # Cleanup
+    app.dependency_overrides.clear()
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_test_tenant_for_api():
@@ -104,6 +125,8 @@ def setup_test_tenant_for_api():
                 tenant_repo.create(tenant_id, tenant_name, is_active=True)
         
         # Clean up tables for test isolation
+        db.query(AuditRetentionPolicy).delete(synchronize_session=False)
+        db.query(AuditRetentionPolicy).delete(synchronize_session=False)
         db.query(AuditLog).delete(synchronize_session=False)
         db.commit()
         
@@ -116,6 +139,8 @@ def setup_test_tenant_for_api():
     # Cleanup after test
     try:
         db = next(get_db())
+        db.query(AuditRetentionPolicy).delete(synchronize_session=False)
+        db.query(AuditRetentionPolicy).delete(synchronize_session=False)
         db.query(AuditLog).delete(synchronize_session=False)
         db.commit()
     except Exception:
