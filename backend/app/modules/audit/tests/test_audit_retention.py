@@ -180,11 +180,19 @@ class TestPurge:
         assert data["deleted_count"] >= 5
         assert data["batches_executed"] == 0
         
-        # 確認資料沒有被刪除
+        # 確認原本要被 purge 的資料沒有被刪除
+        # (允許 purge API 本身產生 1 筆 audit log)
+        old_logs_count = test_db.query(AuditLog).filter(
+            AuditLog.company_id == company_id,
+            AuditLog.actor == "test-user"
+        ).count()
+        assert old_logs_count == 5  # 原本建立的 5 筆仍存在
+        
+        # 總數可能增加（因為 purge 本身會寫 audit log）
         current_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id
         ).count()
-        assert current_count == original_count
+        assert current_count >= original_count
     
     def test_purge_actually_deletes(self, client, company_id, actor, test_db):
         """測試：purge 實際刪除正確筆數"""
@@ -281,8 +289,8 @@ class TestPurge:
     
     def test_purge_tenant_isolation(self, client, actor, test_db):
         """測試：purge 不應跨 tenant"""
-        company_a = "company-A-purge"
-        company_b = "company-B-purge"
+        company_a = "company-A"
+        company_b = "company-B"
         
         # 為兩個公司建立舊資料
         old_date = datetime.utcnow() - timedelta(days=400)
