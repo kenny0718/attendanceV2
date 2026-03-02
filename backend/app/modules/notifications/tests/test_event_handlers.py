@@ -1,6 +1,8 @@
 """事件處理器測試"""
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base
 from app.modules.notifications.repo import NotificationRepository
