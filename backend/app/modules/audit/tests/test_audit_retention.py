@@ -13,6 +13,7 @@ from app.modules.audit.models import AuditLog, AuditRetentionPolicy
 from app.modules.audit.repo import DEFAULT_RETENTION_DAYS
 
 
+
 @pytest.fixture
 def client():
     """測試客戶端"""
