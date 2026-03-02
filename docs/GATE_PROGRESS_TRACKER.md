@@ -1,6 +1,6 @@
 # Gate Progress Tracker
 
-**Last Updated:** 2026-03-02 18:30 (Gate 0 Complete)  
+**Last Updated:** 2026-03-02 20:25 (Gate 1 Complete)  
 **Purpose:** Track completion status of each gate and unit
 
 ---
@@ -15,7 +15,7 @@
 | Gate 3 | Spec Compliance | 🔲 Not Started | 0/2 | 2 | 0% |
 | Gate 4 | Phase 10: Auth | 🔲 Not Started | 0/6 | 6 | 0% |
 | Gate 5 | Phase 11: Attendance | 🔲 Not Started | 0/6 | 6 | 0% |
-| **TOTAL** | | | **3/22** | **22** | **14%** |
+| **TOTAL** | | | **7/22** | **22** | **32%** |
 
 ---
 
@@ -28,7 +28,7 @@
 |------|------|--------|--------|------|-------|
 | G0-01 | Identify Collection Error | ✅ Complete | - | 2026-03-02 | Import error in test_event_handlers.py |
 | G0-02 | Fix Collection Error | ✅ Complete | d93548d | 2026-03-02 | Added SQLAlchemy imports |
-| G0-03 | Update Status Documents | ✅ Complete | (pending) | 2026-03-02 | Gate 0 complete |
+| G0-03 | Update Status Documents | ✅ Complete | 4a9db2b | 2026-03-02 | Gate 0 complete |
 
 ### Summary
 - **Error Found:** Missing `from sqlalchemy import create_engine, sessionmaker`
@@ -38,30 +38,40 @@
 
 ---
 
-## Gate 1 — Phase 9: Tenants
+## Gate 1 — Phase 9: Tenants ✅ PASS
 
-**Status:** 🔲 Not Started  
-**Prerequisite:** Gate 0 PASS ✅ (Complete)  
-**Unlocked:** Yes
+**Status:** ✅ PASS  
+**Completed:** 2026-03-02 20:25  
+**Prerequisite:** Gate 0 PASS ✅ (Complete)
 
 | Unit | Name | Status | Commit | Date | Notes |
 |------|------|--------|--------|------|-------|
-| WP-09-01 | Tenants Migration | ✅ Complete | d2c7cd8 | 2026-03-02 | Migration 004 created |
-| WP-09-02 | Model + Repo + Tests | 🔲 Not Started | - | - | - |
-| WP-09-03 | Service + Tests | 🔲 Not Started | - | - | - |
-| WP-09-04 | API + Tests | 🔲 Not Started | - | - | - |
+| WP-09-01 | Tenants Migration | ✅ Complete | ca9553e | 2026-03-02 | Migration 004 with UNIQUE constraint |
+| WP-09-02 | Model + Repo + Tests | ✅ Complete | 01f14cb | 2026-03-02 | 13 unit tests passing |
+| WP-09-03 | Service + Tests | ✅ Complete | 8055dbb | 2026-03-02 | 13 integration tests passing |
+| WP-09-04 | Attendance Integration | ✅ Complete | 41f0025 | 2026-03-02 | 4 tenant validation tests |
+
+### Summary
+- **Migration:** 004_create_tenants.py with UNIQUE constraint on name
+- **Model:** Tenant (id, name, is_active, timezone, timestamps)
+- **Repository:** TenantRepository with CRUD operations
+- **Service:** TenantService with business logic
+- **Integration:** Attendance validates tenant existence
+- **Tests:** 30 new tests (13 repo + 13 service + 4 integration)
+- **Total Tests:** 118 collected
+- **Gate 1:** ✅ PASS - Ready for Gate 2
 
 ---
 
 ## Gate 2 — Tenant Context Security (P0) 🔥
 
 **Status:** 🔲 Not Started  
-**Prerequisite:** Gate 1 PASS (WP-09-04 complete)  
-**Unlocked:** No (blocked by Gate 1)
+**Prerequisite:** Gate 1 PASS ✅ (Complete)  
+**Unlocked:** Yes
 
 | Unit | Name | Status | Commit | Date | Notes |
 |------|------|--------|--------|------|-------|
-| WP-09-05 | Tenant Context Enforce | 🔲 Not Started | - | - | Blocked by Gate 1 |
+| WP-09-05 | Tenant Context Enforce | 🔲 Not Started | - | - | Next unit to execute |
 
 ---
 
@@ -114,21 +124,32 @@
 
 ## 📝 Notes Section
 
+### Gate 1 Completion Notes
+- **Date:** 2026-03-02 20:25
+- **Units Completed:** 4/4 (WP-09-01 through WP-09-04)
+- **Tests Added:** 30 new tests (118 total)
+- **Key Deliverables:**
+  - Tenants table with UNIQUE constraint on name
+  - Tenant model, repository, service layers
+  - Attendance integration with tenant validation
+- **Next:** Ready to start WP-09-05 (Tenant Context Enforce)
+
 ### Gate 0 Completion Notes
 - **Date:** 2026-03-02 18:30
 - **Issue:** Missing SQLAlchemy imports in test_event_handlers.py
 - **Fix:** Added `from sqlalchemy import create_engine` and `from sqlalchemy.orm import sessionmaker`
 - **Result:** All tests now collectible (88 tests)
-- **Next:** Ready to start WP-09-01 (Tenants Migration)
 
 ### Blockers
-- None (Gate 0 complete, Gate 1 unlocked)
+- None (Gate 0 and Gate 1 complete, Gate 2 unlocked)
 
 ### Decisions Made
 - Gate 0 uses minimal fix approach (only add missing imports, no refactoring)
+- Gate 1 uses SA_MODULE_SPEC v1.7 pattern (Model → Repo → Service → Integration)
 
 ---
 
-**Last Updated:** 2026-03-02 18:30  
-**Next Unit to Work On:** WP-09-01 (Tenants Migration)  
-**Gate 0 Status:** ✅ PASS
+**Last Updated:** 2026-03-02 20:25  
+**Next Unit to Work On:** WP-09-05 (Tenant Context Enforce)  
+**Gate 1 Status:** ✅ PASS  
+**Gate 2 Status:** 🔲 Unlocked, ready to start
