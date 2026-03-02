@@ -53,8 +53,17 @@ class TestAttendanceAPI:
         """測試：成功核准考勤記錄"""
         headers = {"X-Company-ID": "company-test"}
         
+        # Step 1: Create a real attendance record first
+        create_response = client.post(
+            "/api/attendance/mock-create",
+            headers=headers
+        )
+        assert create_response.status_code == 200
+        record_id = create_response.json()["attendance_record_id"]
+        
+        # Step 2: Approve the record
         response = client.post(
-            "/api/attendance/test-record-001/approve",
+            f"/api/attendance/{record_id}/approve",
             headers=headers,
             json={
                 "employee_id": "emp-001",
@@ -73,7 +82,7 @@ class TestAttendanceAPI:
         payload = data["payload"]
         assert payload["company_id"] == "company-test"
         assert payload["employee_id"] == "emp-001"
-        assert payload["attendance_record_id"] == "test-record-001"
+        assert payload["attendance_record_id"] == record_id
         assert "approved_at" in payload
         assert payload["approved_by"] == "manager-001"
         
@@ -88,8 +97,17 @@ class TestAttendanceAPI:
             "X-User-ID": "user-001"  # 提供 user_id，應該自動填入 approved_by
         }
         
+        # Step 1: Create a real attendance record first
+        create_response = client.post(
+            "/api/attendance/mock-create",
+            headers=headers
+        )
+        assert create_response.status_code == 200
+        record_id = create_response.json()["attendance_record_id"]
+        
+        # Step 2: Approve without approved_by
         response = client.post(
-            "/api/attendance/test-record-002/approve",
+            f"/api/attendance/{record_id}/approve",
             headers=headers,
             json={
                 "employee_id": "emp-002"
@@ -108,8 +126,16 @@ class TestAttendanceAPI:
         """測試：缺少必填欄位 employee_id 應回 422"""
         headers = {"X-Company-ID": "company-test"}
         
+        # Create a real record first
+        create_response = client.post(
+            "/api/attendance/mock-create",
+            headers=headers
+        )
+        assert create_response.status_code == 200
+        record_id = create_response.json()["attendance_record_id"]
+        
         response = client.post(
-            "/api/attendance/test-record-003/approve",
+            f"/api/attendance/{record_id}/approve",
             headers=headers,
             json={
                 "approved_by": "manager-001"
@@ -127,9 +153,18 @@ class TestEventEmission:
         """測試：核准考勤時應發出 attendance.approved 事件"""
         headers = {"X-Company-ID": "company-test"}
         
+        # Step 1: Create a real attendance record first
+        create_response = client.post(
+            "/api/attendance/mock-create",
+            headers=headers
+        )
+        assert create_response.status_code == 200
+        record_id = create_response.json()["attendance_record_id"]
+        
+        # Step 2: Approve and check event emission
         with caplog.at_level("INFO"):
             response = client.post(
-                "/api/attendance/test-record-004/approve",
+                f"/api/attendance/{record_id}/approve",
                 headers=headers,
                 json={
                     "employee_id": "emp-004",

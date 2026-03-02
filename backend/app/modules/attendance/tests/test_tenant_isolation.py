@@ -94,7 +94,14 @@ def override_get_db():
 
 
 # 設定 dependency override
-app.dependency_overrides[get_db] = override_get_db
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_test_environment():
+    """Setup test environment with dependency override"""
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    app.dependency_overrides.clear()
+
 
 client = TestClient(app)
 

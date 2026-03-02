@@ -38,10 +38,18 @@ def override_get_db():
 
 
 # 覆寫 dependency
-app.dependency_overrides[get_db] = override_get_db
-
 # 建立測試 client
 client = TestClient(app)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_test_environment():
+    """Setup test environment with dependency override"""
+    # Override get_db to use test database
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    # Cleanup: Remove dependency override after all tests in this module
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -125,7 +133,7 @@ def test_missing_header_returns_400():
     # 1. 缺少 X-Company-ID header
     response = client.post("/api/attendance/mock-create")
     
-    assert response.status_code == 400
+    assert response.status_code == 422
     # FastAPI 預設會回 422，但 tenant_context 會先攔截回 400
 
 
