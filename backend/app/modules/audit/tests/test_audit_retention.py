@@ -99,7 +99,7 @@ class TestRetentionPolicy:
         )
         assert response.status_code == 422
     
-    def test_update_retention_creates_audit_log(self, client, company_id, actor, db: Session):
+    def test_update_retention_creates_audit_log(self, client, company_id, actor, test_db):
         """測試：更新 retention 應寫入 audit log"""
         # 更新 retention
         response = client.put(
@@ -114,7 +114,7 @@ class TestRetentionPolicy:
         assert response.status_code == 200
         
         # 檢查 audit log
-        audit_log = db.query(AuditLog).filter(
+        audit_log = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "audit.retention.update"
         ).order_by(AuditLog.created_at.desc()).first()
@@ -141,7 +141,7 @@ class TestPurge:
         )
         assert response.status_code == 422
     
-    def test_purge_dry_run_does_not_delete(self, client, company_id, actor, db: Session):
+    def test_purge_dry_run_does_not_delete(self, client, company_id, actor, test_db):
         """測試：dry_run 不應實際刪除資料"""
         # 建立一些舊的 audit logs
         old_date = datetime.utcnow() - timedelta(days=400)
@@ -153,11 +153,11 @@ class TestPurge:
                 actor="test-user",
                 created_at=old_date
             )
-            db.add(log)
-        db.commit()
+            test_db.add(log)
+        test_db.commit()
         
         # 記錄原始筆數
-        original_count = db.query(AuditLog).filter(
+        original_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id
         ).count()
         
@@ -181,12 +181,12 @@ class TestPurge:
         assert data["batches_executed"] == 0
         
         # 確認資料沒有被刪除
-        current_count = db.query(AuditLog).filter(
+        current_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id
         ).count()
         assert current_count == original_count
     
-    def test_purge_actually_deletes(self, client, company_id, actor, db: Session):
+    def test_purge_actually_deletes(self, client, company_id, actor, test_db):
         """測試：purge 實際刪除正確筆數"""
         # 建立一些舊的 audit logs（超過預設 365 天）
         old_date = datetime.utcnow() - timedelta(days=400)
@@ -199,7 +199,7 @@ class TestPurge:
                 actor="test-user",
                 created_at=old_date
             )
-            db.add(log)
+            test_db.add(log)
         
         # 建立一些新的 audit logs（不應被刪除）
         new_date = datetime.utcnow() - timedelta(days=30)
@@ -212,9 +212,9 @@ class TestPurge:
                 actor="test-user",
                 created_at=new_date
             )
-            db.add(log)
+            test_db.add(log)
         
-        db.commit()
+        test_db.commit()
         
         # 執行實際 purge
         response = client.post(
@@ -235,20 +235,20 @@ class TestPurge:
         assert data["deleted_count"] >= old_logs_count
         
         # 確認舊資料被刪除
-        remaining_old = db.query(AuditLog).filter(
+        remaining_old = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "test.old.action"
         ).count()
         assert remaining_old == 0
         
         # 確認新資料沒被刪除
-        remaining_new = db.query(AuditLog).filter(
+        remaining_new = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "test.new.action"
         ).count()
         assert remaining_new == new_logs_count
     
-    def test_purge_creates_audit_log(self, client, company_id, actor, db: Session):
+    def test_purge_creates_audit_log(self, client, company_id, actor, test_db):
         """測試：purge 行為應寫入 audit log"""
         # 執行 purge
         response = client.post(
@@ -265,7 +265,7 @@ class TestPurge:
         assert response.status_code == 200
         
         # 檢查 audit log
-        audit_log = db.query(AuditLog).filter(
+        audit_log = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "audit.purge"
         ).order_by(AuditLog.created_at.desc()).first()
@@ -279,7 +279,7 @@ class TestPurge:
         assert audit_log.meta["batch_size"] == 500
         assert audit_log.meta["max_delete"] == 5000
     
-    def test_purge_tenant_isolation(self, client, actor, db: Session):
+    def test_purge_tenant_isolation(self, client, actor, test_db):
         """測試：purge 不應跨 tenant"""
         company_a = "company-A-purge"
         company_b = "company-B-purge"
@@ -296,8 +296,8 @@ class TestPurge:
                     actor="test-user",
                     created_at=old_date
                 )
-                db.add(log)
-        db.commit()
+                test_db.add(log)
+        test_db.commit()
         
         # 只 purge company_a
         response = client.post(
@@ -314,14 +314,14 @@ class TestPurge:
         assert response.status_code == 200
         
         # 確認 company_a 的資料被刪除
-        count_a = db.query(AuditLog).filter(
+        count_a = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_a,
             AuditLog.action == "test.action"
         ).count()
         assert count_a == 0
         
         # 確認 company_b 的資料沒被刪除
-        count_b = db.query(AuditLog).filter(
+        count_b = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_b,
             AuditLog.action == "test.action"
         ).count()
@@ -357,7 +357,7 @@ class TestPurge:
         )
         assert response.status_code == 422
     
-    def test_purge_respects_custom_retention(self, client, company_id, actor, db: Session):
+    def test_purge_respects_custom_retention(self, client, company_id, actor, test_db):
         """測試：purge 應遵守自訂的 retention policy"""
         # 設定 retention 為 30 天
         client.put(
@@ -379,7 +379,7 @@ class TestPurge:
                 actor="test-user",
                 created_at=old_date
             )
-            db.add(log)
+            test_db.add(log)
         
         # 建立 15 天前的資料（不應被刪除）
         recent_date = datetime.utcnow() - timedelta(days=15)
@@ -391,9 +391,9 @@ class TestPurge:
                 actor="test-user",
                 created_at=recent_date
             )
-            db.add(log)
+            test_db.add(log)
         
-        db.commit()
+        test_db.commit()
         
         # 執行 purge
         response = client.post(
@@ -412,14 +412,14 @@ class TestPurge:
         assert data["retention_days"] == 30
         
         # 確認 60 天前的資料被刪除
-        old_count = db.query(AuditLog).filter(
+        old_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "test.old"
         ).count()
         assert old_count == 0
         
         # 確認 15 天前的資料沒被刪除
-        recent_count = db.query(AuditLog).filter(
+        recent_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "test.recent"
         ).count()
