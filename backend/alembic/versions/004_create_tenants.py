@@ -22,7 +22,7 @@ def upgrade() -> None:
     
     Design:
     - id (VARCHAR 50) as PK (company_id)
-    - name (VARCHAR 255) NOT NULL
+    - name (VARCHAR 255) NOT NULL UNIQUE
     - is_active (BOOLEAN) DEFAULT TRUE
     - timezone (VARCHAR 50) DEFAULT 'UTC'
     - created_at (TIMESTAMP) DEFAULT NOW()
@@ -32,7 +32,7 @@ def upgrade() -> None:
     op.create_table(
         'tenants',
         sa.Column('id', sa.String(50), primary_key=True, comment='Company ID (tenant identifier)'),
-        sa.Column('name', sa.String(255), nullable=False, comment='Company name'),
+        sa.Column('name', sa.String(255), nullable=False, unique=True, comment='Company name'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('TRUE'), comment='Active status'),
         sa.Column('timezone', sa.String(50), nullable=False, server_default=sa.text("'UTC'"), comment='Company timezone'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('NOW()'), comment='Created timestamp (UTC)'),
