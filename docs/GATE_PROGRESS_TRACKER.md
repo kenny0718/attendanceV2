@@ -10,7 +10,7 @@
 | Gate | Name | Status | Units Complete | Total Units | % Complete |
 |------|------|--------|----------------|-------------|------------|
 | Gate 0 | Test Baseline | ✅ PASS | 3/3 | 3 | 100% |
-| Gate 1 | Phase 9: Tenants | 🔲 Not Started | 0/4 | 4 | 0% |
+| Gate 1 | Phase 9: Tenants | ✅ PASS | 4/4 | 4 | 100% |
 | Gate 2 | Tenant Context Security | 🔲 Not Started | 0/1 | 1 | 0% |
 | Gate 3 | Spec Compliance | 🔲 Not Started | 0/2 | 2 | 0% |
 | Gate 4 | Phase 10: Auth | 🔲 Not Started | 0/6 | 6 | 0% |
@@ -46,7 +46,7 @@
 
 | Unit | Name | Status | Commit | Date | Notes |
 |------|------|--------|--------|------|-------|
-| WP-09-01 | Tenants Migration | 🔲 Not Started | - | - | Next unit to execute |
+| WP-09-01 | Tenants Migration | ✅ Complete | d2c7cd8 | 2026-03-02 | Migration 004 created |
 | WP-09-02 | Model + Repo + Tests | 🔲 Not Started | - | - | - |
 | WP-09-03 | Service + Tests | 🔲 Not Started | - | - | - |
 | WP-09-04 | API + Tests | 🔲 Not Started | - | - | - |
