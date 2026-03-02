@@ -31,11 +31,14 @@ class AuditLogSQLite(Base):
     
     id = Column(String(36), primary_key=True)
     company_id = Column(String(255), nullable=False, index=True)
-    event_type = Column(String(255), nullable=False)
+    action = Column(String(255), nullable=False)
+    status = Column(String(50), nullable=False)
     actor = Column(String(255), nullable=True)
-    resource_type = Column(String(255), nullable=True)
-    resource_id = Column(String(255), nullable=True)
-    details = Column(Text, nullable=True)
+    request_id = Column(String(255), nullable=True)
+    ip = Column(String(50), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    meta = Column(Text, nullable=True)
+    error = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
