@@ -4,22 +4,34 @@
 
 Phase 1: 使用 Header (X-Company-ID) 注入
 Phase 2: 將改為從 JWT token 解析
+Phase 9 (WP-09-05): 加入 DB 驗證 (tenant exists + is_active)
 """
 
 import logging
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, status, Depends
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.modules.tenants.repo import TenantRepository
 
 logger = logging.getLogger(__name__)
 
 
 def get_current_company_id(
-    x_company_id: str = Header(..., alias="X-Company-ID")
+    x_company_id: str = Header(..., alias="X-Company-ID"),
+    db: Session = Depends(get_db)
 ) -> str:
     """取得當前請求的公司 ID（Tenant Context）
     
     Phase 1 實作：從 HTTP Header 取得
     - Header 名稱：X-Company-ID
     - 必填，若缺少則回 400
+    
+    Phase 9 (WP-09-05) 強化：
+    - 驗證 tenant 是否存在於 DB
+    - 驗證 tenant 是否為 active 狀態
+    - 不存在 → 404
+    - 非 active → 403
     
     Phase 2 將改為：
     - 從 JWT token 解析 company_id
@@ -28,12 +40,13 @@ def get_current_company_id(
     
     Args:
         x_company_id: HTTP Header 中的 X-Company-ID
+        db: Database session
     
     Returns:
         company_id (str)
     
     Raises:
-        HTTPException: 若 Header 缺少或無效
+        HTTPException: 若 Header 缺少、tenant 不存在或非 active
     """
     if not x_company_id or not x_company_id.strip():
         logger.warning("請求缺少 X-Company-ID header")
@@ -42,8 +55,29 @@ def get_current_company_id(
             detail="Missing X-Company-ID header"
         )
     
-    logger.debug(f"Current company_id: {x_company_id}")
-    return x_company_id.strip()
+    company_id = x_company_id.strip()
+    
+    # Phase 9: Validate tenant exists and is active
+    tenant_repo = TenantRepository(db)
+    
+    # Check if tenant exists
+    if not tenant_repo.exists(company_id):
+        logger.warning(f"Tenant validation failed: {company_id} does not exist")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": f"Tenant {company_id} does not exist"}
+        )
+    
+    # Check if tenant is active
+    if not tenant_repo.is_active(company_id):
+        logger.warning(f"Tenant validation failed: {company_id} is not active")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": f"Tenant {company_id} is not active"}
+        )
+    
+    logger.debug(f"Current company_id: {company_id} (validated)")
+    return company_id
 
 
 def get_current_user_id(

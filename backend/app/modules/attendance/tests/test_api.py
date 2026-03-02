@@ -1,11 +1,31 @@
-"""Attendance API 測試"""
+"""Attendance API 測試
+
+Phase 9 (WP-09-05): 加入 tenant setup fixture
+"""
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.core.database import get_db
+from app.modules.tenants.repo import TenantRepository
 
 client = TestClient(app)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def setup_test_tenant():
+    """Setup test tenant for all tests in this module"""
+    db = next(get_db())
+    tenant_repo = TenantRepository(db)
+    
+    # Create test tenant if not exists
+    if not tenant_repo.exists("company-test"):
+        tenant_repo.create("company-test", "Test Company", is_active=True)
+    
+    yield
+    
+    # Cleanup is optional (tenant can persist across tests)
 
 
 class TestAttendanceAPI:

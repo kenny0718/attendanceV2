@@ -47,9 +47,23 @@ client = TestClient(app)
 @pytest.fixture(scope="function", autouse=True)
 def setup_database():
     """每個測試前建立資料表，測試後清空"""
-    Base.metadata.create_all(bind=engine)
+    # Phase 9: Only create needed tables (avoid JSONB issues with notifications)
+    from app.modules.attendance.models import AttendanceRecord
+    from app.modules.tenants.models import Tenant
+    
+    Tenant.__table__.create(bind=engine, checkfirst=True)
+    AttendanceRecord.__table__.create(bind=engine, checkfirst=True)
+    
+    # Phase 9: Create test tenants
+    db = TestingSessionLocal()
+    db.add(Tenant(id="company-a", name="Company A", is_active=True))
+    db.add(Tenant(id="company-b", name="Company B", is_active=True))
+    db.commit()
+    db.close()
     yield
-    Base.metadata.drop_all(bind=engine)
+    
+    AttendanceRecord.__table__.drop(bind=engine, checkfirst=True)
+    Tenant.__table__.drop(bind=engine, checkfirst=True)
 
 
 def test_company_a_create_and_approve_ok():

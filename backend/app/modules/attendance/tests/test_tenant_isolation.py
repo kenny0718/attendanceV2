@@ -20,6 +20,7 @@ class DummySession:
     
     def __init__(self):
         self._storage = {}
+        self._tenants = {}  # Phase 9: Store tenants for validation
     
     def add(self, obj):
         """模擬 add"""
@@ -64,7 +65,23 @@ class DummyQuery:
         """模擬 first - 總是返回 None (模擬找不到記錄)"""
         # Phase 4: 為了測試 Tenant Isolation，我們讓查詢總是返回 None
         # 這樣 approve 會返回 404
+        # Phase 9: Support Tenant queries
+        from app.modules.tenants.models import Tenant
+        if self._model == Tenant:
+            # Return mock tenant for validation
+            class MockTenant:
+                id = "company-test"
+                name = "Test Company"
+                is_active = True
+            return MockTenant()
         return None
+    
+    def count(self):
+        """模擬 count - Phase 9: Support Tenant.exists()"""
+        from app.modules.tenants.models import Tenant
+        if self._model == Tenant:
+            return 1  # Mock tenant exists
+        return 0
 
 
 def override_get_db():
