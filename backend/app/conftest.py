@@ -121,3 +121,32 @@ def test_db_session():
     finally:
         db.close()
         app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def db():
+    """測試資料庫 session fixture（別名，用於 audit 測試）
+    
+    直接返回 test_db_session 的實例，確保命名一致性。
+    """
+    # 每個測試前：清空並重建所有表
+    Base.metadata.drop_all(bind=test_engine)
+    Base.metadata.create_all(bind=test_engine)
+    
+    # 建立測試 session
+    session = TestingSessionLocal()
+    
+    # Override FastAPI 的 get_db dependency
+    def override_get_db():
+        try:
+            yield session
+        finally:
+            session.flush()
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    try:
+        yield session
+    finally:
+        session.close()
+        app.dependency_overrides.clear()
