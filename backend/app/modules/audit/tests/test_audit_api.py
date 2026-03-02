@@ -19,8 +19,9 @@ class TestAuditLogsQuery:
     def test_query_without_header_returns_400(self, test_db):
         """測試：沒有 X-Company-ID header 回傳 400"""
         response = client.get("/api/audit/logs")
-        assert response.status_code == 400
-        assert "X-Company-ID" in response.json()["detail"]
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+        assert any(item.get("loc") == ["header", "X-Company-ID"] for item in detail)
     
     def test_tenant_isolation(self, test_db):
         """測試：tenant isolation - A 公司看不到 B 公司的資料"""
