@@ -3,14 +3,18 @@
 Tenant Isolation (P0)：
 - 所有查詢必須強制 WHERE company_id = ?
 - 支援單一 company_id 全量抽取（備份用）
+- Phase 9: 加入 tenant 存在驗證
 """
 
 import logging
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
 from app.modules.attendance.models import AttendanceRecord
+from app.modules.tenants.repo import TenantRepository
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +30,7 @@ class AttendanceRepository:
         """
         self.db = db
         self.model = AttendanceRecord
+        self.tenant_repo = TenantRepository(db)
     
     def create_attendance_record(
         self,
@@ -36,8 +41,9 @@ class AttendanceRepository:
     ) -> AttendanceRecord:
         """建立考勤記錄
         
-        Tenant Isolation (P0):
+        Tenant Isolation (P0)：
         - company_id 由呼叫者提供（已從 tenant_context 注入）
+        - Phase 9: 驗證 tenant 是否存在
         
         Args:
             company_id: 公司 ID（Source of Truth）
@@ -47,7 +53,18 @@ class AttendanceRepository:
         
         Returns:
             AttendanceRecord: 建立的考勤記錄
+        
+        Raises:
+            HTTPException: 404 if tenant does not exist
         """
+        # Phase 9: Validate tenant exists
+        if not self.tenant_repo.exists(company_id):
+            logger.warning(f"Tenant validation failed: company_id={company_id} does not exist")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": f"Tenant {company_id} does not exist"}
+            )
+        
         record = AttendanceRecord(
             company_id=company_id,
             employee_id=employee_id,
@@ -62,6 +79,57 @@ class AttendanceRepository:
         logger.info(
             f"建立考勤記錄: id={record.id}, "
             f"company_id={company_id}, employee_id={employee_id}"
+        )
+        
+        return record
+    
+    def approve_attendance_record(
+        self,
+        company_id: str,
+        record_id: UUID,
+        approved_by: Optional[str] = None
+    ) -> Optional[AttendanceRecord]:
+        """核准考勤記錄
+        
+        Tenant Isolation (P0):
+        - 只能核准屬於該公司的記錄
+        - 若記錄不存在或不屬於該公司 → 返回 None
+        
+        Args:
+            company_id: 公司 ID
+            record_id: 考勤記錄 ID
+            approved_by: 核准人 ID（可選）
+        
+        Returns:
+            AttendanceRecord or None if not found
+        """
+        # Query with tenant isolation
+        record = (
+            self.db.query(AttendanceRecord)
+            .filter(
+                AttendanceRecord.id == record_id,
+                AttendanceRecord.company_id == company_id
+            )
+            .first()
+        )
+        
+        if not record:
+            logger.warning(
+                f"Approve failed: record {record_id} not found or "
+                f"does not belong to company {company_id}"
+            )
+            return None
+        
+        # Update approval fields
+        record.approved_by = approved_by
+        record.approved_at = datetime.utcnow()
+        
+        self.db.commit()
+        self.db.refresh(record)
+        
+        logger.info(
+            f"核准考勤記錄: id={record_id}, "
+            f"company_id={company_id}, approved_by={approved_by}"
         )
         
         return record
@@ -112,4 +180,3 @@ def get_attendance_repository(db: Session) -> AttendanceRepository:
         AttendanceRepository: Repository 實例
     """
     return AttendanceRepository(db)
-
