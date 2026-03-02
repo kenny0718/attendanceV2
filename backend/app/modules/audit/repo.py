@@ -1,17 +1,21 @@
 """Audit Log Repository
 
 負責 audit_logs 表的資料存取操作。
+Phase 8: 新增 retention policy 與 purge 相關方法
 """
 
 import logging
 from typing import Optional, Dict, Any, List, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc, or_, cast, String
+from sqlalchemy import desc, asc, or_, cast, String, delete
 
-from app.modules.audit.models import AuditLog
+from app.modules.audit.models import AuditLog, AuditRetentionPolicy
 
 logger = logging.getLogger(__name__)
+
+# 預設保留天數
+DEFAULT_RETENTION_DAYS = 365
 
 
 class AuditLogRepository:
@@ -237,6 +241,118 @@ class AuditLogRepository:
         items = query.limit(limit).all()
         
         return items
+    
+    # ==================== Phase 8: Retention Policy ====================
+    
+    def get_retention_policy(self, company_id: str) -> Optional[AuditRetentionPolicy]:
+        """取得 retention policy
+        
+        Args:
+            company_id: 公司 ID
+        
+        Returns:
+            Optional[AuditRetentionPolicy]: Retention policy（若不存在回傳 None）
+        """
+        return self.db.query(AuditRetentionPolicy).filter(
+            AuditRetentionPolicy.company_id == company_id
+        ).first()
+    
+    def upsert_retention_policy(
+        self,
+        company_id: str,
+        retention_days: int
+    ) -> AuditRetentionPolicy:
+        """新增或更新 retention policy
+        
+        Args:
+            company_id: 公司 ID
+            retention_days: 保留天數（7 ~ 3650）
+        
+        Returns:
+            AuditRetentionPolicy: Retention policy
+        """
+        policy = self.get_retention_policy(company_id)
+        
+        if policy:
+            # 更新
+            policy.retention_days = retention_days
+            policy.updated_at = datetime.utcnow()
+            logger.info(f"更新 retention policy: company_id={company_id}, retention_days={retention_days}")
+        else:
+            # 新增
+            policy = AuditRetentionPolicy(
+                company_id=company_id,
+                retention_days=retention_days
+            )
+            self.db.add(policy)
+            logger.info(f"建立 retention policy: company_id={company_id}, retention_days={retention_days}")
+        
+        self.db.commit()
+        self.db.refresh(policy)
+        
+        return policy
+    
+    def count_purgeable_logs(
+        self,
+        company_id: str,
+        cutoff_date: datetime
+    ) -> int:
+        """計算可刪除的 audit logs 筆數
+        
+        Args:
+            company_id: 公司 ID
+            cutoff_date: 截止日期（created_at < cutoff_date 的紀錄可刪除）
+        
+        Returns:
+            int: 可刪除筆數
+        """
+        count = self.db.query(AuditLog).filter(
+            AuditLog.company_id == company_id,
+            AuditLog.created_at < cutoff_date
+        ).count()
+        
+        return count
+    
+    def delete_logs_batch(
+        self,
+        company_id: str,
+        cutoff_date: datetime,
+        batch_size: int
+    ) -> int:
+        """刪除一批 audit logs
+        
+        Args:
+            company_id: 公司 ID
+            cutoff_date: 截止日期
+            batch_size: 批次大小
+        
+        Returns:
+            int: 實際刪除筆數
+        """
+        # 查詢要刪除的 IDs（限制筆數）
+        ids_to_delete = self.db.query(AuditLog.id).filter(
+            AuditLog.company_id == company_id,
+            AuditLog.created_at < cutoff_date
+        ).limit(batch_size).all()
+        
+        # 提取 ID 列表
+        ids = [row[0] for row in ids_to_delete]
+        
+        if not ids:
+            return 0
+        
+        # 刪除
+        stmt = delete(AuditLog).where(AuditLog.id.in_(ids))
+        result = self.db.execute(stmt)
+        self.db.commit()
+        
+        deleted_count = result.rowcount
+        logger.info(
+            f"刪除 audit logs: company_id={company_id}, "
+            f"cutoff_date={cutoff_date}, deleted={deleted_count}"
+        )
+        
+        return deleted_count
 
 
 def get_audit_log_repository(db: Session) -> AuditLogRepository:

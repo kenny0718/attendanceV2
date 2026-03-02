@@ -1,14 +1,68 @@
 """Audit Log 資料模型
 
 Phase 6C: 稽核紀錄（記錄所有備份匯出/還原操作）
+Phase 8: 新增 Retention Policy（保留政策）
 """
 
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Index, Text
+from sqlalchemy import Column, String, DateTime, Index, Text, Integer
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.core.database import Base
+
+
+class AuditRetentionPolicy(Base):
+    """稽核紀錄保留政策模型
+    
+    用途：
+    - 為每個 company_id 設定 audit log 保留天數
+    - 支援 purge 功能計算 cutoff date
+    
+    設計原則：
+    1. company_id 為主鍵（每個公司一筆設定）
+    2. retention_days 範圍：7 ~ 3650 天
+    3. 預設值：365 天（在 Service 層處理）
+    """
+    
+    __tablename__ = "audit_retention_policies"
+    
+    # 主鍵：公司 ID
+    company_id = Column(
+        String(255),
+        primary_key=True,
+        comment="公司 ID"
+    )
+    
+    # 保留天數
+    retention_days = Column(
+        Integer,
+        nullable=False,
+        comment="保留天數（7 ~ 3650）"
+    )
+    
+    # 建立時間
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        comment="建立時間（UTC）"
+    )
+    
+    # 更新時間
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        comment="更新時間（UTC）"
+    )
+    
+    def __repr__(self):
+        return (
+            f"<AuditRetentionPolicy(company_id={self.company_id}, "
+            f"retention_days={self.retention_days})>"
+        )
 
 
 class AuditLog(Base):

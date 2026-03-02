@@ -1,13 +1,15 @@
 """Audit Log API
 
 提供稽核紀錄的查詢與匯出 API。
+Phase 8: 新增 retention policy 與 purge API
 """
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.tenant_context import get_current_company_id
@@ -24,6 +26,8 @@ def get_audit_service(db: Session = Depends(get_db)) -> AuditLogService:
     repo = AuditLogRepository(db)
     return AuditLogService(repo)
 
+
+# ==================== Phase 7: Query & Export ====================
 
 @router.get("/logs")
 def query_audit_logs(
@@ -181,3 +185,171 @@ def export_audit_logs(
     except Exception as e:
         logger.error(f"匯出稽核紀錄失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"匯出失敗: {str(e)}")
+
+
+# ==================== Phase 8: Retention Policy & Purge ====================
+
+@router.get("/retention")
+def get_retention_policy(
+    company_id: str = Depends(get_current_company_id),
+    service: AuditLogService = Depends(get_audit_service)
+):
+    """取得 audit log 保留政策
+    
+    **權限規則：**
+    - 必須提供 X-Company-ID header
+    
+    **回應格式：**
+    ```json
+    {
+        "company_id": "company-A",
+        "retention_days": 365,
+        "is_default": true,
+        "created_at": null,
+        "updated_at": null
+    }
+    ```
+    
+    **說明：**
+    - `retention_days`: 保留天數（7 ~ 3650）
+    - `is_default`: 是否使用預設值（true = 使用預設 365 天）
+    - `created_at`: 建立時間（若未設定則為 null）
+    - `updated_at`: 更新時間（若未設定則為 null）
+    """
+    try:
+        result = service.get_retention_days(company_id)
+        return result
+    except Exception as e:
+        logger.error(f"取得 retention policy 失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"取得失敗: {str(e)}")
+
+
+class UpdateRetentionRequest(BaseModel):
+    """更新 retention policy 請求"""
+    retention_days: int = Field(..., ge=7, le=3650, description="保留天數（7 ~ 3650）")
+    actor: str = Field(..., min_length=1, max_length=255, description="執行者")
+
+
+@router.put("/retention")
+def update_retention_policy(
+    request: UpdateRetentionRequest,
+    company_id: str = Depends(get_current_company_id),
+    service: AuditLogService = Depends(get_audit_service)
+):
+    """更新 audit log 保留政策
+    
+    **權限規則：**
+    - 必須提供 X-Company-ID header
+    
+    **Body 參數：**
+    ```json
+    {
+        "retention_days": 180,
+        "actor": "admin"
+    }
+    ```
+    
+    **回應格式：**
+    ```json
+    {
+        "company_id": "company-A",
+        "retention_days": 180,
+        "is_default": false,
+        "created_at": "2026-01-28T10:00:00Z",
+        "updated_at": "2026-01-28T10:00:00Z"
+    }
+    ```
+    
+    **注意：**
+    - 更新行為會寫入 audit log（event_type: audit.retention.update）
+    - retention_days 必須在 7 ~ 3650 之間
+    """
+    try:
+        result = service.update_retention_days(
+            company_id=company_id,
+            retention_days=request.retention_days,
+            actor=request.actor
+        )
+        return result
+    except ValueError as e:
+        logger.warning(f"更新 retention policy 失敗: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"更新 retention policy 失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"更新失敗: {str(e)}")
+
+
+class PurgeRequest(BaseModel):
+    """Purge 請求"""
+    actor: str = Field(..., min_length=1, max_length=255, description="執行者")
+    dry_run: bool = Field(True, description="是否為 dry run（僅回報，不實際刪除）")
+    batch_size: int = Field(1000, ge=1, le=2000, description="批次大小（1 ~ 2000）")
+    max_delete: int = Field(10000, ge=1, le=20000, description="單次最大刪除筆數（1 ~ 20000）")
+
+
+@router.post("/purge")
+def purge_old_audit_logs(
+    request: PurgeRequest,
+    company_id: str = Depends(get_current_company_id),
+    service: AuditLogService = Depends(get_audit_service)
+):
+    """清理過期的 audit logs
+    
+    **權限規則：**
+    - 必須提供 X-Company-ID header
+    
+    **Body 參數：**
+    ```json
+    {
+        "actor": "admin",
+        "dry_run": true,
+        "batch_size": 1000,
+        "max_delete": 10000
+    }
+    ```
+    
+    **回應格式：**
+    ```json
+    {
+        "company_id": "company-A",
+        "cutoff_date": "2025-01-28T10:00:00Z",
+        "retention_days": 365,
+        "deleted_count": 1234,
+        "total_purgeable": 1234,
+        "dry_run": true,
+        "batch_size": 1000,
+        "max_delete": 10000,
+        "batches_executed": 0,
+        "duration_ms": 123
+    }
+    ```
+    
+    **說明：**
+    - `cutoff_date`: 截止日期（created_at < cutoff_date 的紀錄會被刪除）
+    - `deleted_count`: 刪除筆數（dry_run=true 時為預估值）
+    - `total_purgeable`: 總共可刪除筆數
+    - `dry_run`: 是否為 dry run
+    - `batches_executed`: 執行的批次數（dry_run=true 時為 0）
+    - `duration_ms`: 執行時間（毫秒）
+    
+    **注意：**
+    - 建議先用 `dry_run=true` 測試
+    - Purge 行為會寫入 audit log（event_type: audit.purge）
+    - 刪除條件：`created_at < now - retention_days`
+    - 分批刪除，避免 DB lock
+    """
+    try:
+        result = service.purge_old_logs(
+            company_id=company_id,
+            actor=request.actor,
+            dry_run=request.dry_run,
+            batch_size=request.batch_size,
+            max_delete=request.max_delete
+        )
+        return result
+    except ValueError as e:
+        logger.warning(f"Purge 失敗: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Purge 失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Purge 失敗: {str(e)}")
