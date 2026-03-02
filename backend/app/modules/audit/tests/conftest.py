@@ -5,6 +5,7 @@ Phase 9 (WP-09-05): Add tenant setup for audit tests
 
 import pytest
 from sqlalchemy import create_engine, Column, String, DateTime, Text, Integer
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from app.core.database import get_db
@@ -18,7 +19,8 @@ from datetime import datetime
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -45,11 +47,22 @@ class AuditLogSQLite(Base):
 @pytest.fixture
 def test_db():
     """Create test database with all tables (SQLite for unit tests)"""
+    from app.main import app
+    
     # Create tables
     Tenant.__table__.create(bind=engine, checkfirst=True)
     AuditLogSQLite.__table__.create(bind=engine, checkfirst=True)
     
     db = TestingSessionLocal()
+    
+    # Override FastAPI's get_db to use SQLite test DB
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass  # Don't close, let fixture manage lifecycle
+    
+    app.dependency_overrides[get_db] = override_get_db
     
     # Create test tenants
     tenant_repo = TenantRepository(db)
@@ -64,6 +77,7 @@ def test_db():
         yield db
     finally:
         db.close()
+        app.dependency_overrides.clear()
         AuditLogSQLite.__table__.drop(bind=engine, checkfirst=True)
         Tenant.__table__.drop(bind=engine, checkfirst=True)
 
