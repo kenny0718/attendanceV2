@@ -68,6 +68,9 @@ def test_db():
     tenant_repo.create("company-002", "Company 002", is_active=True)
     tenant_repo.create("company-A", "Company A", is_active=True)
     tenant_repo.create("company-B", "Company B", is_active=True)
+    tenant_repo.create("company-empty", "Empty Company", is_active=True)
+    tenant_repo.create("company-target", "Target Company", is_active=True)
+    tenant_repo.create("company-source", "Source Company", is_active=True)
     
     try:
         yield db
@@ -86,20 +89,24 @@ def setup_test_tenant_for_api():
         tenant_repo = TenantRepository(db)
         
         # Create tenants if not exist
-        if not tenant_repo.exists("company-test"):
-            tenant_repo.create("company-test", "Test Company", is_active=True)
-        if not tenant_repo.exists("company-001"):
-            tenant_repo.create("company-001", "Company 001", is_active=True)
-        if not tenant_repo.exists("company-002"):
-            tenant_repo.create("company-002", "Company 002", is_active=True)
-        if not tenant_repo.exists("company-A"):
-            tenant_repo.create("company-A", "Company A", is_active=True)
-        if not tenant_repo.exists("company-B"):
-            tenant_repo.create("company-B", "Company B", is_active=True)
+        tenants = [
+            ("company-test", "Test Company"),
+            ("company-001", "Company 001"),
+            ("company-002", "Company 002"),
+            ("company-A", "Company A"),
+            ("company-B", "Company B"),
+            ("company-empty", "Empty Company"),
+            ("company-target", "Target Company"),
+            ("company-source", "Source Company"),
+        ]
+        
+        for tenant_id, tenant_name in tenants:
+            if not tenant_repo.exists(tenant_id):
+                tenant_repo.create(tenant_id, tenant_name, is_active=True)
         
         # Clean up tables for test isolation
-        db.query(Notification).delete()
-        db.query(AttendanceRecord).delete()
+        db.query(Notification).delete(synchronize_session=False)
+        db.query(AttendanceRecord).delete(synchronize_session=False)
         db.commit()
         
     except Exception:
@@ -111,8 +118,8 @@ def setup_test_tenant_for_api():
     # Cleanup after test
     try:
         db = next(get_db())
-        db.query(Notification).delete()
-        db.query(AttendanceRecord).delete()
+        db.query(Notification).delete(synchronize_session=False)
+        db.query(AttendanceRecord).delete(synchronize_session=False)
         db.commit()
     except Exception:
         pass

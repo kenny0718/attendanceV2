@@ -128,6 +128,11 @@ class BackupImporter:
             # 強制覆寫 company_id（Tenant Isolation P0）
             record_data["company_id"] = target_company_id
             
+            # 生成新的 UUID 避免衝突
+            import uuid
+            if "id" in record_data:
+                record_data["id"] = str(uuid.uuid4())
+            
             # 轉換特殊類型
             record_data = self._convert_types(record_data)
             
