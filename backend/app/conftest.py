@@ -29,7 +29,7 @@ def get_test_database_url() -> str:
         "TEST_DATABASE_URL",
         os.getenv(
             "DATABASE_URL",
-            "postgresql+psycopg2://attendance_user@127.0.0.1:5432/attendance_test_db"
+            "postgresql+psycopg2://postgres:Raxcxtjq260!@127.0.0.1:5432/attendance_test_db"
         )
     )
     
