@@ -37,8 +37,8 @@ class TestEventHandlers:
             "approved_by": "manager-001"
         }
         
-        # 處理事件
-        handle_attendance_approved(payload)
+        # 處理事件（注入測試 DB）
+        handle_attendance_approved(payload, db=test_db)
         
         # 驗證：資料已寫入
         db = test_db
@@ -60,7 +60,7 @@ class TestEventHandlers:
         
         # 應該拋出 ValueError
         with pytest.raises(ValueError) as exc_info:
-            handle_attendance_approved(payload)
+            handle_attendance_approved(payload, db=test_db)
         
         assert "company_id" in str(exc_info.value)
         
@@ -108,7 +108,7 @@ class TestEventHandlers:
             "attendance_record_id": "record-A-001",
             "approved_at": "2026-01-14T10:00:00.000000Z"
         }
-        handle_attendance_approved(payload_a)
+        handle_attendance_approved(payload_a, db=test_db)
         
         # 處理 B 公司事件
         payload_b = {
@@ -117,7 +117,7 @@ class TestEventHandlers:
             "attendance_record_id": "record-B-001",
             "approved_at": "2026-01-14T11:00:00.000000Z"
         }
-        handle_attendance_approved(payload_b)
+        handle_attendance_approved(payload_b, db=test_db)
         
         # 驗證：各公司資料正確隔離
         db = test_db
@@ -141,7 +141,7 @@ class TestEventHandlers:
             "approved_at": "2026-01-14T10:00:00.000000Z"
         }
         
-        handle_attendance_approved(payload)
+        handle_attendance_approved(payload, db=test_db)
         
         # 驗證：DB 中的 company_id 與 payload 一致
         db = test_db

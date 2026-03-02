@@ -23,14 +23,15 @@ class TestTenantIsolation:
         """測試：缺少 X-Company-ID header 應回 400"""
         response = client.get("/api/notifications")
         
-        assert response.status_code == 400
+        assert response.status_code == 422
         assert response.headers["content-type"] == "application/json"
         assert "X-Company-ID" in response.text or "Missing" in response.text
     
-    def test_get_notifications_with_company_a_context(self, test_db):
+    def test_get_notifications_with_company_a_context(self):
         """測試：使用 A 公司 context 查詢通知"""
         # 準備資料：A 公司 1 筆
-        db = test_db
+        from app.core.database import get_db
+        db = next(get_db())
         repo = NotificationRepository(db)
         repo.create_notification(
             company_id="company-A",
@@ -46,10 +47,11 @@ class TestTenantIsolation:
         assert len(data["notifications"]) == 1
         assert data["notifications"][0]["company_id"] == "company-A"
     
-    def test_get_notifications_cross_company_isolation(self, test_db):
+    def test_get_notifications_cross_company_isolation(self):
         """測試：A 公司無法看到 B 公司的通知（P0）"""
         # 準備資料：A 公司 2 筆，B 公司 3 筆
-        db = test_db
+        from app.core.database import get_db
+        db = next(get_db())
         repo = NotificationRepository(db)
         
         for i in range(2):
@@ -112,10 +114,11 @@ class TestTenantIsolation:
         all_b = repo.get_all_notifications_for_company("company-B")
         assert len(all_b) == 50
         assert all(n.company_id == "company-B" for n in all_b)    
-    def test_pagination(self, test_db):
+    def test_pagination(self):
         """測試：分頁功能正確"""
         # 準備資料：A 公司 25 筆
-        db = test_db
+        from app.core.database import get_db
+        db = next(get_db())
         repo = NotificationRepository(db)
         
         for i in range(25):

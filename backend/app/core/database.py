@@ -1,12 +1,45 @@
 """資料庫連線管理（同步 SQLAlchemy）"""
 
 import logging
-from sqlalchemy import create_engine
+import json
+from sqlalchemy import create_engine, Text, TypeDecorator
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy.dialects.postgresql import JSONB as PostgreSQL_JSONB
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class JSONB(TypeDecorator):
+    """SQLite-compatible JSONB type
+    
+    - PostgreSQL: uses native JSONB
+    - SQLite: uses TEXT with JSON serialization
+    """
+    impl = Text
+    cache_ok = True
+    
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(PostgreSQL_JSONB())
+        else:
+            return dialect.type_descriptor(Text())
+    
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if dialect.name == 'postgresql':
+            return value
+        return json.dumps(value)
+    
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if dialect.name == 'postgresql':
+            return value
+        return json.loads(value)
+
 
 # SQLAlchemy Base
 Base = declarative_base()

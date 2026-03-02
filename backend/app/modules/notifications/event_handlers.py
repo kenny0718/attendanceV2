@@ -9,7 +9,7 @@ Tenant Isolation (P0)：
 """
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -18,7 +18,7 @@ from app.modules.notifications.repo import NotificationRepository
 logger = logging.getLogger(__name__)
 
 
-def handle_attendance_approved(payload: Dict[str, Any]) -> None:
+def handle_attendance_approved(payload: Dict[str, Any], db: Optional[Session] = None) -> None:
     """處理 attendance.approved 事件
     
     Tenant Isolation (P0) - 方案 A + Fail-fast：
@@ -33,6 +33,7 @@ def handle_attendance_approved(payload: Dict[str, Any]) -> None:
             - attendance_record_id (str): 考勤記錄 ID
             - approved_at (str): 核准時間
             - approved_by (str, optional): 核准人 ID
+        db: 資料庫 Session（可選，測試時注入）
     
     Raises:
         ValueError: 若 payload 缺少 company_id 或為空
@@ -49,8 +50,11 @@ def handle_attendance_approved(payload: Dict[str, Any]) -> None:
     
     company_id = company_id.strip()
     
-    # 建立資料庫 Session
-    db = SessionLocal()
+    # 建立資料庫 Session（若未提供）
+    db_provided = db is not None
+    if not db_provided:
+        db = SessionLocal()
+    
     try:
         repo = NotificationRepository(db)
         
@@ -75,7 +79,8 @@ def handle_attendance_approved(payload: Dict[str, Any]) -> None:
         db.rollback()
         raise
     finally:
-        db.close()
+        if not db_provided:
+            db.close()
 
 
 def register_event_handlers() -> None:

@@ -3,9 +3,9 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Index, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 
-from app.core.database import Base
+from app.core.database import Base, JSONB
 
 
 class Notification(Base):
