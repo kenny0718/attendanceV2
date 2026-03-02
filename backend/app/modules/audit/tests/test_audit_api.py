@@ -8,30 +8,23 @@ from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.core.database import get_db
-
-client = TestClient(app)
 from app.modules.audit.models import AuditLog
 
-
+client = TestClient(app)
 
 
 class TestAuditLogsQuery:
     """測試 GET /api/audit/logs"""
     
-    def test_query_without_header_returns_400(self):
+    def test_query_without_header_returns_400(self, test_db):
         """測試：沒有 X-Company-ID header 回傳 400"""
-        from app.core.database import get_db
-        db = next(get_db())
         response = client.get("/api/audit/logs")
         assert response.status_code == 422
         detail = response.json()["detail"]
         assert any(item.get("loc") == ["header", "X-Company-ID"] for item in detail)
     
-    def test_tenant_isolation(self):
+    def test_tenant_isolation(self, test_db):
         """測試：tenant isolation - A 公司看不到 B 公司的資料"""
-        from app.core.database import get_db
-        db = next(get_db())
         # 建立 A 公司的稽核紀錄
         log_a = AuditLog(
             company_id="company-A",
@@ -40,7 +33,7 @@ class TestAuditLogsQuery:
             actor="user-a",
             meta={"tables": 2}
         )
-        db.add(log_a)
+        test_db.add(log_a)
         
         # 建立 B 公司的稽核紀錄
         log_b = AuditLog(
@@ -50,8 +43,8 @@ class TestAuditLogsQuery:
             actor="user-b",
             meta={"tables": 3}
         )
-        db.add(log_b)
-        db.commit()
+        test_db.add(log_b)
+        test_db.commit()
         
         # A 公司查詢：只能看到自己的資料
         response = client.get(
@@ -75,10 +68,8 @@ class TestAuditLogsQuery:
         assert data["items"][0]["company_id"] == "company-B"
         assert data["items"][0]["actor"] == "user-b"
     
-    def test_filter_by_event_type(self):
+    def test_filter_by_event_type(self, test_db):
         """測試：event_type 篩選"""
-        from app.core.database import get_db
-        db = next(get_db())
         # 建立不同類型的稽核紀錄
         log1 = AuditLog(
             company_id="company-A",
@@ -94,8 +85,8 @@ class TestAuditLogsQuery:
             actor="user-a",
             meta={}
         )
-        db.add_all([log1, log2])
-        db.commit()
+        test_db.add_all([log1, log2])
+        test_db.commit()
         
         # 篩選 backup.export
         response = client.get(
@@ -107,10 +98,8 @@ class TestAuditLogsQuery:
         assert data["total"] == 1
         assert data["items"][0]["event_type"] == "backup.export"
     
-    def test_pagination(self):
+    def test_pagination(self, test_db):
         """測試：分頁功能"""
-        from app.core.database import get_db
-        db = next(get_db())
         # 建立 10 筆稽核紀錄
         for i in range(10):
             log = AuditLog(
@@ -120,8 +109,8 @@ class TestAuditLogsQuery:
                 actor=f"user-{i}",
                 meta={}
             )
-            db.add(log)
-        db.commit()
+            test_db.add(log)
+        test_db.commit()
         
         # 第 1 頁（每頁 5 筆）
         response = client.get(
@@ -149,10 +138,8 @@ class TestAuditLogsQuery:
 class TestAuditLogsExport:
     """測試 GET /api/audit/export"""
     
-    def test_export_json(self):
+    def test_export_json(self, test_db):
         """測試：匯出 JSON 格式"""
-        from app.core.database import get_db
-        db = next(get_db())
         # 建立稽核紀錄
         log = AuditLog(
             company_id="company-A",
@@ -161,8 +148,8 @@ class TestAuditLogsExport:
             actor="user-a",
             meta={"tables": 2}
         )
-        db.add(log)
-        db.commit()
+        test_db.add(log)
+        test_db.commit()
         
         # 匯出 JSON
         response = client.get(
@@ -178,10 +165,8 @@ class TestAuditLogsExport:
         assert data[0]["company_id"] == "company-A"
         assert data[0]["event_type"] == "backup.export"
     
-    def test_export_csv(self):
+    def test_export_csv(self, test_db):
         """測試：匯出 CSV 格式"""
-        from app.core.database import get_db
-        db = next(get_db())
         # 建立稽核紀錄
         log = AuditLog(
             company_id="company-A",
@@ -190,8 +175,8 @@ class TestAuditLogsExport:
             actor="user-a",
             meta={"tables": 2}
         )
-        db.add(log)
-        db.commit()
+        test_db.add(log)
+        test_db.commit()
         
         # 匯出 CSV
         response = client.get(
@@ -208,10 +193,8 @@ class TestAuditLogsExport:
         assert "company-A" in csv_content
         assert "backup.export" in csv_content
     
-    def test_export_limit_5000(self):
+    def test_export_limit_5000(self, test_db):
         """測試：匯出筆數限制（最多 5000 筆）"""
-        from app.core.database import get_db
-        db = next(get_db())
         # 建立 5001 筆稽核紀錄（會超過限制）
         # 注意：這個測試會比較慢，實際測試時可以減少筆數
         for i in range(100):  # 為了測試速度，這裡只建立 100 筆
@@ -222,8 +205,8 @@ class TestAuditLogsExport:
                 actor=f"user-{i}",
                 meta={}
             )
-            db.add(log)
-        db.commit()
+            test_db.add(log)
+        test_db.commit()
         
         # 匯出應該成功（未超過 5000 筆）
         response = client.get(
@@ -234,10 +217,8 @@ class TestAuditLogsExport:
         data = response.json()
         assert len(data) == 100
     
-    def test_export_tenant_isolation(self):
+    def test_export_tenant_isolation(self, test_db):
         """測試：匯出時的 tenant isolation"""
-        from app.core.database import get_db
-        db = next(get_db())
         # 建立 A、B 兩家公司的稽核紀錄
         log_a = AuditLog(
             company_id="company-A",
@@ -253,8 +234,8 @@ class TestAuditLogsExport:
             actor="user-b",
             meta={}
         )
-        db.add_all([log_a, log_b])
-        db.commit()
+        test_db.add_all([log_a, log_b])
+        test_db.commit()
         
         # A 公司匯出：只能看到自己的資料
         response = client.get(
@@ -270,10 +251,8 @@ class TestAuditLogsExport:
 class TestAuditLogsFilters:
     """測試各種篩選條件"""
     
-    def test_filter_by_actor(self):
+    def test_filter_by_actor(self, test_db):
         """測試：actor 篩選"""
-        from app.core.database import get_db
-        db = next(get_db())
         log1 = AuditLog(
             company_id="company-A",
             action="backup.export",
@@ -288,8 +267,8 @@ class TestAuditLogsFilters:
             actor="bob",
             meta={}
         )
-        db.add_all([log1, log2])
-        db.commit()
+        test_db.add_all([log1, log2])
+        test_db.commit()
         
         # 篩選 alice
         response = client.get(
@@ -301,10 +280,8 @@ class TestAuditLogsFilters:
         assert data["total"] == 1
         assert data["items"][0]["actor"] == "alice"
     
-    def test_filter_by_date_range(self):
+    def test_filter_by_date_range(self, test_db):
         """測試：日期範圍篩選"""
-        from app.core.database import get_db
-        db = next(get_db())
         now = datetime.utcnow()
         yesterday = now - timedelta(days=1)
         
@@ -326,8 +303,8 @@ class TestAuditLogsFilters:
             meta={},
             created_at=now
         )
-        db.add_all([log_old, log_new])
-        db.commit()
+        test_db.add_all([log_old, log_new])
+        test_db.commit()
         
         # 篩選今天的紀錄
         date_from = now.replace(hour=0, minute=0, second=0).isoformat() + "Z"
@@ -339,10 +316,8 @@ class TestAuditLogsFilters:
         data = response.json()
         assert data["total"] == 1
     
-    def test_keyword_search(self):
+    def test_keyword_search(self, test_db):
         """測試：關鍵字搜尋"""
-        from app.core.database import get_db
-        db = next(get_db())
         log1 = AuditLog(
             company_id="company-A",
             action="backup.export",
@@ -357,8 +332,8 @@ class TestAuditLogsFilters:
             actor="bob",
             meta={"note": "regular restore"}
         )
-        db.add_all([log1, log2])
-        db.commit()
+        test_db.add_all([log1, log2])
+        test_db.commit()
         
         # 搜尋 "export"
         response = client.get(
