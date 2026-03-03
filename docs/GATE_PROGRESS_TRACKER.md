@@ -1,6 +1,6 @@
 # Gate Progress Tracker
 
-**Last Updated:** 2026-03-03 10:43 (G3-01 Complete)  
+**Last Updated:** 2026-03-03 11:03 (Gate 3 Complete)  
 **Purpose:** Track completion status of each gate and unit
 
 ---
@@ -12,10 +12,10 @@
 | Gate 0 | Test Baseline | ✅ PASS | 3/3 | 3 | 100% |
 | Gate 1 | Phase 9: Tenants | ✅ PASS | 4/4 | 4 | 100% |
 | Gate 2 | Tenant Context Security | ✅ PASS | 1/1 | 1 | 100% |
-| Gate 3 | Spec Compliance | 🔄 In Progress | 2/3 | 3 | 67% |
+| Gate 3 | Spec Compliance | ✅ PASS | 3/3 | 3 | 100% |
 | Gate 4 | Phase 10: Auth | 🔲 Not Started | 0/6 | 6 | 0% |
 | Gate 5 | Phase 11: Attendance | 🔲 Not Started | 0/6 | 6 | 0% |
-| **TOTAL** | | | **10/23** | **23** | **43%** |
+| **TOTAL** | | | **11/23** | **23** | **48%** |
 
 ---
 
@@ -90,7 +90,7 @@
 | Unit | Name | Status | Commit | Date | Notes |
 |------|------|--------|--------|------|-------|
 | G3-01 | Locate create_all() | ✅ Complete | ae86551 | 2026-03-03 | 2 production violations found |
-| G3-02 | Add Notifications Migration | 🔲 Not Started | - | - | Ready to start |
+| G3-02 | Add Notifications Migration | ✅ Complete | d18a815 | 2026-03-03 | Migration 005, all tests pass |
 | G3-03 | Remove Phase 2 Skipped Tests | ✅ Complete | e720f72 | 2026-03-03 | 24 passed, 0 skipped (was 21+3) |
 
 ---
@@ -147,6 +147,34 @@
 - **Fix:** Added `from sqlalchemy import create_engine` and `from sqlalchemy.orm import sessionmaker`
 - **Result:** All tests now collectible (88 tests)
 
+### Gate 3 Completion Summary
+- **Date:** 2026-03-03 11:03
+- **Status:** ✅ PASS (3/3 units complete)
+- **Units Completed:**
+  - G3-01: Locate create_all() (2 production violations found)
+  - G3-02: Add Notifications Migration (migration 005 created)
+  - G3-03: Remove Phase 2 Skipped Tests (3 tests implemented)
+- **Key Deliverables:**
+  - Notifications table now managed by Alembic migration
+  - All create_all() usage documented
+  - Phase 2 cross-tenant isolation tests complete
+- **Tests Passing:** 107 total (notifications 13, attendance 24, backup 22, audit 24, others 24)
+- **Next:** Gate 4 (Phase 10: Auth) - WP-10-01 (Auth Schema Spec)
+
+### G3-02 Completion Notes
+- **Date:** 2026-03-03 11:03
+- **Units Completed:** G3-02 (Add Notifications Migration)
+- **Migration:** 005_create_notifications.py
+- **Schema:** notifications table with UUID PK, company_id, event_type, event_payload (JSONB), created_at
+- **Indexes:** idx_notifications_company_id, idx_notifications_company_created
+- **Idempotent:** Checks if table exists before creating
+- **Verification:**
+  - alembic upgrade head ✅
+  - alembic downgrade -1 ✅
+  - alembic upgrade head ✅
+  - All regression tests pass ✅
+- **Next:** Gate 3 complete, ready for Gate 4
+
 ### G3-01 Completion Notes
 - **Date:** 2026-03-03 10:43
 - **Units Completed:** G3-01 (Locate create_all)
@@ -190,8 +218,8 @@
 
 ---
 
-**Last Updated:** 2026-03-03 10:43  
-**Next Unit to Work On:** G3-02 (Add Notifications Migration) or WP-10-01 (Auth Schema Spec)  
+**Last Updated:** 2026-03-03 11:03  
+**Next Unit to Work On:** WP-10-01 (Auth Schema Spec)  
 **Gate 2 Status:** ✅ PASS  
-**Gate 3 Status:** 🔄 In Progress (2/3 complete)  
+**Gate 3 Status:** ✅ PASS (3/3 complete)  
 **Gate 4 Status:** 🔲 Unlocked, ready to start
