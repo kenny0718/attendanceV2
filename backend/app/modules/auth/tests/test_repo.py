@@ -1,407 +1,397 @@
-"""Auth Repository Tests
+"""Auth Repository Tests (Platform-First v2)
 
-WP-10-03: Auth Repository + Password Hashing
-Tests tenant-aware queries and password hashing
+WP-10-02B: Auth Repository Tests Rewrite
+Tests platform-first architecture with Membership model
 """
 
 import pytest
 import uuid
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.modules.auth.repo import AuthRepository
-from app.core.security.password import hash_password, verify_password
+from app.modules.auth.models import User, Membership, Role
+from app.core.security.password import verify_password
 
 
-# Test database setup (use real PostgreSQL connection from config)
-@pytest.fixture(scope="function")
-def db_session():
-    """Create test database session using real PostgreSQL"""
-    from app.core.config import settings
-    from app.modules.tenants.models import Tenant
+class TestAuthRepositoryUserCRUD:
+    """Test User CRUD operations (global identity, no company_id)"""
     
-    engine = create_engine(str(settings.database_url))
-    
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-    
-    # Create test tenants
-    tenant1 = Tenant(id="test-company-001", name="Test Company 001", is_active=True, timezone="UTC")
-    tenant2 = Tenant(id="test-company-002", name="Test Company 002", is_active=True, timezone="UTC")
-    session.add(tenant1)
-    session.add(tenant2)
-    try:
-        session.commit()
-    except IntegrityError:
-        session.rollback()  # Tenants already exist
-    
-    yield session
-    yield session
-    
-    # Cleanup: delete test data (cascade will delete users)
-    try:
-        session.rollback()  # Rollback any pending transactions
-        session.query(Tenant).filter(Tenant.id.in_(["test-company-001", "test-company-002"])).delete(synchronize_session=False)
-        session.commit()
-    except Exception:
-        session.rollback()
-    finally:
-        session.close()
-    yield session
-    
-    # Cleanup: delete test data (cascade will delete users)
-    try:
-        session.rollback()  # Rollback any pending transactions
-        session.query(Tenant).filter(Tenant.id.in_(["test-company-001", "test-company-002"])).delete(synchronize_session=False)
-        session.commit()
-    except Exception:
-        session.rollback()
-    finally:
-        session.close()
-    yield session
-    
-    # Cleanup: delete test data (cascade will delete users)
-    try:
-        session.rollback()  # Rollback any pending transactions
-        session.query(Tenant).filter(Tenant.id.in_(["test-company-001", "test-company-002"])).delete(synchronize_session=False)
-        session.commit()
-    except Exception:
-        session.rollback()
-    finally:
-        session.close()
-    yield session
-    
-    # Cleanup: delete test data (cascade will delete users)
-    try:
-        session.rollback()  # Rollback any pending transactions
-        session.query(Tenant).filter(Tenant.id.in_(["test-company-001", "test-company-002"])).delete(synchronize_session=False)
-        session.commit()
-    except Exception:
-        session.rollback()
-    finally:
-        session.close()
-    yield session
-    
-    # Cleanup: delete test data (cascade will delete users)
-    try:
-        session.rollback()  # Rollback any pending transactions
-        session.query(Tenant).filter(Tenant.id.in_(["test-company-001", "test-company-002"])).delete(synchronize_session=False)
-        session.commit()
-    except Exception:
-        session.rollback()
-    finally:
-        session.close()
-
-
-@pytest.fixture
-def auth_repo(db_session):
-    """Create AuthRepository instance"""
-    return AuthRepository(db_session)
-
-
-@pytest.fixture
-def sample_company_id():
-    """Sample company ID"""
-    return "test-company-001"
-
-
-@pytest.fixture
-def another_company_id():
-    """Another company ID"""
-    return "test-company-002"
-
-
-# ============================================================================
-# Password Hashing Tests
-# ============================================================================
-
-def test_create_user_hashes_password(auth_repo, sample_company_id):
-    """Test that create_user automatically hashes password"""
-    plain_password = "SecurePassword123!"
-    
-    user = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="testuser_hash",
-        email="testhash@example.com",
-        plain_password=plain_password
-    )
-    
-    # Password should be hashed (not plaintext)
-    assert user.password_hash != plain_password
-    assert len(user.password_hash) > 50  # Bcrypt hashes are long
-    assert user.password_hash.startswith("$2b$")  # Bcrypt prefix
-
-
-def test_verify_password_success(auth_repo, sample_company_id):
-    """Test password verification succeeds with correct password"""
-    plain_password = "CorrectPassword456"
-    
-    user = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="testuser_verify",
-        email="testverify@example.com",
-        plain_password=plain_password
-    )
-    
-    # Verify correct password
-    assert auth_repo.verify_user_password(user, plain_password) is True
-
-
-def test_verify_password_failure(auth_repo, sample_company_id):
-    """Test password verification fails with incorrect password"""
-    plain_password = "CorrectPassword456"
-    wrong_password = "WrongPassword789"
-    
-    user = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="testuser_wrong",
-        email="testwrong@example.com",
-        plain_password=plain_password
-    )
-    
-    # Verify wrong password fails
-    assert auth_repo.verify_user_password(user, wrong_password) is False
-
-
-def test_hash_password_utility():
-    """Test hash_password utility function"""
-    plain = "TestPassword123"
-    hashed = hash_password(plain)
-    
-    assert hashed != plain
-    assert len(hashed) > 50
-    assert verify_password(plain, hashed) is True
-    assert verify_password("WrongPassword", hashed) is False
-
-
-# ============================================================================
-# Tenant-Aware Query Tests
-# ============================================================================
-
-def test_get_user_requires_company_id(auth_repo, sample_company_id):
-    """Test that all user queries require company_id"""
-    # Create user
-    user = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="testuser_query",
-        email="testquery@example.com",
-        plain_password="password123"
-    )
-    
-    # Get by username requires company_id
-    found = auth_repo.get_user_by_username(sample_company_id, "testuser_query")
-    assert found is not None
-    assert found.id == user.id
-    
-    # Get by email requires company_id
-    found = auth_repo.get_user_by_email(sample_company_id, "testquery@example.com")
-    assert found is not None
-    assert found.id == user.id
-    
-    # Get by id requires company_id
-    found = auth_repo.get_user_by_id(sample_company_id, user.id)
-    assert found is not None
-    assert found.id == user.id
-
-
-def test_cross_tenant_query_returns_none(auth_repo, sample_company_id, another_company_id):
-    """Test that querying with wrong company_id returns None"""
-    # Create user in company A
-    user = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="testuser_cross",
-        email="testcross@example.com",
-        plain_password="password123"
-    )
-    
-    # Query with company B should return None
-    found = auth_repo.get_user_by_username(another_company_id, "testuser_cross")
-    assert found is None
-    
-    found = auth_repo.get_user_by_email(another_company_id, "testcross@example.com")
-    assert found is None
-    
-    found = auth_repo.get_user_by_id(another_company_id, user.id)
-    assert found is None
-
-
-# ============================================================================
-# Per-Tenant Uniqueness Tests
-# ============================================================================
-
-def test_same_company_duplicate_username_fails(auth_repo, sample_company_id):
-    """Test that duplicate username in same company fails"""
-    # Create first user
-    auth_repo.create_user(
-        company_id=sample_company_id,
-        username="duplicate_user",
-        email="user1_dup@example.com",
-        plain_password="password123"
-    )
-    
-    # Try to create second user with same username in same company
-    with pytest.raises(IntegrityError):
-        auth_repo.create_user(
-            company_id=sample_company_id,
-            username="duplicate_user",
-            email="user2_dup@example.com",
-            plain_password="password456"
+    def test_create_user_success(self, db: Session):
+        """Test creating a user (global identity)"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(
+            display_name="John Doe",
+            plain_password="SecurePass123!",
+            email="john@example.com"
         )
-
-
-def test_same_company_duplicate_email_fails(auth_repo, sample_company_id):
-    """Test that duplicate email in same company fails"""
-    # Create first user
-    auth_repo.create_user(
-        company_id=sample_company_id,
-        username="user1_email",
-        email="duplicate@example.com",
-        plain_password="password123"
-    )
+        
+        assert user.id is not None
+        assert user.display_name == "John Doe"
+        assert user.email == "john@example.com"
+        assert user.password_hash is not None
+        assert user.password_hash != "SecurePass123!"  # Should be hashed
+        assert user.is_active is True
+        assert user.is_otp is False
+        assert user.must_change_password is False
+        assert verify_password("SecurePass123!", user.password_hash)
     
-    # Try to create second user with same email in same company
-    with pytest.raises(IntegrityError):
-        auth_repo.create_user(
-            company_id=sample_company_id,
-            username="user2_email",
-            email="duplicate@example.com",
-            plain_password="password456"
+    def test_create_user_without_email(self, db: Session):
+        """Test creating a user without email (email is optional)"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(
+            display_name="Jane Doe",
+            plain_password="SecurePass123!"
         )
+        
+        assert user.id is not None
+        assert user.display_name == "Jane Doe"
+        assert user.email is None
+    
+    def test_create_user_with_otp_flag(self, db: Session):
+        """Test creating OTP user"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(
+            display_name="OTP User",
+            plain_password="TempPass123!",
+            is_otp=True,
+            must_change_password=True
+        )
+        
+        assert user.is_otp is True
+        assert user.must_change_password is True
+    
+    def test_get_user_by_id_success(self, db: Session):
+        """Test getting user by ID"""
+        repo = AuthRepository(db)
+        
+        # Create user
+        user = repo.create_user(
+            display_name="Test User",
+            plain_password="Pass123!"
+        )
+        
+        # Get user by ID
+        found_user = repo.get_user_by_id(user.id)
+        
+        assert found_user is not None
+        assert found_user.id == user.id
+        assert found_user.display_name == "Test User"
+    
+    def test_get_user_by_id_not_found(self, db: Session):
+        """Test getting non-existent user"""
+        repo = AuthRepository(db)
+        
+        non_existent_id = uuid.uuid4()
+        user = repo.get_user_by_id(non_existent_id)
+        
+        assert user is None
+    
+    def test_update_password(self, db: Session):
+        """Test updating user password"""
+        repo = AuthRepository(db)
+        
+        # Create user
+        user = repo.create_user(
+            display_name="Test User",
+            plain_password="OldPass123!"
+        )
+        
+        old_hash = user.password_hash
+        
+        # Update password
+        updated_user = repo.update_password(user, "NewPass456!")
+        
+        assert updated_user.password_hash != old_hash
+        assert verify_password("NewPass456!", updated_user.password_hash)
+        assert not verify_password("OldPass123!", updated_user.password_hash)
+    
+    def test_verify_user_password_correct(self, db: Session):
+        """Test verifying correct password"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(
+            display_name="Test User",
+            plain_password="CorrectPass123!"
+        )
+        
+        assert repo.verify_user_password(user, "CorrectPass123!") is True
+    
+    def test_verify_user_password_incorrect(self, db: Session):
+        """Test verifying incorrect password"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(
+            display_name="Test User",
+            plain_password="CorrectPass123!"
+        )
+        
+        assert repo.verify_user_password(user, "WrongPass123!") is False
+    
+    def test_update_last_login(self, db: Session):
+        """Test updating last login timestamp"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(
+            display_name="Test User",
+            plain_password="Pass123!"
+        )
+        
+        assert user.last_login_at is None
+        
+        updated_user = repo.update_last_login(user)
+        
+        assert updated_user.last_login_at is not None
 
 
-def test_different_company_same_username_succeeds(auth_repo, sample_company_id, another_company_id):
-    """Test that same username in different companies succeeds"""
-    # Create user in company A
-    user_a = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="shared_username",
-        email="usera_shared@example.com",
-        plain_password="password123"
-    )
+class TestAuthRepositoryMembership:
+    """Test Membership operations (user-company relationship)"""
     
-    # Create user with same username in company B (should succeed)
-    user_b = auth_repo.create_user(
-        company_id=another_company_id,
-        username="shared_username",
-        email="userb_shared@example.com",
-        plain_password="password456"
-    )
+    def test_create_membership_success(self, db: Session, test_tenant):
+        """Test creating membership (link user to company with role)"""
+        repo = AuthRepository(db)
+        
+        # Create user
+        user = repo.create_user(
+            display_name="John Doe",
+            plain_password="Pass123!"
+        )
+        
+        # Create membership
+        membership = repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant.id,
+            role_id="employee",
+            login_username="john.doe"
+        )
+        
+        assert membership.id is not None
+        assert membership.user_id == user.id
+        assert membership.company_id == test_tenant.id
+        assert membership.role_id == "employee"
+        assert membership.login_username == "john.doe"
+        assert membership.is_active is True
     
-    # Both users should exist
-    assert user_a.id != user_b.id
-    assert user_a.company_id == sample_company_id
-    assert user_b.company_id == another_company_id
-    assert user_a.username == user_b.username
+    def test_create_membership_with_login_email(self, db: Session, test_tenant):
+        """Test creating membership with login_email"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(
+            display_name="Jane Doe",
+            plain_password="Pass123!"
+        )
+        
+        membership = repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant.id,
+            role_id="manager",
+            login_username="jane.doe",
+            login_email="jane@company.com"
+        )
+        
+        assert membership.login_email == "jane@company.com"
+    
+    def test_create_membership_duplicate_login_username_fails(self, db: Session, test_tenant):
+        """Test that duplicate login_username in same company fails"""
+        repo = AuthRepository(db)
+        
+        # Create first user and membership
+        user1 = repo.create_user(display_name="User 1", plain_password="Pass123!")
+        repo.create_membership(
+            user_id=user1.id,
+            company_id=test_tenant.id,
+            role_id="employee",
+            login_username="duplicate.username"
+        )
+        
+        # Create second user and try same login_username
+        user2 = repo.create_user(display_name="User 2", plain_password="Pass123!")
+        
+        with pytest.raises(Exception):  # IntegrityError
+            repo.create_membership(
+                user_id=user2.id,
+                company_id=test_tenant.id,
+                role_id="employee",
+                login_username="duplicate.username"
+            )
+    
+    def test_create_membership_duplicate_user_company_fails(self, db: Session, test_tenant):
+        """Test that same user cannot have multiple memberships in same company"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(display_name="Test User", plain_password="Pass123!")
+        
+        # Create first membership
+        repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant.id,
+            role_id="employee",
+            login_username="user.employee"
+        )
+        
+        # Try to create second membership for same user in same company
+        with pytest.raises(Exception):  # IntegrityError
+            repo.create_membership(
+                user_id=user.id,
+                company_id=test_tenant.id,
+                role_id="manager",
+                login_username="user.manager"
+            )
+    
+    def test_get_membership_by_login_success(self, db: Session, test_tenant):
+        """Test getting membership by company_id + login_username"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(display_name="Test User", plain_password="Pass123!")
+        membership = repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant.id,
+            role_id="employee",
+            login_username="test.user"
+        )
+        
+        found_membership = repo.get_membership_by_login(test_tenant.id, "test.user")
+        
+        assert found_membership is not None
+        assert found_membership.id == membership.id
+        assert found_membership.user_id == user.id
+    
+    def test_get_membership_by_login_not_found(self, db: Session, test_tenant):
+        """Test getting non-existent membership"""
+        repo = AuthRepository(db)
+        
+        membership = repo.get_membership_by_login(test_tenant.id, "nonexistent.user")
+        
+        assert membership is None
+    
+    def test_get_user_by_login_success(self, db: Session, test_tenant):
+        """Test getting user by company_id + login_username (via membership)"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(display_name="Test User", plain_password="Pass123!")
+        repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant.id,
+            role_id="employee",
+            login_username="test.user"
+        )
+        
+        found_user = repo.get_user_by_login(test_tenant.id, "test.user")
+        
+        assert found_user is not None
+        assert found_user.id == user.id
+        assert found_user.display_name == "Test User"
+    
+    def test_get_user_by_login_not_found(self, db: Session, test_tenant):
+        """Test getting user with non-existent login"""
+        repo = AuthRepository(db)
+        
+        user = repo.get_user_by_login(test_tenant.id, "nonexistent.user")
+        
+        assert user is None
+    
+    def test_get_user_memberships(self, db: Session, test_tenant, test_tenant_b):
+        """Test getting all memberships for a user (multi-company)"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(display_name="Multi Company User", plain_password="Pass123!")
+        
+        # Create memberships in two companies
+        membership_a = repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant.id,
+            role_id="employee",
+            login_username="user.companyA"
+        )
+        
+        membership_b = repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant_b.id,
+            role_id="manager",
+            login_username="user.companyB"
+        )
+        
+        memberships = repo.get_user_memberships(user.id)
+        
+        assert len(memberships) == 2
+        membership_ids = [m.id for m in memberships]
+        assert membership_a.id in membership_ids
+        assert membership_b.id in membership_ids
+    
+    def test_get_membership(self, db: Session, test_tenant):
+        """Test getting specific membership for user in company"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(display_name="Test User", plain_password="Pass123!")
+        membership = repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant.id,
+            role_id="employee",
+            login_username="test.user"
+        )
+        
+        found_membership = repo.get_membership(user.id, test_tenant.id)
+        
+        assert found_membership is not None
+        assert found_membership.id == membership.id
+    
+    def test_user_has_company_access_true(self, db: Session, test_tenant):
+        """Test user has access to company (active membership exists)"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(display_name="Test User", plain_password="Pass123!")
+        repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant.id,
+            role_id="employee",
+            login_username="test.user"
+        )
+        
+        assert repo.user_has_company_access(user.id, test_tenant.id) is True
+    
+    def test_user_has_company_access_false_no_membership(self, db: Session, test_tenant):
+        """Test user has no access (no membership)"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(display_name="Test User", plain_password="Pass123!")
+        
+        assert repo.user_has_company_access(user.id, test_tenant.id) is False
+    
+    def test_user_has_company_access_false_inactive_membership(self, db: Session, test_tenant):
+        """Test user has no access (inactive membership)"""
+        repo = AuthRepository(db)
+        
+        user = repo.create_user(display_name="Test User", plain_password="Pass123!")
+        membership = repo.create_membership(
+            user_id=user.id,
+            company_id=test_tenant.id,
+            role_id="employee",
+            login_username="test.user",
+            is_active=False
+        )
+        
+        assert repo.user_has_company_access(user.id, test_tenant.id) is False
 
 
-def test_different_company_same_email_succeeds(auth_repo, sample_company_id, another_company_id):
-    """Test that same email in different companies succeeds"""
-    # Create user in company A
-    user_a = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="usera_email",
-        email="shared_email@example.com",
-        plain_password="password123"
-    )
+class TestAuthRepositoryRole:
+    """Test Role queries"""
     
-    # Create user with same email in company B (should succeed)
-    user_b = auth_repo.create_user(
-        company_id=another_company_id,
-        username="userb_email",
-        email="shared_email@example.com",
-        plain_password="password456"
-    )
+    def test_get_role_success(self, db: Session, seed_roles):
+        """Test getting role by ID"""
+        repo = AuthRepository(db)
+        
+        role = repo.get_role("employee")
+        
+        assert role is not None
+        assert role.id == "employee"
+        assert role.name == "Employee"
     
-    # Both users should exist
-    assert user_a.id != user_b.id
-    assert user_a.company_id == sample_company_id
-    assert user_b.company_id == another_company_id
-    assert user_a.email == user_b.email
-
-
-# ============================================================================
-# Additional Repository Tests
-# ============================================================================
-
-def test_update_password(auth_repo, sample_company_id):
-    """Test password update"""
-    old_password = "OldPassword123"
-    new_password = "NewPassword456"
-    
-    user = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="testuser_update",
-        email="testupdate@example.com",
-        plain_password=old_password
-    )
-    
-    old_hash = user.password_hash
-    
-    # Update password
-    updated_user = auth_repo.update_password(user, new_password)
-    
-    # Hash should change
-    assert updated_user.password_hash != old_hash
-    
-    # Old password should fail
-    assert auth_repo.verify_user_password(updated_user, old_password) is False
-    
-    # New password should succeed
-    assert auth_repo.verify_user_password(updated_user, new_password) is True
-
-
-def test_update_last_login(auth_repo, sample_company_id):
-    """Test last login update"""
-    user = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="testuser_login",
-        email="testlogin@example.com",
-        plain_password="password123"
-    )
-    
-    assert user.last_login_at is None
-    
-    # Update last login
-    updated_user = auth_repo.update_last_login(user)
-    
-    assert updated_user.last_login_at is not None
-
-
-def test_assign_role(auth_repo, sample_company_id):
-    """Test role assignment"""
-    # Create user
-    user = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="testuser_role",
-        email="testrole@example.com",
-        plain_password="password123"
-    )
-    
-    # Assign role (note: role must exist in DB from migration)
-    user_role = auth_repo.assign_role(
-        company_id=sample_company_id,
-        user_id=user.id,
-        role_id="employee"
-    )
-    
-    assert user_role.user_id == user.id
-    assert user_role.role_id == "employee"
-    assert user_role.company_id == sample_company_id
-
-
-def test_user_flags(auth_repo, sample_company_id):
-    """Test user status flags"""
-    user = auth_repo.create_user(
-        company_id=sample_company_id,
-        username="testuser_flags",
-        email="testflags@example.com",
-        plain_password="password123",
-        is_active=False,
-        is_otp=True,
-        must_change_password=True
-    )
-    
-    assert user.is_active is False
-    assert user.is_otp is True
-    assert user.must_change_password is True
+    def test_get_role_not_found(self, db: Session, seed_roles):
+        """Test getting non-existent role"""
+        repo = AuthRepository(db)
+        
+        role = repo.get_role("nonexistent_role")
+        
+        assert role is None

@@ -1,23 +1,29 @@
-"""Auth data models
+"""Auth data models (Platform-First v2)
 
-WP-10-03: Auth Repository + Password Hashing
-Implements AUTH_SCHEMA_SPEC.md exactly as specified
+WP-10-02B: Auth Models Rewrite
+Implements AUTH_SCHEMA_SPEC_PLATFORM_FIRST_v2.md
+
+Key changes from v1 (tenant-first):
+- User: removed company_id, removed username, added display_name
+- Membership: new model (user-company relationship + role)
+- UserRole: removed (replaced by Membership.role_id)
 """
 
 from datetime import datetime
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Index
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
 
 
 class User(Base):
-    """User model (Tenant Data)
+    """User model (Global Identity)
     
-    Design principles:
-    - Tenant-scoped: company_id is required for all queries
-    - Per-tenant uniqueness: UNIQUE(company_id, username) and UNIQUE(company_id, email)
-    - Password stored as hash only (never plaintext)
+    Design principles (v2 platform-first):
+    - Global identity: NO company_id (user exists across all companies)
+    - NO username: login username is per-company (in Membership)
+    - display_name: global display name for UI
+    - email: for notifications only (not unique, not for login)
     """
     
     __tablename__ = "users"
@@ -25,17 +31,9 @@ class User(Base):
     # Primary key
     id = Column(UUID(as_uuid=True), primary_key=True, comment="User ID (PK)")
     
-    # Tenant isolation
-    company_id = Column(
-        String(255),
-        ForeignKey('tenants.id', ondelete='CASCADE'),
-        nullable=False,
-        comment="Company ID (Tenant Isolation)"
-    )
-    
-    # Authentication
-    username = Column(String(100), nullable=False, comment="Username for login")
-    email = Column(String(255), nullable=False, comment="Email address")
+    # Global identity
+    display_name = Column(String(100), nullable=False, comment="Global display name")
+    email = Column(String(255), nullable=True, comment="Email for notifications (not unique)")
     password_hash = Column(String(255), nullable=False, comment="Bcrypt/Argon2 hash")
     
     # Status flags
@@ -64,16 +62,85 @@ class User(Base):
         comment="Updated timestamp (UTC)"
     )
     
-    # Indexes and constraints
+    # Indexes
     __table_args__ = (
-        Index('idx_users_company_id', 'company_id'),
-        Index('idx_users_company_username', 'company_id', 'username'),
-        Index('idx_users_company_email', 'company_id', 'email'),
+        Index('idx_users_email', 'email'),
         Index('idx_users_is_active', 'is_active'),
     )
     
     def __repr__(self):
-        return f"<User(id={self.id}, company_id={self.company_id}, username={self.username})>"
+        return f"<User(id={self.id}, display_name={self.display_name})>"
+
+
+class Membership(Base):
+    """User-Company Membership model (replaces UserRole)
+    
+    Design principles (v2 platform-first):
+    - Links user to company with role
+    - Per-company login credentials (login_username, login_email)
+    - UNIQUE(company_id, login_username) - login username unique per company
+    - UNIQUE(user_id, company_id) - one membership per user per company
+    """
+    
+    __tablename__ = "user_company_memberships"
+    
+    # Primary key
+    id = Column(UUID(as_uuid=True), primary_key=True, comment="Membership ID (PK)")
+    
+    # Relationships
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        comment="User ID (FK)"
+    )
+    company_id = Column(
+        String(255),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=False,
+        comment="Company ID (FK)"
+    )
+    role_id = Column(
+        String(50),
+        ForeignKey('roles.id', ondelete='CASCADE'),
+        nullable=False,
+        comment="Role ID (FK)"
+    )
+    
+    # Per-company login credentials
+    login_username = Column(String(100), nullable=False, comment="Per-company login username")
+    login_email = Column(String(255), nullable=True, comment="Per-company login email (optional)")
+    
+    # Status
+    is_active = Column(Boolean, nullable=False, default=True, comment="Membership active status")
+    
+    # Timestamps
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        comment="Created timestamp (UTC)"
+    )
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        comment="Updated timestamp (UTC)"
+    )
+    
+    # Indexes and constraints
+    __table_args__ = (
+        UniqueConstraint('company_id', 'login_username', name='uq_memberships_company_login'),
+        UniqueConstraint('user_id', 'company_id', name='uq_memberships_user_company'),
+        Index('idx_memberships_company_login', 'company_id', 'login_username'),
+        Index('idx_memberships_user_id', 'user_id'),
+        Index('idx_memberships_company_id', 'company_id'),
+        Index('idx_memberships_company_email', 'company_id', 'login_email'),
+    )
+    
+    def __repr__(self):
+        return f"<Membership(user_id={self.user_id}, company_id={self.company_id}, role_id={self.role_id})>"
 
 
 class Role(Base):
@@ -122,57 +189,12 @@ class Permission(Base):
     )
     
     __table_args__ = (
+        UniqueConstraint('resource', 'action', name='uq_permissions_resource_action'),
         Index('idx_permissions_resource', 'resource'),
     )
     
     def __repr__(self):
         return f"<Permission(id={self.id}, resource={self.resource}, action={self.action})>"
-
-
-class UserRole(Base):
-    """User-Role assignment (Tenant Data)
-    
-    Design principles:
-    - Tenant-scoped: company_id required
-    - Links users to roles within a company
-    """
-    
-    __tablename__ = "user_roles"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, comment="Assignment ID (PK)")
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
-        comment="User ID (FK)"
-    )
-    role_id = Column(
-        String(50),
-        ForeignKey('roles.id', ondelete='CASCADE'),
-        nullable=False,
-        comment="Role ID (FK)"
-    )
-    company_id = Column(
-        String(255),
-        ForeignKey('tenants.id', ondelete='CASCADE'),
-        nullable=False,
-        comment="Company ID (Tenant Isolation)"
-    )
-    created_at = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        comment="Created timestamp (UTC)"
-    )
-    
-    __table_args__ = (
-        Index('idx_user_roles_user_id', 'user_id'),
-        Index('idx_user_roles_company_id', 'company_id'),
-        Index('idx_user_roles_user_company', 'user_id', 'company_id'),
-    )
-    
-    def __repr__(self):
-        return f"<UserRole(user_id={self.user_id}, role_id={self.role_id}, company_id={self.company_id})>"
 
 
 class RolePermission(Base):
@@ -206,6 +228,7 @@ class RolePermission(Base):
     )
     
     __table_args__ = (
+        UniqueConstraint('role_id', 'permission_id', name='uq_role_permissions_role_permission'),
         Index('idx_role_permissions_role_id', 'role_id'),
     )
     
