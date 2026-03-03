@@ -1,6 +1,6 @@
 # Gate Progress Tracker
 
-**Last Updated:** 2026-03-03 11:58 (Gate 3 Complete - All Units)  
+**Last Updated:** 2026-03-03 12:15 (WP-10-01 Complete)  
 **Purpose:** Track completion status of each gate and unit
 
 ---
@@ -13,9 +13,9 @@
 | Gate 1 | Phase 9: Tenants | ✅ PASS | 4/4 | 4 | 100% |
 | Gate 2 | Tenant Context Security | ✅ PASS | 1/1 | 1 | 100% |
 | Gate 3 | Spec Compliance | ✅ PASS | 4/4 | 4 | 100% |
-| Gate 4 | Phase 10: Auth | 🔲 Not Started | 0/6 | 6 | 0% |
+| Gate 4 | Phase 10: Auth | 🔄 In Progress | 1/6 | 6 | 17% |
 | Gate 5 | Phase 11: Attendance | 🔲 Not Started | 0/6 | 6 | 0% |
-| **TOTAL** | | | **12/24** | **24** | **50%** |
+| **TOTAL** | | | **13/24** | **24** | **54%** |
 
 ---
 
@@ -104,7 +104,7 @@
 
 | Unit | Name | Status | Commit | Date | Notes |
 |------|------|--------|--------|------|-------|
-| WP-10-01 | Auth Schema Spec | 🔲 Not Started | - | - | Blocked by Gate 2 |
+| WP-10-01 | Auth Schema Spec | ✅ Complete | TBD | 2026-03-03 | AUTH_SCHEMA_SPEC.md created |
 | WP-10-02 | Users Migration + Model | 🔲 Not Started | - | - | Blocked by Gate 2 |
 | WP-10-03 | Repo + Hashing + Tests | 🔲 Not Started | - | - | Blocked by Gate 2 |
 | WP-10-04 | JWT Login API + Tests | 🔲 Not Started | - | - | Blocked by Gate 2 |
