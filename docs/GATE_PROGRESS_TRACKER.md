@@ -1,6 +1,6 @@
 # Gate Progress Tracker
 
-**Last Updated:** 2026-03-03 09:34 (Gate 2 Complete)  
+**Last Updated:** 2026-03-03 10:30 (G3-03 Complete)  
 **Purpose:** Track completion status of each gate and unit
 
 ---
@@ -12,10 +12,10 @@
 | Gate 0 | Test Baseline | ✅ PASS | 3/3 | 3 | 100% |
 | Gate 1 | Phase 9: Tenants | ✅ PASS | 4/4 | 4 | 100% |
 | Gate 2 | Tenant Context Security | ✅ PASS | 1/1 | 1 | 100% |
-| Gate 3 | Spec Compliance | 🔲 Not Started | 0/3 | 3 | 0% |
+| Gate 3 | Spec Compliance | 🔄 In Progress | 1/3 | 3 | 33% |
 | Gate 4 | Phase 10: Auth | 🔲 Not Started | 0/6 | 6 | 0% |
 | Gate 5 | Phase 11: Attendance | 🔲 Not Started | 0/6 | 6 | 0% |
-| **TOTAL** | | | **8/23** | **23** | **35%** |
+| **TOTAL** | | | **9/23** | **23** | **39%** |
 
 ---
 
@@ -91,7 +91,7 @@
 |------|------|--------|--------|------|-------|
 | G3-01 | Locate create_all() | 🔲 Not Started | - | - | Ready to start |
 | G3-02 | Add Notifications Migration | 🔲 Not Started | - | - | Ready to start |
-| G3-03 | Remove Phase 2 Skipped Tests | 🔲 Not Started | - | - | Attendance cross-tenant isolation |
+| G3-03 | Remove Phase 2 Skipped Tests | ✅ Complete | e720f72 | 2026-03-03 | 24 passed, 0 skipped (was 21+3) |
 
 ---
 
@@ -147,6 +147,19 @@
 - **Fix:** Added `from sqlalchemy import create_engine` and `from sqlalchemy.orm import sessionmaker`
 - **Result:** All tests now collectible (88 tests)
 
+### G3-03 Completion Notes
+- **Date:** 2026-03-03 10:30
+- **Units Completed:** G3-03 (Remove Phase 2 Skipped Tests)
+- **Tests Added:** 3 cross-tenant isolation tests (read/update/delete forbidden)
+- **Tests Passing:** 24 attendance tests (was 21 passed + 3 skipped)
+- **Key Deliverables:**
+  - Implemented test_phase2_cross_company_read_forbidden
+  - Implemented test_phase2_cross_company_update_forbidden
+  - Implemented test_phase2_cross_company_delete_forbidden
+  - All tests verify tenant_context properly blocks cross-tenant access
+  - Completes Phase 2 tenant isolation requirements
+- **Next:** G3-01 (Locate create_all) or G3-02 (Add Notifications Migration)
+
 ### Gate 2 Completion Notes
 - **Date:** 2026-03-03 09:34
 - **Units Completed:** 1/1 (WP-09-05)
@@ -166,8 +179,8 @@
 
 ---
 
-**Last Updated:** 2026-03-03 09:34  
-**Next Unit to Work On:** G3-01 (Locate create_all) or WP-10-01 (Auth Schema Spec)  
+**Last Updated:** 2026-03-03 10:30  
+**Next Unit to Work On:** G3-01 (Locate create_all) or G3-02 (Add Notifications Migration) or WP-10-01 (Auth Schema Spec)  
 **Gate 2 Status:** ✅ PASS  
-**Gate 3 Status:** 🔲 Unlocked, ready to start  
+**Gate 3 Status:** 🔄 In Progress (1/3 complete)  
 **Gate 4 Status:** 🔲 Unlocked, ready to start
