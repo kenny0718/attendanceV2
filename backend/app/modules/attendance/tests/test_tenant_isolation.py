@@ -15,6 +15,8 @@ from app.core.database import get_db
 from app.modules.attendance.models import AttendanceRecord
 
 
+
+
 class DummySession:
     """Mock Session for testing (不連接真實資料庫)"""
     
@@ -227,16 +229,130 @@ class TestCrossCompanyIsolation:
     - A 公司 context 查詢 B 公司的 attendance_record → 404 或空集合
     - A 公司 context 更新 B 公司的 attendance_record → 403 或 404
     - A 公司 context 刪除 B 公司的 attendance_record → 403 或 404
+    
+    Note: Phase 2 tests import client from test_phase4 which uses real database
     """
+    
+    @pytest.fixture(scope="function", autouse=True)
+    def setup_phase2_database(self):
+        """Setup real database for Phase 2 tests"""
+        # Import test_phase4 fixtures
+        from app.modules.attendance.tests.test_phase4 import engine, TestingSessionLocal
+        from app.modules.attendance.models import AttendanceRecord
+        from app.modules.tenants.models import Tenant
+        from app.main import app
+        from app.core.database import get_db
+        
+        # Save original overrides
+        original_overrides = app.dependency_overrides.copy()
+        
+        # Override get_db to use test database
+        def override_get_db():
+            try:
+                db = TestingSessionLocal()
+                yield db
+            finally:
+                db.close()
+        
+        app.dependency_overrides[get_db] = override_get_db
+        
+        # Create tables
+        Tenant.__table__.create(bind=engine, checkfirst=True)
+        AttendanceRecord.__table__.create(bind=engine, checkfirst=True)
+        
+        # Create test tenants
+        db = TestingSessionLocal()
+        try:
+            # Check if tenants exist
+            from sqlalchemy import text
+            result = db.execute(text("SELECT id FROM tenants WHERE id IN ('company-a', 'company-b')"))
+            existing = {row[0] for row in result}
+            
+            if 'company-a' not in existing:
+                db.add(Tenant(id="company-a", name="Company A", is_active=True))
+            if 'company-b' not in existing:
+                db.add(Tenant(id="company-b", name="Company B", is_active=True))
+            db.commit()
+        except:
+            db.rollback()
+        finally:
+            db.close()
+        
+        yield
+        
+        # Cleanup: Drop tables to ensure clean state for next test file
+        AttendanceRecord.__table__.drop(bind=engine, checkfirst=True)
+        Tenant.__table__.drop(bind=engine, checkfirst=True)
+        
+        # Restore original overrides
+        app.dependency_overrides = original_overrides
     
     def test_phase2_cross_company_read_forbidden(self):
         """Phase 2 必做：A 公司無法讀取 B 公司資料"""
-        pytest.skip("Phase 2: 需要資料庫支援")
+        from app.modules.attendance.tests.test_phase4 import client
+        
+        # 1. Company B creates an attendance record
+        response = client.post(
+            "/api/attendance/mock-create",
+            headers={"X-Company-ID": "company-b"}
+        )
+        assert response.status_code == 200
+        record_id = response.json()["attendance_record_id"]
+        
+        # 2. Company A tries to approve Company B's record (should fail with 404)
+        response = client.post(
+            f"/api/attendance/{record_id}/approve",
+            headers={"X-Company-ID": "company-a"},
+            json={"employee_id": "emp-001"}
+        )
+        
+        # Tenant Isolation P0: Must return 404 (record not found or doesn't belong to company)
+        assert response.status_code == 404
     
     def test_phase2_cross_company_update_forbidden(self):
         """Phase 2 必做：A 公司無法更新 B 公司資料"""
-        pytest.skip("Phase 2: 需要資料庫支援")
+        from app.modules.attendance.tests.test_phase4 import client
+        
+        # 1. Company B creates a record
+        response = client.post(
+            "/api/attendance/mock-create",
+            headers={"X-Company-ID": "company-b"}
+        )
+        assert response.status_code == 200
+        record_id = response.json()["attendance_record_id"]
+        
+        # 2. Company A tries to update (approve) Company B's record
+        response = client.post(
+            f"/api/attendance/{record_id}/approve",
+            headers={"X-Company-ID": "company-a"},
+            json={"employee_id": "emp-001", "approved_by": "manager-001"}
+        )
+        
+        # Must return 404 (tenant isolation)
+        assert response.status_code == 404
     
     def test_phase2_cross_company_delete_forbidden(self):
         """Phase 2 必做：A 公司無法刪除 B 公司資料"""
-        pytest.skip("Phase 2: 需要資料庫支援")
+        # Note: Current API doesn't have explicit delete endpoint
+        # This test verifies that cross-company access returns 404
+        # which effectively prevents any delete operations
+        from app.modules.attendance.tests.test_phase4 import client
+        
+        # 1. Company B creates a record
+        response = client.post(
+            "/api/attendance/mock-create",
+            headers={"X-Company-ID": "company-b"}
+        )
+        assert response.status_code == 200
+        record_id = response.json()["attendance_record_id"]
+        
+        # 2. Company A tries to access Company B's record (any operation would fail)
+        # Using approve as proxy for "access attempt"
+        response = client.post(
+            f"/api/attendance/{record_id}/approve",
+            headers={"X-Company-ID": "company-a"},
+            json={"employee_id": "emp-001"}
+        )
+        
+        # Must return 404 - record is isolated by tenant
+        assert response.status_code == 404
