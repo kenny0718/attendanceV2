@@ -82,8 +82,27 @@ def get_db() -> Session:
 def init_db() -> None:
     """初始化資料庫（建立所有資料表）
     
-    注意：生產環境應使用 Alembic migration
+    ⚠️ DEPRECATED: This function is deprecated and should not be used.
+    
+    Schema changes must be managed via Alembic migrations only.
+    Use `alembic upgrade head` instead of calling this function.
+    
+    Reason for deprecation:
+    - Violates SA_MODULE_SPEC v1.7 (Schema changes via Alembic only)
+    - Causes schema drift between environments
+    - Bypasses migration version control
+    - Makes rollback impossible
+    
+    See: docs/DEV_NOTES_CREATE_ALL_USAGE.md, Gap Report #5
     """
+    import warnings
+    warnings.warn(
+        "init_db() is deprecated. Use 'alembic upgrade head' instead. "
+        "Schema changes must be managed via Alembic migrations only.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    logger.warning("⚠️ init_db() is deprecated - use 'alembic upgrade head' instead")
     logger.info("初始化資料庫...")
     Base.metadata.create_all(bind=engine)
     logger.info("資料庫初始化完成")
