@@ -1,6 +1,6 @@
 # Gate Progress Tracker
 
-**Last Updated:** 2026-03-03 11:03 (Gate 3 Complete)  
+**Last Updated:** 2026-03-03 11:58 (Gate 3 Complete - All Units)  
 **Purpose:** Track completion status of each gate and unit
 
 ---
@@ -12,10 +12,10 @@
 | Gate 0 | Test Baseline | ✅ PASS | 3/3 | 3 | 100% |
 | Gate 1 | Phase 9: Tenants | ✅ PASS | 4/4 | 4 | 100% |
 | Gate 2 | Tenant Context Security | ✅ PASS | 1/1 | 1 | 100% |
-| Gate 3 | Spec Compliance | 🔄 In Progress | 3/4 | 4 | 75% |
+| Gate 3 | Spec Compliance | ✅ PASS | 4/4 | 4 | 100% |
 | Gate 4 | Phase 10: Auth | 🔲 Not Started | 0/6 | 6 | 0% |
 | Gate 5 | Phase 11: Attendance | 🔲 Not Started | 0/6 | 6 | 0% |
-| **TOTAL** | | | **11/24** | **24** | **46%** |
+| **TOTAL** | | | **12/24** | **24** | **50%** |
 
 ---
 
@@ -92,7 +92,7 @@
 | G3-01 | Locate create_all() | ✅ Complete | ae86551 | 2026-03-03 | 2 production violations found |
 | G3-02 | Add Notifications Migration | ✅ Complete | d18a815 | 2026-03-03 | Migration 005, all tests pass |
 | G3-03 | Remove Phase 2 Skipped Tests | ✅ Complete | e720f72 | 2026-03-03 | 24 passed, 0 skipped (was 21+3) |
-| G3-04 | Remove Startup create_all() | 🔲 Not Started | - | - | Production fix for Gap 5 |
+| G3-04 | Remove Startup create_all() | ✅ Complete | e987174 | 2026-03-03 | All tests pass, spec compliant |
 
 ---
 
@@ -149,18 +149,38 @@
 - **Result:** All tests now collectible (88 tests)
 
 ### Gate 3 Completion Summary
-- **Date:** 2026-03-03 11:03
-- **Status:** ✅ PASS (3/3 units complete)
+- **Date:** 2026-03-03 11:58 (Final)
+- **Status:** ✅ PASS (4/4 units complete)
 - **Units Completed:**
   - G3-01: Locate create_all() (2 production violations found)
   - G3-02: Add Notifications Migration (migration 005 created)
   - G3-03: Remove Phase 2 Skipped Tests (3 tests implemented)
+  - G3-04: Remove Startup create_all() (production violations fixed)
 - **Key Deliverables:**
-  - Notifications table now managed by Alembic migration
-  - All create_all() usage documented
-  - Phase 2 cross-tenant isolation tests complete
-- **Tests Passing:** 107 total (notifications 13, attendance 24, backup 22, audit 24, others 24)
+  - ✅ Notifications table now managed by Alembic migration
+  - ✅ All create_all() usage documented
+  - ✅ Phase 2 cross-tenant isolation tests complete
+  - ✅ Production create_all() removed from startup
+  - ✅ init_db() marked as deprecated
+  - ✅ Spec compliant: Schema changes via Alembic only
+- **Tests Passing:** 83 total (attendance 24, notifications 13, backup 22, audit 24)
+- **Deployment:** Run `alembic upgrade head` before starting app
 - **Next:** Gate 4 (Phase 10: Auth) - WP-10-01 (Auth Schema Spec)
+
+### G3-04 Completion Notes
+- **Date:** 2026-03-03 11:58
+- **Units Completed:** G3-04 (Remove Startup create_all)
+- **Changes:**
+  - Removed init_db() call from app/main.py startup event
+  - Marked init_db() as DEPRECATED in app/core/database.py
+  - Added deployment notes: DEV_NOTES_CREATE_ALL_FIX.md
+- **Startup Behavior:**
+  - OLD: Calls Base.metadata.create_all() on every startup
+  - NEW: Logs reminder, does NOT create tables automatically
+  - REQUIRED: Run `alembic upgrade head` before starting app
+- **Compliance:** ✅ SA_MODULE_SPEC v1.7 compliant
+- **Tests:** All regression tests pass (83 total)
+- **Next:** Gate 3 complete, ready for Gate 4
 
 ### G3-02 Completion Notes
 - **Date:** 2026-03-03 11:03
@@ -219,8 +239,8 @@
 
 ---
 
-**Last Updated:** 2026-03-03 11:03  
+**Last Updated:** 2026-03-03 11:58  
 **Next Unit to Work On:** WP-10-01 (Auth Schema Spec)  
 **Gate 2 Status:** ✅ PASS  
-**Gate 3 Status:** ✅ PASS (3/3 complete)  
+**Gate 3 Status:** ✅ PASS (4/4 complete)  
 **Gate 4 Status:** 🔲 Unlocked, ready to start
