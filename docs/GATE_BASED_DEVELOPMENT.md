@@ -453,6 +453,53 @@ Refs: Gate 3, Gap Report #5
 
 ---
 
+### G3-03 — Remove Phase 2 Skipped Tests (Attendance Cross-Tenant Isolation)
+
+**Goal:** Implement and enable 3 skipped Phase 2 cross-tenant isolation tests
+
+**Actions:**
+- Implement `test_phase2_cross_company_read_forbidden`
+- Implement `test_phase2_cross_company_update_forbidden`
+- Implement `test_phase2_cross_company_delete_forbidden`
+- Use existing TestClient and tenant fixtures (company-A, company-B)
+- Create attendance records for company-B, attempt access from company-A context
+- Verify proper isolation (403/404/empty results based on endpoint behavior)
+
+**Test Command:**
+```bash
+cd backend
+pytest app/modules/attendance/tests/test_tenant_isolation.py -v
+pytest app/modules/attendance/tests/ -v  # Full regression
+```
+
+**Acceptance Criteria:**
+- [ ] All 3 tests implemented (no pytest.skip())
+- [ ] test_phase2_cross_company_read_forbidden PASS
+- [ ] test_phase2_cross_company_update_forbidden PASS
+- [ ] test_phase2_cross_company_delete_forbidden PASS
+- [ ] All other attendance tests still pass (no regression)
+- [ ] Total: 24 passed, 0 skipped (was 21 passed, 3 skipped)
+
+**Files Modified:**
+- `backend/app/modules/attendance/tests/test_tenant_isolation.py`
+
+**Files Added:** None
+
+**Commit Message:**
+```
+test(attendance): implement Phase 2 cross-tenant isolation tests
+
+- Remove pytest.skip() from 3 Phase 2 tests
+- Implement cross-company read/update/delete isolation tests
+- Verify tenant_context properly blocks cross-tenant access
+- All tests pass (24 passed, 0 skipped)
+- Completes Phase 2 tenant isolation requirements
+
+Refs: Gate 3, G3-03, PHASE1_IMPLEMENTATION_COMPLETE.md
+```
+
+---
+
 ## Gate 4 — Phase 10: Auth (JWT + RBAC)
 
 **Purpose:** Implement authentication and authorization

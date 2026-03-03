@@ -12,10 +12,10 @@
 | Gate 0 | Test Baseline | ✅ PASS | 3/3 | 3 | 100% |
 | Gate 1 | Phase 9: Tenants | ✅ PASS | 4/4 | 4 | 100% |
 | Gate 2 | Tenant Context Security | ✅ PASS | 1/1 | 1 | 100% |
-| Gate 3 | Spec Compliance | 🔲 Not Started | 0/2 | 2 | 0% |
+| Gate 3 | Spec Compliance | 🔲 Not Started | 0/3 | 3 | 0% |
 | Gate 4 | Phase 10: Auth | 🔲 Not Started | 0/6 | 6 | 0% |
 | Gate 5 | Phase 11: Attendance | 🔲 Not Started | 0/6 | 6 | 0% |
-| **TOTAL** | | | **8/22** | **22** | **36%** |
+| **TOTAL** | | | **8/23** | **23** | **35%** |
 
 ---
 
@@ -84,13 +84,14 @@
 ## Gate 3 — Spec Compliance (P1) 🟡
 
 **Status:** 🔲 Not Started  
-**Prerequisite:** Gate 2 PASS  
+**Prerequisite:** Gate 2 PASS ✅ (Complete)  
 **Unlocked:** Yes
 
 | Unit | Name | Status | Commit | Date | Notes |
 |------|------|--------|--------|------|-------|
-| G3-01 | Locate create_all() | 🔲 Not Started | - | - | Blocked by Gate 2 |
-| G3-02 | Add Notifications Migration | 🔲 Not Started | - | - | Blocked by Gate 2 |
+| G3-01 | Locate create_all() | 🔲 Not Started | - | - | Ready to start |
+| G3-02 | Add Notifications Migration | 🔲 Not Started | - | - | Ready to start |
+| G3-03 | Remove Phase 2 Skipped Tests | 🔲 Not Started | - | - | Attendance cross-tenant isolation |
 
 ---
 
