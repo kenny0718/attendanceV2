@@ -21,7 +21,7 @@ class TestNotificationsAPI:
         db = next(get_db())
         try:
             # Delete test notifications if any
-            db.execute("DELETE FROM notifications WHERE company_id IN ('company-test', 'company-001', 'company-002', 'company-empty', 'company-integration')")
+            db.execute("DELETE FROM notifications WHERE company_id IN ('company-test', 'company-001', 'company-002', 'nonexistent-tenant-xyz', 'company-integration')")
             db.commit()
         except:
             db.rollback()
@@ -62,7 +62,7 @@ class TestNotificationsAPI:
     
     def test_get_notifications_empty(self):
         """測試：查詢空結果"""
-        headers = {"X-Company-ID": "company-empty"}
+        headers = {"X-Company-ID": "nonexistent-tenant-xyz"}
         response = client.get("/api/notifications", headers=headers)
         
         assert response.status_code == 404  # Tenant doesn't exist
