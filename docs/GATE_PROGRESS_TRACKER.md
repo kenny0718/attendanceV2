@@ -13,9 +13,9 @@
 | Gate 1 | Phase 9: Tenants | ✅ PASS | 4/4 | 4 | 100% |
 | Gate 2 | Tenant Context Security | ✅ PASS | 1/1 | 1 | 100% |
 | Gate 3 | Spec Compliance | ✅ PASS | 4/4 | 4 | 100% |
-| Gate 4 | Phase 10: Auth | 🔄 In Progress | 2/6 | 6 | 33% |
+| Gate 4 | Phase 10: Auth | 🔄 In Progress | 3/6 | 6 | 50% |
 | Gate 5 | Phase 11: Attendance | 🔲 Not Started | 0/6 | 6 | 0% |
-| **TOTAL** | | | **14/24** | **24** | **58%** |
+| **TOTAL** | | | **15/24** | **24** | **63%** |
 
 ---
 
@@ -106,7 +106,7 @@
 |------|------|--------|--------|------|-------|
 | WP-10-01 | Auth Schema Spec | ✅ Complete | 6ada1ac | 2026-03-03 | AUTH_SCHEMA_SPEC.md created |
 | WP-10-02 | Auth Tables Migration | ✅ Complete | 2167a6735c37 | 2026-03-03 | Migration 006, 5 tables + seeds |
-| WP-10-03 | Repo + Hashing + Tests | 🔲 Not Started | - | - | Blocked by Gate 2 |
+| WP-10-03 | Repo + Hashing + Tests | ✅ Complete | d8b6769 | 2026-03-03 | 14 unit tests, tenant-aware queries |
 | WP-10-04 | JWT Login API + Tests | 🔲 Not Started | - | - | Blocked by Gate 2 |
 | WP-10-05 | RBAC Logic + Tests | 🔲 Not Started | - | - | Blocked by Gate 2 |
 | WP-10-06 | Auth Transition Batch 1 | 🔲 Not Started | - | - | Blocked by Gate 2 |
