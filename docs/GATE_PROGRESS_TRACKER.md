@@ -75,3 +75,34 @@ Total: 96 passed
 ---
 
 **Document End**
+
+### WP-10-04A — Login API Contract Lock (JWT)
+
+**Status:** ✅ Complete  
+**Date:** 2026-03-03  
+**Commit:** [pending]
+
+**Deliverables:**
+- ✅ `docs/WP-10-04_LOGIN_API_CONTRACT.md` - Locked API contract
+- ✅ `test_login_api.py` - 13 tests (TDD red phase)
+- ✅ All tests failing as expected (endpoint not implemented yet)
+
+**API Contract (Locked):**
+- Endpoint: `POST /api/internal/auth/login`
+- Request: `{company_id, login_username, password}`
+- Response: `{access_token, token_type, user, company, role}`
+- Anti-enumeration: No membership → 404 "Invalid credentials"
+- Wrong password → 401 "Invalid credentials"
+
+**Test Coverage:**
+```
+Success cases: 2 tests
+Anti-enumeration: 4 tests
+Wrong password: 1 test
+Validation: 6 tests
+---
+Total: 13 tests (all failing - TDD red phase)
+```
+
+**Next:** WP-10-04B (Implementation - TDD green phase)
+
