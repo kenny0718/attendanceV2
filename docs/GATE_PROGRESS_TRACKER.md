@@ -104,7 +104,7 @@
 
 | Unit | Name | Status | Commit | Date | Notes |
 |------|------|--------|--------|------|-------|
-| WP-10-01 | Auth Schema Spec | ✅ Complete | TBD | 2026-03-03 | AUTH_SCHEMA_SPEC.md created |
+| WP-10-01 | Auth Schema Spec | ✅ Complete | 6ada1ac | 2026-03-03 | AUTH_SCHEMA_SPEC.md created |
 | WP-10-02 | Users Migration + Model | 🔲 Not Started | - | - | Blocked by Gate 2 |
 | WP-10-03 | Repo + Hashing + Tests | 🔲 Not Started | - | - | Blocked by Gate 2 |
 | WP-10-04 | JWT Login API + Tests | 🔲 Not Started | - | - | Blocked by Gate 2 |
