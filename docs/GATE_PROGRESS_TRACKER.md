@@ -12,10 +12,10 @@
 | Gate 0 | Test Baseline | ✅ PASS | 3/3 | 3 | 100% |
 | Gate 1 | Phase 9: Tenants | ✅ PASS | 4/4 | 4 | 100% |
 | Gate 2 | Tenant Context Security | ✅ PASS | 1/1 | 1 | 100% |
-| Gate 3 | Spec Compliance | ✅ PASS | 3/3 | 3 | 100% |
+| Gate 3 | Spec Compliance | 🔄 In Progress | 3/4 | 4 | 75% |
 | Gate 4 | Phase 10: Auth | 🔲 Not Started | 0/6 | 6 | 0% |
 | Gate 5 | Phase 11: Attendance | 🔲 Not Started | 0/6 | 6 | 0% |
-| **TOTAL** | | | **11/23** | **23** | **48%** |
+| **TOTAL** | | | **11/24** | **24** | **46%** |
 
 ---
 
@@ -92,6 +92,7 @@
 | G3-01 | Locate create_all() | ✅ Complete | ae86551 | 2026-03-03 | 2 production violations found |
 | G3-02 | Add Notifications Migration | ✅ Complete | d18a815 | 2026-03-03 | Migration 005, all tests pass |
 | G3-03 | Remove Phase 2 Skipped Tests | ✅ Complete | e720f72 | 2026-03-03 | 24 passed, 0 skipped (was 21+3) |
+| G3-04 | Remove Startup create_all() | 🔲 Not Started | - | - | Production fix for Gap 5 |
 
 ---
 

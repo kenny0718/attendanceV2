@@ -500,6 +500,55 @@ Refs: Gate 3, G3-03, PHASE1_IMPLEMENTATION_COMPLETE.md
 
 ---
 
+### G3-04 — Remove Startup create_all() (Production Fix)
+
+**Goal:** Remove Base.metadata.create_all() from production runtime
+
+**Actions:**
+- Remove or comment out `init_db()` call in `app/main.py` startup event
+- Mark `init_db()` function as deprecated in `app/core/database.py`
+- Add comment: "Use `alembic upgrade head` instead"
+- Optional: Add startup check to verify Alembic migrations are applied
+
+**Test Command:**
+```bash
+cd backend
+pytest app/modules/attendance/tests/ -q
+pytest app/modules/notifications/tests/ -q
+pytest app/modules/backup/tests/ -q
+pytest app/modules/audit/tests/ -q
+```
+
+**Acceptance Criteria:**
+- [ ] `init_db()` not called on application startup
+- [ ] No `Base.metadata.create_all()` in production runtime
+- [ ] All regression tests pass
+- [ ] Startup behavior documented (what happens if migrations not applied)
+
+**Files Modified:**
+- `backend/app/main.py`
+- `backend/app/core/database.py`
+
+**Files Added:**
+- `docs/DEV_NOTES_CREATE_ALL_FIX.md` (optional, deployment notes)
+
+**Commit Message:**
+```
+fix(core): remove startup create_all and enforce alembic-only schema
+
+- Remove init_db() call from app startup event
+- Mark init_db() as deprecated in database.py
+- Add comment: Use alembic upgrade head instead
+- All tests pass (no regression)
+- Fixes Gap 5 (spec compliance) - production violations
+
+Deployment note: Run `alembic upgrade head` before starting app
+
+Refs: Gate 3, G3-04, Gap Report #5, DEV_NOTES_CREATE_ALL_USAGE.md
+```
+
+---
+
 ## Gate 4 — Phase 10: Auth (JWT + RBAC)
 
 **Purpose:** Implement authentication and authorization
