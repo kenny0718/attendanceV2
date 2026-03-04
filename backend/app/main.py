@@ -6,11 +6,15 @@ from fastapi import FastAPI
 
 from app.core.event_bus import get_event_bus
 from app.core.config import settings
+from app.core.exceptions import register_exception_handlers
 # from app.core.database import init_db  # Deprecated: Use alembic upgrade head instead
 from app.modules.attendance.api import router as attendance_router
 from app.modules.notifications.api import router as notifications_router
 from app.modules.backup.api import router as backup_router
 from app.modules.audit.api import router as audit_router
+from app.modules.auth.api import router as auth_router
+from app.modules.tenants.api import router as tenants_router
+from app.modules.customer_service.api import router as customer_service_router
 from app.modules.notifications.event_handlers import register_event_handlers
 
 # 設定日誌
@@ -26,25 +30,22 @@ app = FastAPI(
     debug=settings.debug
 )
 
+# 註冊統一錯誤處理
+register_exception_handlers(app)
+
 # 註冊路由
 app.include_router(attendance_router)
 app.include_router(notifications_router)
 app.include_router(backup_router)
 app.include_router(audit_router)
+app.include_router(auth_router)
+app.include_router(tenants_router)
+app.include_router(customer_service_router)
 
 
 @app.on_event("startup")
 async def startup_event():
     """應用啟動時初始化資料庫與 EventBus"""
-    # 初始化資料庫 (Deprecated: Use alembic upgrade head instead)
-    # Schema changes must be managed via Alembic migrations only (SA_MODULE_SPEC v1.7)
-    # Deployment: Run `alembic upgrade head` before starting the application
-    # try:
-    #     init_db()
-    #     logger.info("資料庫初始化成功")
-    # except Exception as e:
-    #     logger.warning(f"資料庫初始化失敗（可能尚未設定 PostgreSQL）: {e}")
-    
     logger.info("應用啟動 - 確保已執行 alembic upgrade head")
     
     # 初始化 EventBus

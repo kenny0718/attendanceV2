@@ -1,1 +1,1 @@
-"""Tenants tests"""
+"""Tenants tests __init__"""
