@@ -12,7 +12,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'wp_11_04a_entitlements'
-down_revision = '001'
+down_revision = '001b'  # Changed from '001' to '001b' (fixed attendance domain migration)
 branch_labels = None
 depends_on = None
 

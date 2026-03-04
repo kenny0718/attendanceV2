@@ -23,8 +23,9 @@ def test_engine():
     engine = create_engine(TEST_DATABASE_URL)
     
     # 確保測試 DB 有最新的 schema（執行 migrations）
-    # 注意：這裡假設測試 DB 已經執行過 alembic upgrade head
-    # 如果需要，可以在這裡自動執行 migration
+    # WP-11-04A Clean Rebuild: 使用 alembic upgrade head（不再手動 SQL）
+    # 測試 DB 應該在 CI/本地環境啟動時執行一次 alembic upgrade head
+    # 這個 fixture 假設 schema 已經是最新的
     
     yield engine
     

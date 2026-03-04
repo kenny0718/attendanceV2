@@ -1,0 +1,167 @@
+"""Create attendance domain v2 (sessions, punches, policies)
+
+Revision ID: 001
+Revises: 3532deda024c
+Create Date: 2026-03-03
+
+WP-11-01 Phase B: Attendance Domain Model v2
+- attendance_sessions: 出勤 session (punch in → punch out)
+- attendance_punches: 打卡事件 (audit trail)
+- attendance_policies: 考勤政策
+
+Design: Platform-First v2 (Auth Frozen)
+- Uses user_id (UUID) from frozen users table
+- Uses company_id from frozen tenants table
+- Enforces tenant isolation (all queries must filter by company_id)
+"""
+
+# ⚠️ DEPRECATED: DO NOT USE - REPLACED BY 001b_create_attendance_domain_v2_fixed.py
+# ⚠️ This migration has a critical bug: creates attendance_sessions BEFORE attendance_policies
+# ⚠️ This causes FK constraint failure on fresh DB rebuild
+# ⚠️ Kept for historical reference only - no migration should point to this revision
+#
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import UUID
+
+# revision identifiers, used by Alembic.
+revision: str = '001'
+down_revision: Union[str, None] = 'DEPRECATED'  # Removed from chain, use 001b instead
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Create attendance domain tables"""
+    
+    # ========================================
+    # Table 1: attendance_sessions
+    # ========================================
+    op.create_table(
+        'attendance_sessions',
+        sa.Column('id', UUID(as_uuid=True), primary_key=True, server_default=sa.text('gen_random_uuid()'), comment='Session ID (PK)'),
+        sa.Column('company_id', sa.String(255), nullable=False, comment='公司 ID (tenant isolation)'),
+        sa.Column('user_id', UUID(as_uuid=True), nullable=False, comment='員工 ID (global user)'),
+        sa.Column('punch_in_time', sa.DateTime(timezone=True), nullable=False, comment='打卡上班時間 (UTC)'),
+        sa.Column('punch_out_time', sa.DateTime(timezone=True), nullable=True, comment='打卡下班時間 (UTC, NULL = open session)'),
+        sa.Column('status', sa.String(20), nullable=False, server_default='open', comment='Session 狀態 (open/closed)'),
+        sa.Column('duration_minutes', sa.Integer(), nullable=True, comment='工作時長 (分鐘, computed on close)'),
+        sa.Column('policy_id', UUID(as_uuid=True), nullable=True, comment='適用的考勤政策'),
+        sa.Column('notes', sa.Text(), nullable=True, comment='備註'),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('NOW()'), comment='建立時間 (UTC)'),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('NOW()'), comment='更新時間 (UTC)'),
+        
+        # Foreign keys
+        sa.ForeignKeyConstraint(['company_id'], ['tenants.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['policy_id'], ['attendance_policies.id'], ondelete='SET NULL'),
+        
+        # Check constraints
+        sa.CheckConstraint("status IN ('open', 'closed')", name='ck_sessions_status'),
+    )
+    
+    # Indexes for attendance_sessions
+    op.create_index('idx_sessions_company_id', 'attendance_sessions', ['company_id'])
+    op.create_index('idx_sessions_user_id', 'attendance_sessions', ['user_id'])
+    op.create_index('idx_sessions_company_user', 'attendance_sessions', ['company_id', 'user_id'])
+    op.create_index('idx_sessions_company_punch_in', 'attendance_sessions', ['company_id', 'punch_in_time'])
+    op.create_index('idx_sessions_status_open', 'attendance_sessions', ['status'], postgresql_where=sa.text("status = 'open'"))
+    
+    # Unique constraint: one open session per (company_id, user_id)
+    op.create_index(
+        'uq_sessions_company_user_open',
+        'attendance_sessions',
+        ['company_id', 'user_id'],
+        unique=True,
+        postgresql_where=sa.text("status = 'open'")
+    )
+    
+    # ========================================
+    # Table 2: attendance_policies
+    # ========================================
+    # Note: Must create policies table BEFORE sessions table references it
+    # Moving this after sessions creation, but adding FK later
+    op.create_table(
+        'attendance_policies',
+        sa.Column('id', UUID(as_uuid=True), primary_key=True, server_default=sa.text('gen_random_uuid()'), comment='Policy ID (PK)'),
+        sa.Column('company_id', sa.String(255), nullable=False, comment='公司 ID'),
+        sa.Column('name', sa.String(255), nullable=False, comment='政策名稱'),
+        sa.Column('description', sa.Text(), nullable=True, comment='政策說明'),
+        sa.Column('work_start_time', sa.Time(), nullable=False, comment='標準上班時間'),
+        sa.Column('work_end_time', sa.Time(), nullable=False, comment='標準下班時間'),
+        sa.Column('grace_period_minutes', sa.Integer(), nullable=False, server_default='0', comment='遲到寬限時間 (分鐘)'),
+        sa.Column('overtime_threshold_minutes', sa.Integer(), nullable=True, comment='加班認定門檻 (分鐘)'),
+        sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true', comment='是否啟用'),
+        sa.Column('is_default', sa.Boolean(), nullable=False, server_default='false', comment='是否為預設政策'),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('NOW()'), comment='建立時間 (UTC)'),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('NOW()'), comment='更新時間 (UTC)'),
+        
+        # Foreign keys
+        sa.ForeignKeyConstraint(['company_id'], ['tenants.id'], ondelete='CASCADE'),
+    )
+    
+    # Indexes for attendance_policies
+    op.create_index('idx_policies_company_id', 'attendance_policies', ['company_id'])
+    op.create_index('idx_policies_company_active', 'attendance_policies', ['company_id', 'is_active'])
+    op.create_index(
+        'idx_policies_company_default',
+        'attendance_policies',
+        ['company_id', 'is_default'],
+        postgresql_where=sa.text("is_default = true")
+    )
+    
+    # Unique constraint: one default policy per company
+    op.create_index(
+        'uq_policies_company_default',
+        'attendance_policies',
+        ['company_id'],
+        unique=True,
+        postgresql_where=sa.text("is_default = true")
+    )
+    
+    # ========================================
+    # Table 3: attendance_punches
+    # ========================================
+    op.create_table(
+        'attendance_punches',
+        sa.Column('id', UUID(as_uuid=True), primary_key=True, server_default=sa.text('gen_random_uuid()'), comment='Punch ID (PK)'),
+        sa.Column('session_id', UUID(as_uuid=True), nullable=False, comment='所屬 session'),
+        sa.Column('company_id', sa.String(255), nullable=False, comment='公司 ID (denormalized for isolation)'),
+        sa.Column('user_id', UUID(as_uuid=True), nullable=False, comment='員工 ID (denormalized for queries)'),
+        sa.Column('punch_type', sa.String(20), nullable=False, comment='打卡類型 (in/out/break_start/break_end)'),
+        sa.Column('punch_time', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('NOW()'), comment='打卡時間 (UTC)'),
+        sa.Column('ip_address', sa.String(45), nullable=True, comment='IP 地址 (IPv4/IPv6)'),
+        sa.Column('user_agent', sa.Text(), nullable=True, comment='User Agent (device info)'),
+        sa.Column('location_lat', sa.Numeric(10, 8), nullable=True, comment='緯度'),
+        sa.Column('location_lng', sa.Numeric(11, 8), nullable=True, comment='經度'),
+        sa.Column('device_id', sa.String(255), nullable=True, comment='裝置 ID (mobile app)'),
+        sa.Column('photo_url', sa.Text(), nullable=True, comment='打卡照片 URL'),
+        sa.Column('notes', sa.Text(), nullable=True, comment='備註'),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('NOW()'), comment='建立時間 (UTC)'),
+        
+        # Foreign keys
+        sa.ForeignKeyConstraint(['session_id'], ['attendance_sessions.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['company_id'], ['tenants.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        
+        # Check constraints
+        sa.CheckConstraint("punch_type IN ('in', 'out', 'break_start', 'break_end')", name='ck_punches_type'),
+    )
+    
+    # Indexes for attendance_punches
+    op.create_index('idx_punches_session_id', 'attendance_punches', ['session_id'])
+    op.create_index('idx_punches_company_id', 'attendance_punches', ['company_id'])
+    op.create_index('idx_punches_user_id', 'attendance_punches', ['user_id'])
+    op.create_index('idx_punches_company_time', 'attendance_punches', ['company_id', 'punch_time'])
+    op.create_index('idx_punches_type', 'attendance_punches', ['punch_type'])
+
+
+def downgrade() -> None:
+    """Drop attendance domain tables"""
+    
+    # Drop tables in reverse order (respect FK dependencies)
+    op.drop_table('attendance_punches')
+    op.drop_table('attendance_sessions')
+    op.drop_table('attendance_policies')
