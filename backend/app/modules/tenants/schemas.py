@@ -3,8 +3,10 @@
 WP-11-04A: Added CompanyEntitlement schemas
 """
 
-from pydantic import BaseModel, Field
-from typing import Dict
+from pydantic import BaseModel, Field, field_serializer
+from typing import Dict, Optional
+from uuid import UUID
+from datetime import datetime
 
 
 class UpdateEntitlementRequest(BaseModel):
@@ -23,8 +25,13 @@ class EntitlementResponse(BaseModel):
     company_id: str = Field(..., description="公司 ID")
     feature_key: str = Field(..., description="功能 key")
     enabled: bool = Field(..., description="是否啟用")
-    updated_by: str = Field(..., description="更新者 user_id")
-    updated_at: str = Field(..., description="更新時間 (ISO 8601)")
+    updated_by: Optional[str] = Field(None, description="更新者 user_id")
+    updated_at: datetime = Field(..., description="更新時間")
+    
+    @field_serializer('updated_at')
+    def serialize_datetime(self, dt: datetime, _info):
+        """序列化 datetime 為 ISO 8601 字串"""
+        return dt.isoformat()
 
 
 class CompanyEntitlementsResponse(BaseModel):

@@ -21,7 +21,7 @@ import uuid
 
 # revision identifiers, used by Alembic.
 revision: str = '3532deda024c'
-down_revision: Union[str, None] = '005'
+down_revision: Union[str, None] = '004'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
