@@ -29,9 +29,42 @@
 
 ---
 
-**Document Version:** 5.0  
-**Last Updated:** 2026-03-04  
-**Gate 4 Status:** 🔒 CLOSED & FROZEN  
-**Gate 5 Status:** 🚧 IN PROGRESS (WP-11-01~11-05 complete, WP-11-06 next)  
-**Next Review:** WP-11-06 completion (Attendance Reporting v1)
+## WP-11-05D — Security Hardening + Docs Relocation + UI Readiness
 
+**Status:** ✅ COMPLETED  
+**Date:** 2026-03-05
+
+**Deliverables:**
+- ✅ Docs relocation: All WP-11-05D references unified under `/opt/attendance-system/docs/`
+- ✅ P0 Hardening: Production environment 永不允許 `punch_time` parameter (雙條件 gate)
+- ✅ Security tests: 3 new tests added to `test_punch_api.py` (20/20 tests passed)
+- ✅ UI Readiness Report: `docs/WP-11-05D_UI_READINESS.md`
+
+**Key Achievement:**
+- ✅ `is_testing()` 加入 `APP_ENV` 優先檢查：production/prod 永不允許測試模式
+- ✅ 測試覆蓋三種情境：
+  1. Production + TESTING=true + punch_time → 403 ✅
+  2. Test env + punch_time → 允許 ✅
+  3. Omitting punch_time → 所有環境正常 ✅
+- ✅ Backend API 已完全準備好支援 UI 開發
+
+**Test Results:**
+- 20/20 punch API tests passed (包含 3 個新的安全測試)
+- Test command: `pytest app/modules/attendance/tests/test_punch_api.py -v`
+
+**Security Enhancement:**
+- Production guard: `APP_ENV=production` 或 `APP_ENV=prod` 時，即使 `TESTING=true` 也拒絕 `punch_time`
+- 雙重檢查機制確保生產環境安全
+
+**UI Readiness:**
+- ✅ 4 個核心 endpoints 已就緒並測試完成
+- ✅ 建議最小 UI slice: Punch Console (單頁應用)
+- ✅ 無 P0 缺口，可立即開始 UI 開發
+
+---
+
+**Document Version:** 6.0  
+**Last Updated:** 2026-03-05  
+**Gate 4 Status:** 🔒 CLOSED & FROZEN  
+**Gate 5 Status:** 🚧 IN PROGRESS (WP-11-01~11-05D complete, ready for UI)  
+**Next Review:** UI MVP completion or WP-11-06 (Attendance Reporting v1)

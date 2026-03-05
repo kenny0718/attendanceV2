@@ -9,9 +9,18 @@ def is_testing() -> bool:
     """檢測是否在測試模式
     
     檢測方式：
-    1. pytest 是否在運行
-    2. TESTING 環境變數
+    1. APP_ENV 環境檢查（優先）- production 永不允許
+    2. pytest 是否在運行
+    3. TESTING 環境變數
+    
+    WP-11-05D: Production 環境即使 TESTING=true 也必須拒絕
     """
+    # WP-11-05D: Production gate - 優先檢查環境類型
+    app_env = os.getenv("APP_ENV", "").lower()
+    if app_env in ("production", "prod"):
+        # Production 環境永不允許測試模式
+        return False
+    
     # Check if pytest is running
     if "pytest" in sys.modules:
         return True
