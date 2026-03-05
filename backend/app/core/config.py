@@ -1,7 +1,27 @@
 """應用程式設定"""
 
 import os
+import sys
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def is_testing() -> bool:
+    """檢測是否在測試模式
+    
+    檢測方式：
+    1. pytest 是否在運行
+    2. TESTING 環境變數
+    """
+    # Check if pytest is running
+    if "pytest" in sys.modules:
+        return True
+    
+    # Check TESTING environment variable
+    testing_env = os.getenv("TESTING", "false").lower()
+    if testing_env in ("true", "1", "yes"):
+        return True
+    
+    return False
 
 
 class Settings(BaseSettings):

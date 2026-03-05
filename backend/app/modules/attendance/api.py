@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.modules.attendance.service import get_attendance_service
 from app.core.tenant_context import get_current_company_id, get_current_user_id
 from app.core.database import get_db
+from app.core.config import is_testing
 from app.modules.attendance.repo import get_attendance_session_repository
 from app.modules.attendance.schemas import (
     PunchInRequest,
@@ -115,6 +116,14 @@ async def punch_in(
     
     user_uuid = UUID(user_id)
     
+    # WP-11-05D: Security guard for punch_time parameter
+    if request.punch_time and not is_testing():
+        logger.warning(f"punch_time parameter rejected in non-test mode: user={user_id}, company={company_id}")
+        raise HTTPException(
+            status_code=403,
+            detail="punch_time parameter is only allowed in test mode"
+        )
+    
     # Check for existing open session
     existing_session = repo.get_open_session(company_id, user_uuid)
     if existing_session:
@@ -192,6 +201,14 @@ async def punch_out(
         raise HTTPException(status_code=400, detail="User ID is required")
     
     user_uuid = UUID(user_id)
+    
+    # WP-11-05D: Security guard for punch_time parameter
+    if request.punch_time and not is_testing():
+        logger.warning(f"punch_time parameter rejected in non-test mode: user={user_id}, company={company_id}")
+        raise HTTPException(
+            status_code=403,
+            detail="punch_time parameter is only allowed in test mode"
+        )
     
     # Get open session
     session = repo.get_open_session(company_id, user_uuid)
