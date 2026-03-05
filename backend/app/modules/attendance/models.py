@@ -172,6 +172,77 @@ class AttendancePunch(Base):
         return f"<AttendancePunch(id={self.id}, session_id={self.session_id}, punch_type={self.punch_type})>"
 
 
+
+class AttendanceOutCheckpoint(Base):
+    """外出打卡點模型 (WP-11-10)
+    
+    設計原則：
+    1. OUT checkpoint = standalone event (no RETURN/BREAK_IN)
+    2. Multiple OUT checkpoints allowed per session
+    3. Mobile device MUST provide GPS
+    4. PC device MAY provide GPS (optional)
+    5. device_type MUST be recorded (mobile|pc)
+    
+    Reporting Semantics:
+    - OUT checkpoints are displayed as event list
+    - NOT calculated as time intervals
+    - NOT subtracted from work duration
+    """
+    
+    __tablename__ = "attendance_out_checkpoints"
+    
+    # Primary key
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'), comment='Checkpoint ID (PK)')
+    
+    # Tenant Isolation (MANDATORY per SA v1.9)
+    company_id = Column(String(255), nullable=False, comment='公司 ID (tenant isolation)')
+    
+    # User & Session
+    user_id = Column(PGUUID(as_uuid=True), nullable=False, comment='員工 ID (global user)')
+    session_id = Column(PGUUID(as_uuid=True), nullable=True, comment='所屬 session (nullable: allow checkpoints without open session)')
+    
+    # Timestamp (server-set, NOT from client)
+    punch_time = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='打卡時間 (UTC, server-set)')
+    
+    # Device Info (MANDATORY)
+    device_type = Column(String(20), nullable=False, comment='裝置類型 (mobile|pc)')
+    
+    # GPS Data (MANDATORY for mobile, OPTIONAL for pc)
+    gps_lat = Column(Numeric(10, 8), nullable=True, comment='緯度 (required for mobile)')
+    gps_lng = Column(Numeric(11, 8), nullable=True, comment='經度 (required for mobile)')
+    gps_accuracy_m = Column(Numeric(8, 2), nullable=True, comment='GPS 精度 (公尺)')
+    gps_captured_at = Column(DateTime(timezone=True), nullable=True, comment='GPS 擷取時間 (client-side timestamp)')
+    gps_provider = Column(String(20), nullable=True, comment='GPS 提供者 (gps|network|fused)')
+    
+    # Client Context (optional, for debugging)
+    client_timezone = Column(String(50), nullable=True, comment='客戶端時區')
+    client_user_agent = Column(Text, nullable=True, comment='User Agent')
+    ip_address = Column(String(45), nullable=True, comment='IP 地址 (IPv4/IPv6)')
+    
+    # Notes
+    notes = Column(Text, nullable=True, comment='備註')
+    
+    # Audit
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC)')
+    
+    # Indexes and constraints
+    __table_args__ = (
+        Index('idx_checkpoints_company_id', 'company_id'),
+        Index('idx_checkpoints_user_id', 'user_id'),
+        Index('idx_checkpoints_company_user_time', 'company_id', 'user_id', 'punch_time', postgresql_ops={'punch_time': 'DESC'}),
+        Index('idx_checkpoints_session_id', 'session_id', postgresql_where=text('session_id IS NOT NULL')),
+        Index('idx_checkpoints_gps', 'gps_lat', 'gps_lng', postgresql_where=text('gps_lat IS NOT NULL')),
+        CheckConstraint("device_type IN ('mobile', 'pc')", name='ck_checkpoints_device_type'),
+        CheckConstraint("gps_provider IN ('gps', 'network', 'fused') OR gps_provider IS NULL", name='ck_checkpoints_gps_provider'),
+        ForeignKeyConstraint(['company_id'], ['tenants.id'], ondelete='CASCADE'),
+        ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        ForeignKeyConstraint(['session_id'], ['attendance_sessions.id'], ondelete='SET NULL'),
+    )
+    
+    def __repr__(self):
+        return f"<AttendanceOutCheckpoint(id={self.id}, company_id={self.company_id}, user_id={self.user_id}, device_type={self.device_type})>"
+
+
 # ============================================
 # Phase 4: Old Model (DEPRECATED)
 # ============================================
