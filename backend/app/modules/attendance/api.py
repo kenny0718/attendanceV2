@@ -129,7 +129,21 @@ async def punch_in(
         )
     
     # Create new session
-    punch_in_time = datetime.now(timezone.utc)
+    # Use provided punch_time or current time
+    if request.punch_time:
+        # Treat naive datetime as local timezone (Asia/Taipei UTC+8)
+        if request.punch_time.tzinfo:
+            punch_in_time = request.punch_time
+        else:
+            # Naive datetime: treat as local timezone
+            from zoneinfo import ZoneInfo
+            local_tz = ZoneInfo('Asia/Taipei')
+            punch_in_time = request.punch_time.replace(tzinfo=local_tz)
+    else:
+        # Use local time for current time
+        from zoneinfo import ZoneInfo
+        local_tz = ZoneInfo('Asia/Taipei')
+        punch_in_time = datetime.now(local_tz)
     session = repo.create_session(
         company_id=company_id,
         user_id=user_uuid,
@@ -191,7 +205,21 @@ async def punch_out(
         )
     
     # Punch out
-    punch_out_time = datetime.now(timezone.utc)
+    # Use provided punch_time or current time
+    if request.punch_time:
+        # Treat naive datetime as local timezone (Asia/Taipei UTC+8)
+        if request.punch_time.tzinfo:
+            punch_out_time = request.punch_time
+        else:
+            # Naive datetime: treat as local timezone
+            from zoneinfo import ZoneInfo
+            local_tz = ZoneInfo('Asia/Taipei')
+            punch_out_time = request.punch_time.replace(tzinfo=local_tz)
+    else:
+        # Use local time for current time
+        from zoneinfo import ZoneInfo
+        local_tz = ZoneInfo('Asia/Taipei')
+        punch_out_time = datetime.now(local_tz)
     
     # Create punch record
     ip_address = http_request.client.host if http_request and http_request.client else None

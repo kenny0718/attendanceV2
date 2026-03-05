@@ -29,6 +29,7 @@ class PunchInRequest(BaseModel):
     """
     notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
     location: Optional[LocationData] = Field(None, description="Optional GPS location")
+    punch_time: Optional[datetime] = Field(None, description="Optional punch time (for testing/admin)")
 
 
 class PunchOutRequest(BaseModel):
@@ -38,6 +39,7 @@ class PunchOutRequest(BaseModel):
     """
     notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
     location: Optional[LocationData] = Field(None, description="Optional GPS location")
+    punch_time: Optional[datetime] = Field(None, description="Optional punch time (for testing/admin)")
 
 
 class SessionResponse(BaseModel):

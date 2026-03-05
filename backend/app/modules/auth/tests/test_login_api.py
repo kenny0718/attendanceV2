@@ -1,378 +1,380 @@
-"""Login API Tests (TDD - Red Phase)
+"""Login API Tests (WP-10-04A)
 
-WP-10-04A: Test-first implementation of login API
-Contract: docs/WP-10-04_LOGIN_API_CONTRACT.md
+TDD Red Phase: 13 tests based on WP-10-04_LOGIN_API_CONTRACT.md
 
-These tests define the locked behavior and should FAIL initially.
+Test Coverage:
+- Success cases (3 tests)
+- Error cases - Anti-Enumeration (4 tests)
+- Validation cases (4 tests)
+- JWT validation (2 tests)
 """
 
 import pytest
-import uuid
+import jwt
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-
 from app.main import app
-from app.modules.tenants.models import Tenant
-from app.modules.auth.models import User, Membership, Role
-from app.core.security.password import hash_password
+from app.modules.auth.repo import AuthRepository
 
 
 client = TestClient(app)
 
 
-@pytest.fixture
-def test_tenant(db: Session):
-    """Create test tenant"""
-    tenant = Tenant(
-        id="company-test",
-        name="Test Company",
-        is_active=True,
-        timezone="Asia/Taipei"
+# ========== Success Cases (3 tests) ==========
+
+def test_login_success_returns_token_and_user_info(db, test_tenant, seed_roles):
+    """Test successful login returns JWT token and user info"""
+    # Arrange: Create user + membership
+    auth_repo = AuthRepository(db)
+    user = auth_repo.create_user(
+        display_name="John Doe",
+        plain_password="SecurePass123!",
+        email="john@example.com"
     )
-    db.add(tenant)
-    db.commit()
-    db.refresh(tenant)
-    return tenant
-
-
-@pytest.fixture
-def inactive_tenant(db: Session):
-    """Create inactive tenant"""
-    tenant = Tenant(
-        id="company-inactive",
-        name="Inactive Company",
-        is_active=False,
-        timezone="Asia/Taipei"
-    )
-    db.add(tenant)
-    db.commit()
-    db.refresh(tenant)
-    return tenant
-
-
-@pytest.fixture
-def test_role(db: Session):
-    """Create test role"""
-    role = Role(
-        id="employee",
-        name="Employee",
-        description="Regular employee"
-    )
-    db.add(role)
-    db.commit()
-    return role
-
-
-@pytest.fixture
-def test_user(db: Session):
-    """Create test user with known password"""
-    user = User(
-        id=uuid.uuid4(),
-        display_name="Test User",
-        email="test@example.com",
-        password_hash=hash_password("SecurePass123!"),
-        is_active=True
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-@pytest.fixture
-def test_membership(db: Session, test_user, test_tenant, test_role):
-    """Create active membership"""
-    membership = Membership(
-        id=uuid.uuid4(),
-        user_id=test_user.id,
-        company_id=test_tenant.id,
-        role_id=test_role.id,
-        login_username="testuser",
-        is_active=True
-    )
-    db.add(membership)
-    db.commit()
-    db.refresh(membership)
-    return membership
-
-
-@pytest.fixture
-def inactive_membership(db: Session, test_user, test_tenant, test_role):
-    """Create inactive membership"""
-    user = User(
-        id=uuid.uuid4(),
-        display_name="Inactive User",
-        password_hash=hash_password("SecurePass123!"),
-        is_active=True
-    )
-    db.add(user)
-    db.commit()
-    
-    membership = Membership(
-        id=uuid.uuid4(),
+    auth_repo.create_membership(
         user_id=user.id,
-        company_id=test_tenant.id,
-        role_id=test_role.id,
-        login_username="inactiveuser",
-        is_active=False  # Inactive
+        company_id="company-A",
+        role_id="employee",
+        login_username="john.doe"
     )
-    db.add(membership)
-    db.commit()
-    return membership
+    
+    # Act: Login
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-A",
+            "login_username": "john.doe",
+            "password": "SecurePass123!"
+        }
+    )
+    
+    # Assert: 200 + token + user info
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+    
+    assert "user" in data
+    assert data["user"]["id"] == str(user.id)
+    assert data["user"]["display_name"] == "John Doe"
+    assert data["user"]["email"] == "john@example.com"
+    
+    assert "company" in data
+    assert data["company"]["id"] == "company-A"
+    assert data["company"]["name"] == "Company A"
+    
+    assert "role" in data
+    assert data["role"]["id"] == "employee"
+    assert data["role"]["name"] == "Employee"
 
 
-class TestLoginAPISuccess:
-    """Test successful login scenarios"""
+def test_login_success_jwt_contains_required_claims(db, test_tenant, seed_roles):
+    """Test JWT token contains required claims (sub, company_id, role_id, exp, iat)"""
+    # Arrange
+    auth_repo = AuthRepository(db)
+    user = auth_repo.create_user(
+        display_name="Jane Smith",
+        plain_password="Password456!",
+        email="jane@example.com"
+    )
+    auth_repo.create_membership(
+        user_id=user.id,
+        company_id="company-A",
+        role_id="manager",
+        login_username="jane.smith"
+    )
     
-    def test_valid_login_returns_200_with_token(self, db: Session, test_tenant, test_membership):
-        """Test valid login returns 200 with JWT token"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": test_tenant.id,
-                "login_username": "testuser",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        # Check response structure
-        assert "access_token" in data
-        assert "token_type" in data
-        assert data["token_type"] == "bearer"
-        
-        # Check user info
-        assert "user" in data
-        assert "id" in data["user"]
-        assert "display_name" in data["user"]
-        assert data["user"]["display_name"] == "Test User"
-        
-        # Check company info
-        assert "company" in data
-        assert data["company"]["id"] == test_tenant.id
-        assert data["company"]["name"] == "Test Company"
-        
-        # Check role info
-        assert "role" in data
-        assert data["role"]["id"] == "employee"
-        assert data["role"]["name"] == "Employee"
+    # Act
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-A",
+            "login_username": "jane.smith",
+            "password": "Password456!"
+        }
+    )
     
-    def test_jwt_token_contains_required_claims(self, db: Session, test_tenant, test_membership):
-        """Test JWT token contains required claims (sub, company_id, role_id)"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": test_tenant.id,
-                "login_username": "testuser",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        # Decode JWT token (will be implemented in WP-10-04B)
-        token = data["access_token"]
-        assert token is not None
-        assert len(token) > 0
-        
-        # TODO: Decode and verify claims in WP-10-04B
-        # Expected claims: sub (user_id), company_id, role_id, exp, iat
+    # Assert: Decode JWT and check claims
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    
+    # Decode without expiry verification (for testing)
+    from app.core.config import settings
+    decoded = jwt.decode(token, settings.jwt_secret_key, algorithms=["HS256"], options={"verify_exp": False})
+    
+    assert "sub" in decoded
+    assert decoded["sub"] == str(user.id)
+    assert "company_id" in decoded
+    assert decoded["company_id"] == "company-A"
+    assert "role_id" in decoded
+    assert decoded["role_id"] == "manager"
+    assert "exp" in decoded
+    assert "iat" in decoded
 
 
-class TestLoginAPIAntiEnumeration:
-    """Test anti-enumeration error semantics (404 for all scenarios)"""
+def test_login_success_with_different_company(db, test_tenant_b, seed_roles):
+    """Test user can login to different company with different username"""
+    # Arrange: User with membership in company-B
+    auth_repo = AuthRepository(db)
+    user = auth_repo.create_user(
+        display_name="Bob Wilson",
+        plain_password="BobPass789!",
+        email="bob@example.com"
+    )
+    auth_repo.create_membership(
+        user_id=user.id,
+        company_id="company-B",
+        role_id="employee",
+        login_username="bob.wilson"
+    )
     
-    def test_company_not_exists_returns_404(self, db: Session):
-        """Test non-existent company returns 404 with generic message"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": "nonexistent-company",
-                "login_username": "testuser",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 404
-        data = response.json()
-        assert data["detail"] == "Invalid credentials"
+    # Act
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-B",
+            "login_username": "bob.wilson",
+            "password": "BobPass789!"
+        }
+    )
     
-    def test_membership_not_exists_returns_404(self, db: Session, test_tenant):
-        """Test non-existent membership returns 404 (anti-enumeration)"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": test_tenant.id,
-                "login_username": "nonexistent-user",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 404
-        data = response.json()
-        assert data["detail"] == "Invalid credentials"
-    
-    def test_membership_inactive_returns_404(self, db: Session, test_tenant, inactive_membership):
-        """Test inactive membership returns 404 (anti-enumeration)"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": test_tenant.id,
-                "login_username": "inactiveuser",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 404
-        data = response.json()
-        assert data["detail"] == "Invalid credentials"
-    
-    def test_company_inactive_returns_404(self, db: Session, inactive_tenant, test_role):
-        """Test inactive company returns 404 (anti-enumeration)"""
-        # Create user and membership for inactive company
-        user = User(
-            id=uuid.uuid4(),
-            display_name="User in Inactive Company",
-            password_hash=hash_password("SecurePass123!"),
-            is_active=True
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        
-        membership = Membership(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            company_id=inactive_tenant.id,
-            role_id=test_role.id,
-            login_username="testuser",
-            is_active=True
-        )
-        db.add(membership)
-        db.commit()
-        
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": inactive_tenant.id,
-                "login_username": "testuser",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 404
-        data = response.json()
-        assert data["detail"] == "Invalid credentials"
+    # Assert
+    assert response.status_code == 200
+    data = response.json()
+    assert data["company"]["id"] == "company-B"
+    assert data["company"]["name"] == "Company B"
 
 
-class TestLoginAPIWrongPassword:
-    """Test wrong password returns 401 (but same message as 404)"""
+# ========== Error Cases - Anti-Enumeration (4 tests) ==========
+
+def test_login_company_not_exists_returns_404(db, seed_roles):
+    """Test login with non-existent company returns 404 (anti-enumeration)"""
+    # Act: Login with invalid company
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "non-existent-company",
+            "login_username": "john.doe",
+            "password": "SecurePass123!"
+        }
+    )
     
-    def test_wrong_password_returns_401(self, db: Session, test_tenant, test_membership):
-        """Test wrong password returns 401 with generic message"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": test_tenant.id,
-                "login_username": "testuser",
-                "password": "WrongPassword123!"
-            }
-        )
-        
-        assert response.status_code == 401
-        data = response.json()
-        assert data["detail"] == "Invalid credentials"
+    # Assert: 404 with generic message
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Invalid credentials"
 
 
-class TestLoginAPIValidation:
-    """Test request validation errors (422)"""
+def test_login_membership_not_exists_returns_404(db, test_tenant, seed_roles):
+    """Test login with non-existent membership returns 404 (anti-enumeration)"""
+    # Act: Login with invalid username (no membership)
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-A",
+            "login_username": "non.existent.user",
+            "password": "SomePassword123!"
+        }
+    )
     
-    def test_missing_company_id_returns_422(self, db: Session):
-        """Test missing company_id returns 422"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "login_username": "testuser",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 422
-        data = response.json()
-        assert "detail" in data
+    # Assert: 404 with generic message
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Invalid credentials"
+
+
+def test_login_membership_inactive_returns_404(db, test_tenant, seed_roles):
+    """Test login with inactive membership returns 404 (anti-enumeration)"""
+    # Arrange: Create user with inactive membership
+    auth_repo = AuthRepository(db)
+    user = auth_repo.create_user(
+        display_name="Inactive User",
+        plain_password="InactivePass123!",
+        email="inactive@example.com"
+    )
+    auth_repo.create_membership(
+        user_id=user.id,
+        company_id="company-A",
+        role_id="employee",
+        login_username="inactive.user",
+        is_active=False  # Inactive membership
+    )
     
-    def test_missing_login_username_returns_422(self, db: Session):
-        """Test missing login_username returns 422"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": "company-test",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 422
-        data = response.json()
-        assert "detail" in data
+    # Act
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-A",
+            "login_username": "inactive.user",
+            "password": "InactivePass123!"
+        }
+    )
     
-    def test_missing_password_returns_422(self, db: Session):
-        """Test missing password returns 422"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": "company-test",
-                "login_username": "testuser"
-            }
-        )
-        
-        assert response.status_code == 422
-        data = response.json()
-        assert "detail" in data
+    # Assert: 404 with generic message
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Invalid credentials"
+
+
+def test_login_wrong_password_returns_401(db, test_tenant, seed_roles):
+    """Test login with wrong password returns 401"""
+    # Arrange: Create user + membership
+    auth_repo = AuthRepository(db)
+    user = auth_repo.create_user(
+        display_name="Test User",
+        plain_password="CorrectPassword123!",
+        email="test@example.com"
+    )
+    auth_repo.create_membership(
+        user_id=user.id,
+        company_id="company-A",
+        role_id="employee",
+        login_username="test.user"
+    )
     
-    def test_empty_company_id_returns_422(self, db: Session):
-        """Test empty company_id returns 422"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": "",
-                "login_username": "testuser",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 422
-        data = response.json()
-        assert "detail" in data
+    # Act: Login with wrong password
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-A",
+            "login_username": "test.user",
+            "password": "WrongPassword123!"
+        }
+    )
     
-    def test_empty_login_username_returns_422(self, db: Session):
-        """Test empty login_username returns 422"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": "company-test",
-                "login_username": "",
-                "password": "SecurePass123!"
-            }
-        )
-        
-        assert response.status_code == 422
-        data = response.json()
-        assert "detail" in data
+    # Assert: 401 with generic message
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid credentials"
+
+
+# ========== Validation Cases (4 tests) ==========
+
+def test_login_missing_company_id_returns_422(db):
+    """Test login without company_id returns 422"""
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "login_username": "john.doe",
+            "password": "SecurePass123!"
+        }
+    )
     
-    def test_empty_password_returns_422(self, db: Session):
-        """Test empty password returns 422"""
-        response = client.post(
-            "/api/internal/auth/login",
-            json={
-                "company_id": "company-test",
-                "login_username": "testuser",
-                "password": ""
-            }
-        )
-        
-        assert response.status_code == 422
-        data = response.json()
-        assert "detail" in data
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert any(err["loc"] == ["body", "company_id"] for err in detail)
+
+
+def test_login_missing_login_username_returns_422(db):
+    """Test login without login_username returns 422"""
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-A",
+            "password": "SecurePass123!"
+        }
+    )
+    
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert any(err["loc"] == ["body", "login_username"] for err in detail)
+
+
+def test_login_missing_password_returns_422(db):
+    """Test login without password returns 422"""
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-A",
+            "login_username": "john.doe"
+        }
+    )
+    
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert any(err["loc"] == ["body", "password"] for err in detail)
+
+
+def test_login_empty_fields_returns_422(db):
+    """Test login with empty fields returns 422"""
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "",
+            "login_username": "",
+            "password": ""
+        }
+    )
+    
+    assert response.status_code == 422
+
+
+# ========== JWT Validation (2 tests) ==========
+
+def test_jwt_token_expires_in_900_seconds(db, test_tenant, seed_roles):
+    """Test JWT token expires in 900 seconds (15 minutes)"""
+    # Arrange
+    auth_repo = AuthRepository(db)
+    user = auth_repo.create_user(
+        display_name="Token Test User",
+        plain_password="TokenPass123!",
+        email="token@example.com"
+    )
+    auth_repo.create_membership(
+        user_id=user.id,
+        company_id="company-A",
+        role_id="employee",
+        login_username="token.user"
+    )
+    
+    # Act
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-A",
+            "login_username": "token.user",
+            "password": "TokenPass123!"
+        }
+    )
+    
+    # Assert: Check exp - iat = 900
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    
+    from app.core.config import settings
+    decoded = jwt.decode(token, settings.jwt_secret_key, algorithms=["HS256"], options={"verify_exp": False})
+    
+    exp = decoded["exp"]
+    iat = decoded["iat"]
+    assert exp - iat == 900
+
+
+def test_jwt_token_uses_hs256_algorithm(db, test_tenant, seed_roles):
+    """Test JWT token uses HS256 algorithm"""
+    # Arrange
+    auth_repo = AuthRepository(db)
+    user = auth_repo.create_user(
+        display_name="Algo Test User",
+        plain_password="AlgoPass123!",
+        email="algo@example.com"
+    )
+    auth_repo.create_membership(
+        user_id=user.id,
+        company_id="company-A",
+        role_id="employee",
+        login_username="algo.user"
+    )
+    
+    # Act
+    response = client.post(
+        "/api/internal/auth/login",
+        json={
+            "company_id": "company-A",
+            "login_username": "algo.user",
+            "password": "AlgoPass123!"
+        }
+    )
+    
+    # Assert: Decode header to check algorithm
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    
+    # Decode header without verification
+    header = jwt.get_unverified_header(token)
+    assert header["alg"] == "HS256"

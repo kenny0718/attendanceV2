@@ -125,15 +125,8 @@ class TestEntitlementsAPI:
         db_session.add(tenant)
         db_session.commit()
         
-        # 建立測試 user（for updated_by_user_id FK）
-        from app.modules.auth.models import User
-        user_id = uuid4()
-        user = User(id=user_id, display_name="Test Admin", password_hash="dummy")
-        db_session.add(user)
-        db_session.commit()
-        
         # Mock actor
-        actor = Actor(user_id=user_id, role=UserRole.SUPER_ADMIN)
+        actor = Actor(user_id=uuid4(), role=UserRole.SUPER_ADMIN)
         
         def override_get_current_actor():
             return actor
@@ -223,15 +216,8 @@ class TestEntitlementsAPI:
         db_session.add(tenant)
         db_session.commit()
         
-        # 建立測試 user（for updated_by_user_id FK）
-        from app.modules.auth.models import User
-        user_id = uuid4()
-        user = User(id=user_id, display_name="Test Admin", password_hash="dummy")
-        db_session.add(user)
-        db_session.commit()
-        
         # Mock actor
-        actor = Actor(user_id=user_id, role=UserRole.SUPER_ADMIN)
+        actor = Actor(user_id=uuid4(), role=UserRole.SUPER_ADMIN)
         
         def override_get_current_actor():
             return actor
@@ -253,16 +239,9 @@ class TestEntitlementsAPI:
     
     def test_update_entitlement_clears_cache(self, db_session, client):
         """測試：更新 entitlement 後清除快取"""
-        # 建立測試 user（for updated_by_user_id FK）
-        from app.modules.auth.models import User
-        user_id = uuid4()
-        user = User(id=user_id, display_name="Test Admin", password_hash="dummy")
-        db_session.add(user)
-        
         # 建立測試公司
         tenant = Tenant(id="test_company_1", name="Test Company 1")
         db_session.add(tenant)
-        db_session.flush()  # 確保 tenant 先寫入，滿足 FK 約束
         
         # 建立初始 entitlement
         entitlement = CompanyEntitlement(
@@ -275,7 +254,7 @@ class TestEntitlementsAPI:
         db_session.commit()
         
         # Mock actor
-        actor = Actor(user_id=user_id, role=UserRole.SUPER_ADMIN)
+        actor = Actor(user_id=uuid4(), role=UserRole.SUPER_ADMIN)
         
         def override_get_current_actor():
             return actor

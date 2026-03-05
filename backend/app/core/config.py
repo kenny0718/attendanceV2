@@ -21,5 +21,11 @@ class Settings(BaseSettings):
         "postgresql+psycopg2://postgres:Raxcxtjq260!@127.0.0.1:5432/attendance_db",
     )
 
+    # JWT 設定 (WP-10-04B)
+    jwt_secret_key: str = os.getenv(
+        "JWT_SECRET_KEY",
+        "dev-secret-key-change-in-production-min-32-chars-required",
+    )
+
 
 settings = Settings()

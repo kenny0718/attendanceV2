@@ -1,10 +1,16 @@
-"""Tenants Repository (Data Access Layer)"""
+"""Tenants Repository (Data Access Layer)
+
+WP-11-04A: Added CompanyEntitlement repository methods
+"""
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
+from uuid import UUID
+import uuid
+from datetime import datetime
 
-from app.modules.tenants.models import Tenant
+from app.modules.tenants.models import Tenant, CompanyEntitlement
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +150,115 @@ class TenantRepository:
         return tenant.is_active if tenant else False
 
 
+class CompanyEntitlementRepository:
+    """Company Entitlement data access layer (WP-11-04A)"""
+    
+    def __init__(self, db: Session):
+        """Initialize Repository
+        
+        Args:
+            db: SQLAlchemy Session
+        """
+        self.db = db
+        self.model = CompanyEntitlement
+    
+    def get_entitlement(self, company_id: str, feature_key: str) -> Optional[CompanyEntitlement]:
+        """Get entitlement by company_id and feature_key
+        
+        Args:
+            company_id: Company ID
+            feature_key: Feature key
+        
+        Returns:
+            CompanyEntitlement or None if not found
+        """
+        return self.db.query(CompanyEntitlement).filter(
+            CompanyEntitlement.company_id == company_id,
+            CompanyEntitlement.feature_key == feature_key
+        ).first()
+    
+    def get_all_entitlements(self, company_id: str) -> Dict[str, bool]:
+        """Get all entitlements for a company
+        
+        Args:
+            company_id: Company ID
+        
+        Returns:
+            Dict[str, bool]: feature_key -> enabled mapping
+        """
+        results = self.db.query(CompanyEntitlement).filter(
+            CompanyEntitlement.company_id == company_id
+        ).all()
+        
+        return {ent.feature_key: ent.enabled for ent in results}
+    
+    def upsert_entitlement(
+        self,
+        company_id: str,
+        feature_key: str,
+        enabled: bool,
+        updated_by_user_id: UUID
+    ) -> CompanyEntitlement:
+        """Create or update entitlement
+        
+        Args:
+            company_id: Company ID
+            feature_key: Feature key
+            enabled: Is enabled
+            updated_by_user_id: Updated by user ID
+        
+        Returns:
+            CompanyEntitlement: Created or updated entitlement
+        """
+        # Check if exists
+        existing = self.get_entitlement(company_id, feature_key)
+        
+        if existing:
+            # Update
+            existing.enabled = enabled
+            existing.updated_by_user_id = updated_by_user_id
+            existing.updated_at = datetime.utcnow()
+            self.db.commit()
+            self.db.refresh(existing)
+            logger.info(f"Updated entitlement: company={company_id}, feature={feature_key}, enabled={enabled}")
+            return existing
+        else:
+            # Create
+            entitlement = CompanyEntitlement(
+                id=uuid.uuid4(),
+                company_id=company_id,
+                feature_key=feature_key,
+                enabled=enabled,
+                updated_by_user_id=updated_by_user_id
+            )
+            self.db.add(entitlement)
+            self.db.commit()
+            self.db.refresh(entitlement)
+            logger.info(f"Created entitlement: company={company_id}, feature={feature_key}, enabled={enabled}")
+            return entitlement
+    
+    def delete_entitlement(self, company_id: str, feature_key: str) -> bool:
+        """Delete entitlement
+        
+        Args:
+            company_id: Company ID
+            feature_key: Feature key
+        
+        Returns:
+            bool: True if deleted
+        """
+        result = self.db.query(CompanyEntitlement).filter(
+            CompanyEntitlement.company_id == company_id,
+            CompanyEntitlement.feature_key == feature_key
+        ).delete()
+        
+        self.db.commit()
+        
+        logger.info(f"Deleted entitlement: company={company_id}, feature={feature_key}, deleted={result > 0}")
+        
+        return result > 0
+
+
 def get_tenant_repository(db: Session) -> TenantRepository:
     """Get TenantRepository instance (FastAPI Dependency)
     
@@ -154,3 +269,15 @@ def get_tenant_repository(db: Session) -> TenantRepository:
         TenantRepository: Repository instance
     """
     return TenantRepository(db)
+
+
+def get_entitlement_repository(db: Session) -> CompanyEntitlementRepository:
+    """Get CompanyEntitlementRepository instance (FastAPI Dependency)
+    
+    Args:
+        db: SQLAlchemy Session
+    
+    Returns:
+        CompanyEntitlementRepository: Repository instance
+    """
+    return CompanyEntitlementRepository(db)

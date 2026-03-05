@@ -9,7 +9,12 @@ WP-11-04A Clean Rebuild: Ensures no manual SQL workarounds are needed.
 import pytest
 import subprocess
 import os
+from pathlib import Path
 from sqlalchemy import create_engine, text
+
+# Determine backend directory from this file's location
+# This ensures the test works regardless of where pytest is invoked from
+BACKEND_DIR = Path(__file__).parent.parent.resolve()
 
 
 def test_fresh_db_migration_smoke():
@@ -46,7 +51,7 @@ def test_fresh_db_migration_smoke():
         
         result = subprocess.run(
             ['alembic', 'upgrade', 'head'],
-            cwd=os.path.dirname(os.path.dirname(__file__)),
+            cwd=str(BACKEND_DIR),
             env=env,
             capture_output=True,
             text=True
@@ -112,7 +117,7 @@ def test_migration_chain_has_single_head():
     """Verify that alembic heads returns exactly one head."""
     result = subprocess.run(
         ['alembic', 'heads'],
-        cwd=os.path.dirname(os.path.dirname(__file__)),
+        cwd=str(BACKEND_DIR),
         capture_output=True,
         text=True
     )
@@ -129,7 +134,7 @@ def test_no_deprecated_migrations_in_chain():
     """Verify that deprecated migration 001 is not in the active chain."""
     result = subprocess.run(
         ['alembic', 'history'],
-        cwd=os.path.dirname(os.path.dirname(__file__)),
+        cwd=str(BACKEND_DIR),
         capture_output=True,
         text=True
     )

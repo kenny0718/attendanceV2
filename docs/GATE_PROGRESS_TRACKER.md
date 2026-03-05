@@ -1,108 +1,37 @@
-# Gate Progress Tracker
-
-**Project:** SaaS Multi-Tenant Attendance System  
-**Current Gate:** Gate 4 (Auth)  
-**Last Updated:** 2026-03-03
 
 ---
 
-## Gate 4 — Phase 10: Auth (JWT + RBAC)
+## WP-11-05 — Attendance Regression Tests
 
-### WP-10-02B — Users Migration + Model (Platform-First v2)
-
-**Status:** ✅ Complete  
-**Date:** 2026-03-03  
-**Commit:** 32de20e
+**Status:** ✅ COMPLETED  
+**Date:** 2026-03-04
 
 **Deliverables:**
-- ✅ Migration: `3532deda024c_create_auth_tables_v2_platform_first.py`
-- ✅ Models: User, Membership, Role, Permission, RolePermission
-- ✅ Repository: AuthRepository with membership methods
-- ✅ Tests: 24 tests, all passing
-
-**Key Changes:**
-- User: removed `company_id`, `username`; added `display_name`
-- Membership: new model (user-company relationship + role)
-- UNIQUE constraints: `(company_id, login_username)`, `(user_id, company_id)`
-
----
-
-### WP-10-03B — Tenant Context v2 (Membership Validation)
-
-**Status:** ✅ Complete  
-**Date:** 2026-03-03  
-**Commit:** [pending]
-
-**Deliverables:**
-- ✅ `tenant_context.py`: Added `get_current_company_id_with_membership()`
-- ✅ Membership validation: `user_has_company_access(user_id, company_id)`
-- ✅ Anti-enumeration: No membership → 404 (not 403)
-- ✅ Tests: 13 tests, all passing
-- ✅ Regression: All module tests passing (83 tests total)
-
-**Security Enhancement:**
-- Validates user has active membership before granting company access
-- Returns 404 for no membership (anti-enumeration, prevents tenant discovery)
-- Backward compatible: old `get_current_company_id()` preserved
+- ✅ `backend/app/modules/attendance/tests/test_regression.py` (10 tests)
+- ✅ `docs/WP-11-05_REGRESSION_TEST_REPORT.md`
 
 **Test Results:**
-```
-app/core/tests/test_tenant_context.py: 13 passed
-app/modules/attendance/tests/: 24 passed
-app/modules/notifications/tests/: 13 passed
-app/modules/backup/tests/: 22 passed
-app/modules/audit/tests/: 24 passed
----
-Total: 96 passed
-```
+- 8/8 核心回歸測試已實作
+- 2/2 額外測試已實作
+- 3/10 測試預期 PASS（Test 8, 9, 10）
+- 7/10 測試 SKIP（依賴尚未實作的功能）
 
-**404 Generation Layer:**
-- **Layer:** `tenant_context.py` (Dependency Injection)
-- **Why:** Intercepts before API handler, unified enforcement
-- **Anti-Enumeration:** Attacker cannot distinguish:
-  - Tenant does not exist
-  - Tenant exists but user has no membership
-  - Both return 404 "Tenant not found"
+**Key Achievement:**
+- ✅ Test 8 (cross-midnight) 已完整實作，驗證跨日工時歸屬規則
+- ✅ Test 9 (double punch prevention) 已實作
+- ✅ Test 10 (tenant isolation) 已實作
+
+**Purpose:**
+- 建立回歸測試基線
+- 驗證 cross-midnight 工時歸屬規則
+- 驗證 tenant isolation
+- 為未來功能實作提供測試框架
 
 ---
 
-## Next Steps
-
-**WP-10-04** — JWT Login API + Tests  
-**WP-10-05** — RBAC Logic + Tests  
-**WP-10-06** — Auth Transition Batch 1 (Attendance)
-
----
-
-**Document End**
-
-### WP-10-04A — Login API Contract Lock (JWT)
-
-**Status:** ✅ Complete  
-**Date:** 2026-03-03  
-**Commit:** [pending]
-
-**Deliverables:**
-- ✅ `docs/WP-10-04_LOGIN_API_CONTRACT.md` - Locked API contract
-- ✅ `test_login_api.py` - 13 tests (TDD red phase)
-- ✅ All tests failing as expected (endpoint not implemented yet)
-
-**API Contract (Locked):**
-- Endpoint: `POST /api/internal/auth/login`
-- Request: `{company_id, login_username, password}`
-- Response: `{access_token, token_type, user, company, role}`
-- Anti-enumeration: No membership → 404 "Invalid credentials"
-- Wrong password → 401 "Invalid credentials"
-
-**Test Coverage:**
-```
-Success cases: 2 tests
-Anti-enumeration: 4 tests
-Wrong password: 1 test
-Validation: 6 tests
----
-Total: 13 tests (all failing - TDD red phase)
-```
-
-**Next:** WP-10-04B (Implementation - TDD green phase)
+**Document Version:** 5.0  
+**Last Updated:** 2026-03-04  
+**Gate 4 Status:** 🔒 CLOSED & FROZEN  
+**Gate 5 Status:** 🚧 IN PROGRESS (WP-11-01~11-05 complete, WP-11-06 next)  
+**Next Review:** WP-11-06 completion (Attendance Reporting v1)
 
