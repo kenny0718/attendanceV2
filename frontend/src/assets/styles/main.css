@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* ========== 主色調 ========== */
+  --primary: #4A6FA5;
+  --primary-hover: #3D5A8A;
+  --primary-light: #7BA3D1;
+  --primary-lighter: #DDEAF3;
+  --primary-lightest: #EBF4F9;
+  
+  /* ========== 輔助色 ========== */
+  --secondary: #F2E8DF;
+  --secondary-hover: #E8D9CA;
+  --secondary-border: #DDCBB5;
+  
+  /* ========== 標題色 ========== */
+  --heading: #1C3B6B;
+  
+  /* ========== 文字色 ========== */
+  --text-primary: #2D3A52;
+  --text-secondary: #5A6C7D;
+  --text-hint: #A0B4C7;
+  --text-disabled: #C5D0DC;
+  
+  /* ========== 背景色 ========== */
+  --bg-main: #F4F7F9;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F8FBFE;
+  
+  /* ========== 狀態色 ========== */
+  --success: #2E7D32;
+  --success-bg: #E8F5E9;
+  --error: #C62828;
+  --error-bg: #FFEBEE;
+  --warning: #F57C00;
+  --warning-bg: #FFF3E0;
+  --info: #1976D2;
+  --info-bg: #E3F2FD;
+  
+  /* ========== 邊框 ========== */
+  --border-light: #E8EDF2;
+  --border-medium: #D1DAE3;
+  
+  /* ========== 陰影 ========== */
+  --shadow-sm: 0 1px 3px rgba(28, 59, 107, 0.08);
+  --shadow-md: 0 2px 8px rgba(28, 59, 107, 0.08);
+  --shadow-lg: 0 4px 16px rgba(28, 59, 107, 0.12);
+  
+  /* ========== 過渡 ========== */
+  --transition-base: 0.2s ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+#app {
+  min-height: 100vh;
+}
