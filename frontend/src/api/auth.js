@@ -2,17 +2,23 @@ import apiClient from './client'
 
 export const authApi = {
   // 登入
-  login: (credentials) => apiClient.post('/auth/login', credentials),
+  login: (credentials) => apiClient.post('/internal/auth/login', credentials),
   
-  // 登出
-  logout: () => apiClient.post('/auth/logout'),
+  // 登出（前端清除 token）
+  logout: () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('company')
+    return Promise.resolve()
+  },
   
-  // 獲取個人資料
-  getProfile: () => apiClient.get('/auth/profile'),
-  
-  // 更新個人資料
-  updateProfile: (data) => apiClient.put('/auth/profile', data),
-  
-  // 修改密碼
-  changePassword: (data) => apiClient.post('/auth/change-password', data)
+  // 獲取當前用戶資訊（從 localStorage）
+  getCurrentUser: () => {
+    const user = localStorage.getItem('user')
+    const company = localStorage.getItem('company')
+    return user && company ? {
+      user: JSON.parse(user),
+      company: JSON.parse(company)
+    } : null
+  }
 }

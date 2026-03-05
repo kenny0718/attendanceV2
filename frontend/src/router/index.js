@@ -6,7 +6,7 @@ const routes = [
     path: '/',
     name: 'Home',
     component: () => import('@/views/Home.vue'),
-    meta: { requiresAuth: false } // MVP 階段先不要求登入
+    meta: { requiresAuth: true } // 需要登入
   },
   {
     path: '/login',
@@ -21,16 +21,28 @@ const router = createRouter({
   routes
 })
 
-// 路由守衛（MVP 階段先註解掉）
-// router.beforeEach((to, from, next) => {
-//   const authStore = useAuthStore()
-//   
-//   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-//     next('/login')
-//     return
-//   }
-//   
-//   next()
-// })
+// 路由守衛
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+  
+  // 恢復登入狀態（從 localStorage）
+  if (!authStore.isAuthenticated && localStorage.getItem('token')) {
+    authStore.restoreSession()
+  }
+  
+  // 檢查是否需要登入
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    next('/login')
+    return
+  }
+  
+  // 如果已登入且訪問登入頁，跳轉到首頁
+  if (to.path === '/login' && authStore.isAuthenticated) {
+    next('/')
+    return
+  }
+  
+  next()
+})
 
 export default router

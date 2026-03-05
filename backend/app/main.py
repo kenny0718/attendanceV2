@@ -75,6 +75,19 @@ async def startup_event():
     logger.info("EventBus 已初始化，所有訂閱者已註冊")
 
 
+
+@app.get("/")
+async def root():
+    """API 根路徑 - 歡迎頁面"""
+    return {
+        "message": "Welcome to Attendance System API",
+        "version": "2.0",
+        "status": "running",
+        "docs": "/docs",
+        "health": "/health",
+        "api_base": "/api/v1"
+    }
+
 @app.get("/health")
 async def health_check():
     """健康檢查端點"""

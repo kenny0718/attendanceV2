@@ -10,4 +10,9 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
+// 在應用啟動時恢復登入狀態
+import { useAuthStore } from './stores/auth'
+const authStore = useAuthStore()
+authStore.restoreSession()
+
 app.mount('#app')

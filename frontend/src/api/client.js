@@ -20,13 +20,18 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
     
-    // 添加 tenant headers (從 auth store 取得)
-    const authStore = useAuthStore()
-    if (authStore.companyId) {
-      config.headers['X-Company-ID'] = authStore.companyId
+    // 添加 tenant headers (從 localStorage 取得)
+    const company = localStorage.getItem('company')
+    const user = localStorage.getItem('user')
+    
+    if (company) {
+      const companyData = JSON.parse(company)
+      config.headers['X-Company-ID'] = companyData.id
     }
-    if (authStore.userId) {
-      config.headers['X-User-ID'] = authStore.userId
+    
+    if (user) {
+      const userData = JSON.parse(user)
+      config.headers['X-User-ID'] = userData.id
     }
     
     return config
@@ -48,10 +53,19 @@ apiClient.interceptors.response.use(
       switch (status) {
         case 401:
           // 未授權，清除 token 並跳轉登入
+          console.error('Token 無效或已過期，請重新登入')
           localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          localStorage.removeItem('company')
+          localStorage.removeItem('role')
+          
           const authStore = useAuthStore()
           authStore.logout()
-          router.push('/login')
+          
+          // 如果不是在登入頁，則跳轉
+          if (router.currentRoute.value.path !== '/login') {
+            router.push('/login')
+          }
           break
           
         case 403:

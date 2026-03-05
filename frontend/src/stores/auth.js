@@ -1,52 +1,85 @@
 import { defineStore } from 'pinia'
+import { authApi } from '@/api/auth'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
+    company: null,
+    role: null,
     token: localStorage.getItem('token'),
     isLoading: false,
-    // MVP: Mock user data (使用真實數據庫中的用戶 ID)
-    mockUser: {
-      id: '11bda10d-7541-4230-b1f3-842afab2cea5',
-      name: '測試員工',
-      company_id: 'company-a',
-      role: 'employee'
-    }
+    error: null
   }),
   
   getters: {
-    isAuthenticated: (state) => !!state.token || !!state.mockUser,
-    currentUser: (state) => state.user || state.mockUser,
-    companyId: (state) => state.mockUser?.company_id || state.user?.company_id,
-    userId: (state) => state.mockUser?.id || state.user?.id
+    isAuthenticated: (state) => !!state.token && !!state.user,
+    currentUser: (state) => state.user,
+    companyId: (state) => state.company?.id,
+    userId: (state) => state.user?.id,
+    userRole: (state) => state.role?.id
   },
   
   actions: {
-    // MVP: Mock login
+    // 登入
     async login(credentials) {
       this.isLoading = true
+      this.error = null
+      
       try {
-        // TODO: 實際 API 呼叫
-        // const data = await authApi.login(credentials)
+        const response = await authApi.login(credentials)
         
-        // Mock response
-        await new Promise(resolve => setTimeout(resolve, 500))
-        this.token = 'mock-token-123'
-        this.user = this.mockUser
-        localStorage.setItem('token', this.token)
+        // 保存 token
+        this.token = response.access_token
+        localStorage.setItem('token', response.access_token)
+        
+        // 保存用戶資訊
+        this.user = response.user
+        this.company = response.company
+        this.role = response.role
+        
+        localStorage.setItem('user', JSON.stringify(response.user))
+        localStorage.setItem('company', JSON.stringify(response.company))
+        localStorage.setItem('role', JSON.stringify(response.role))
+        
         return { success: true }
       } catch (error) {
         console.error('登入失敗:', error)
+        this.error = error.message || '登入失敗，請檢查帳號密碼'
         throw error
       } finally {
         this.isLoading = false
       }
     },
     
-    logout() {
+    // 登出
+    async logout() {
+      await authApi.logout()
+      
       this.user = null
+      this.company = null
+      this.role = null
       this.token = null
-      localStorage.removeItem('token')
+      this.error = null
+    },
+    
+    // 從 localStorage 恢復登入狀態
+    restoreSession() {
+      const token = localStorage.getItem('token')
+      const user = localStorage.getItem('user')
+      const company = localStorage.getItem('company')
+      const role = localStorage.getItem('role')
+      
+      if (token && user && company) {
+        this.token = token
+        this.user = JSON.parse(user)
+        this.company = JSON.parse(company)
+        this.role = role ? JSON.parse(role) : null
+      }
+    },
+    
+    // 清除錯誤
+    clearError() {
+      this.error = null
     }
   }
 })
