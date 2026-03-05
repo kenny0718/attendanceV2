@@ -1,44 +1,52 @@
 
-## WP-11-07 — UI MVP Phase 1 (Frontend Scaffold + Mock UI)
+## WP-11-07 Phase 2 — API Integration (Mock → Real API)
 
-**Status:** ✅ COMPLETED  
+**Status:** ✅ COMPLETED (Code Ready, Pending Manual Test)  
 **Date:** 2026-03-05
 
 **Deliverables:**
-- ✅ Frontend project scaffold (`/opt/attendance-system/frontend/`)
-- ✅ Vue 3 + Vite + Tailwind CSS + Pinia 完整配置
-- ✅ UI 設計系統落地（配色、共用元件）
-- ✅ Punch Console 首頁完成（Mock 版本）
-- ✅ API 串接結構準備完成
-- ✅ Kickoff Report: `docs/WP-11-07_UI_MVP_KICKOFF.md`
+- ✅ 替換 Mock 數據為真實 API 呼叫
+- ✅ 統一錯誤處理策略（409/404/403/5xx/網路錯誤）
+- ✅ Tenant/Auth headers 自動注入
+- ✅ Loading 狀態與錯誤提示 UI
+- ✅ 測試文件：`docs/WP-11-07_UI_MVP_PHASE2_TEST_LOG.md`
 
-**Key Achievement:**
-- ✅ 25 個檔案完整建立
-- ✅ 4 個共用元件：Card, Navbar, StatusCard, PunchButton
-- ✅ 2 個 Pinia stores：auth, attendance
-- ✅ 完整的 API 客戶端架構（含 tenant headers 注入）
-- ✅ Punch Console 可運行並展示完整打卡流程（Mock 數據）
+**Key Changes:**
+- ✅ `stores/attendance.js` - 移除所有 Mock，改用真實 API
+- ✅ `api/attendance.js` - 簡化為 4 個核心方法
+- ✅ `views/Home.vue` - 新增錯誤 Toast 提示
+- ✅ 錯誤處理：自動刷新狀態，防止 UI 與後端不同步
 
-**UI 功能:**
-- ✅ 今日狀態顯示（4 張狀態卡）
-- ✅ 打卡按鈕（上班/下班/外出/返回）
-- ✅ 最近打卡記錄列表
-- ✅ 按鈕禁用邏輯
-- ✅ Loading 動畫
-- ✅ 成功提示（Toast）
+**API Integration:**
+- ✅ POST `/api/v1/attendance/punch-in` - 上班打卡
+- ✅ POST `/api/v1/attendance/punch-out` - 下班打卡
+- ✅ GET `/api/v1/attendance/current-status` - 獲取狀態
+- ✅ GET `/api/v1/attendance/history` - 獲取記錄
 
-**技術規範遵循:**
-- ✅ 配色系統：商務藍 #4A6FA5 + 沙色 #F2E8DF
-- ✅ 組件設計：圓角 12px、陰影、過渡動畫
-- ✅ 響應式設計：手機/平板/桌面
+**Error Handling:**
+- ✅ 409 Conflict: 「已有打開的打卡記錄」+ 自動刷新
+- ✅ 404 Not Found: 「找不到打開的打卡記錄」+ 自動刷新
+- ✅ 403 Forbidden: 「無權限執行此操作」
+- ✅ 5xx Server Error: 「伺服器暫時無法處理請求」
+- ✅ Network Error: 「網絡連接失敗」
+
+**Known Limitations:**
+- ⚠️ 外出/返回功能暫不支援（後端無 endpoints）
+- ⚠️ 需要 Node.js 環境才能執行測試
+
+**Test Status:**
+- ⏳ 待手動測試（需要 npm install + npm run dev）
+- ⏳ 測試檢查清單見 `WP-11-07_UI_MVP_PHASE2_TEST_LOG.md`
 
 **Next Phase:**
-- ⏳ WP-11-07 Phase 2: API Integration（串接後端 API）
+- ⏳ 手動執行完整測試流程
+- ⏳ 更新測試結果到 TEST_LOG
+- ⏳ Phase 3: 外出/返回功能（需後端支援）
 
 ---
 
-**Document Version:** 7.0  
+**Document Version:** 8.0  
 **Last Updated:** 2026-03-05  
 **Gate 4 Status:** 🔒 CLOSED & FROZEN  
-**Gate 5 Status:** 🚧 IN PROGRESS (Backend complete, UI MVP Phase 1 complete)  
-**Next Review:** UI MVP Phase 2 (API Integration) or WP-11-06 (Attendance Reporting v1)
+**Gate 5 Status:** 🚧 IN PROGRESS (Backend complete, UI MVP Phase 2 code ready)  
+**Next Review:** Manual testing completion or Phase 3 planning

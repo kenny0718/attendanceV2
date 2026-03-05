@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import dayjs from 'dayjs'
+import { attendanceApi } from '@/api/attendance'
 
 export const useAttendanceStore = defineStore('attendance', {
   state: () => ({
@@ -10,37 +11,17 @@ export const useAttendanceStore = defineStore('attendance', {
       break_out: null,
       break_in: null,
       is_punched_in: false,
-      is_on_break: false
+      is_on_break: false,
+      session_id: null
     },
     
-    // 最近打卡記錄（Mock data）
-    recentLogs: [
-      {
-        id: '1',
-        timestamp: '2026-03-05T09:00:15',
-        attendance_type: 'IN',
-        status: 'success',
-        is_late: false
-      },
-      {
-        id: '2',
-        timestamp: '2026-03-04T18:30:22',
-        attendance_type: 'OUT',
-        status: 'success',
-        is_late: false
-      },
-      {
-        id: '3',
-        timestamp: '2026-03-04T09:02:10',
-        attendance_type: 'IN',
-        status: 'success',
-        is_late: true,
-        late_minutes: 2
-      }
-    ],
+    // 最近打卡記錄
+    recentLogs: [],
     
+    // 狀態管理
     isLoading: false,
-    error: null
+    error: null,
+    lastAction: null
   }),
   
   getters: {
@@ -58,100 +39,188 @@ export const useAttendanceStore = defineStore('attendance', {
   },
   
   actions: {
-    // MVP: Mock punch action
+    // 打卡（真實 API）
     async punch(type) {
+      // 防止重複點擊
+      if (this.isLoading) {
+        console.warn('操作進行中，請稍候...')
+        return
+      }
+      
       this.isLoading = true
       this.error = null
+      this.lastAction = type
       
       try {
-        // TODO: 實際 API 呼叫
-        // await attendanceApi.punch({ attendance_type: type })
+        let response
         
-        // Mock delay
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        const now = dayjs().format('YYYY-MM-DDTHH:mm:ss')
-        
-        // 更新狀態
         switch (type) {
           case 'IN':
-            this.todayStatus.punch_in = now
+            response = await attendanceApi.punchIn({ notes: '' })
+            this.todayStatus.punch_in = response.punch_in_time
             this.todayStatus.is_punched_in = true
+            this.todayStatus.session_id = response.session_id
             break
+            
           case 'OUT':
-            this.todayStatus.punch_out = now
+            response = await attendanceApi.punchOut({ notes: '' })
+            this.todayStatus.punch_out = response.punch_out_time
+            this.todayStatus.is_punched_in = false
             break
+            
           case 'BREAK_OUT':
-            this.todayStatus.break_out = now
-            this.todayStatus.is_on_break = true
-            break
+            // 暫時不支援（後端無此 endpoint）
+            throw new Error('外出打卡功能開發中')
+            
           case 'BREAK_IN':
-            this.todayStatus.break_in = now
-            this.todayStatus.is_on_break = false
-            break
+            // 暫時不支援（後端無此 endpoint）
+            throw new Error('返回打卡功能開發中')
+            
+          default:
+            throw new Error('未知的打卡類型')
         }
         
-        // 新增到記錄
-        this.recentLogs.unshift({
-          id: Date.now().toString(),
-          timestamp: now,
-          attendance_type: type,
-          status: 'success',
-          is_late: false
-        })
+        // 打卡成功後立即刷新狀態和記錄
+        await Promise.all([
+          this.fetchTodayStatus(),
+          this.fetchRecentLogs()
+        ])
         
-        // 只保留最近 10 筆
-        if (this.recentLogs.length > 10) {
-          this.recentLogs = this.recentLogs.slice(0, 10)
-        }
-        
-        return { success: true }
+        return { success: true, data: response }
       } catch (error) {
-        this.error = error.message || '打卡失敗'
-        throw error
+        // 統一錯誤處理
+        this.error = this.handleError(error)
+        
+        // 發生錯誤時也要刷新狀態，確保 UI 與後端同步
+        try {
+          await this.fetchTodayStatus()
+        } catch (refreshError) {
+          console.error('刷新狀態失敗:', refreshError)
+        }
+        
+        throw this.error
       } finally {
         this.isLoading = false
       }
     },
     
-    // MVP: Mock get status
+    // 獲取今日狀態（真實 API）
     async fetchTodayStatus() {
-      this.isLoading = true
       try {
-        // TODO: 實際 API 呼叫
-        // const data = await attendanceApi.getStatus()
+        const data = await attendanceApi.getCurrentStatus()
         
-        // Mock delay
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
-        // Mock: 如果已經有打卡記錄就保持，否則重置
-        // this.todayStatus = data
+        if (data.has_open_session && data.session) {
+          this.todayStatus = {
+            punch_in: data.session.punch_in_time,
+            punch_out: data.session.punch_out_time,
+            break_out: null, // 後端暫無此欄位
+            break_in: null,  // 後端暫無此欄位
+            is_punched_in: data.session.status === 'open',
+            is_on_break: false, // 後端暫無此欄位
+            session_id: data.session.session_id
+          }
+        } else {
+          // 沒有 open session，重置狀態
+          this.todayStatus = {
+            punch_in: null,
+            punch_out: null,
+            break_out: null,
+            break_in: null,
+            is_punched_in: false,
+            is_on_break: false,
+            session_id: null
+          }
+        }
       } catch (error) {
-        this.error = error.message || '獲取狀態失敗'
         console.error('獲取狀態失敗:', error)
-      } finally {
-        this.isLoading = false
+        // 不拋出錯誤，避免影響頁面載入
       }
     },
     
-    // MVP: Mock get logs
+    // 獲取最近記錄（真實 API）
     async fetchRecentLogs() {
-      this.isLoading = true
       try {
-        // TODO: 實際 API 呼叫
-        // const data = await attendanceApi.getLogs({ limit: 10 })
+        const data = await attendanceApi.getHistory({ limit: 10, offset: 0 })
         
-        // Mock delay
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
-        // Mock: 使用預設資料
-        // this.recentLogs = data
+        // 轉換後端數據格式為前端需要的格式
+        this.recentLogs = data.sessions.map(session => {
+          // 判斷是上班還是下班
+          const isPunchIn = session.punch_in_time && !session.punch_out_time
+          const isPunchOut = session.punch_out_time
+          
+          return {
+            id: session.session_id,
+            timestamp: isPunchOut ? session.punch_out_time : session.punch_in_time,
+            attendance_type: isPunchOut ? 'OUT' : 'IN',
+            status: 'success',
+            is_late: false, // 後端 policy_evaluation 可能有此資訊
+            duration_minutes: session.duration_minutes
+          }
+        })
       } catch (error) {
-        this.error = error.message || '獲取記錄失敗'
         console.error('獲取記錄失敗:', error)
-      } finally {
-        this.isLoading = false
+        // 不拋出錯誤，避免影響頁面載入
       }
+    },
+    
+    // 統一錯誤處理
+    handleError(error) {
+      let errorMessage = '操作失敗'
+      let errorCode = null
+      
+      if (error.status) {
+        errorCode = error.status
+        
+        switch (error.status) {
+          case 409:
+            // 狀態衝突（例如已打上班卡）
+            errorMessage = error.message || '已有打開的打卡記錄，請勿重複打卡'
+            break
+            
+          case 404:
+            // 資源不存在（例如沒有 open session）
+            errorMessage = error.message || '找不到打開的打卡記錄，請先打上班卡'
+            break
+            
+          case 403:
+            // 無權限
+            errorMessage = '無權限執行此操作，請檢查登入狀態或公司設定'
+            break
+            
+          case 400:
+            // 請求錯誤
+            errorMessage = error.message || '請求參數錯誤'
+            break
+            
+          case 500:
+          case 502:
+          case 503:
+            // 伺服器錯誤
+            errorMessage = '伺服器暫時無法處理請求，請稍後再試'
+            break
+            
+          default:
+            errorMessage = error.message || '未知錯誤'
+        }
+      } else if (error.message) {
+        // 網路錯誤或其他錯誤
+        if (error.message.includes('網絡') || error.message.includes('Network')) {
+          errorMessage = '網絡連接失敗，請檢查網絡設定'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      return {
+        message: errorMessage,
+        code: errorCode,
+        originalError: error
+      }
+    },
+    
+    // 清除錯誤
+    clearError() {
+      this.error = null
     }
   }
 })

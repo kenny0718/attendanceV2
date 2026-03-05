@@ -1,20 +1,11 @@
 import apiClient from './client'
 
 export const attendanceApi = {
-  // 打卡
-  punch: (data) => apiClient.post('/v1/attendance/punch-in', data),
-  
   // 打卡上班
-  punchIn: (data) => apiClient.post('/v1/attendance/punch-in', data),
+  punchIn: (data = {}) => apiClient.post('/v1/attendance/punch-in', data),
   
   // 打卡下班
-  punchOut: (data) => apiClient.post('/v1/attendance/punch-out', data),
-  
-  // 外出打卡
-  breakOut: (data) => apiClient.post('/v1/attendance/break-out', data),
-  
-  // 返回打卡
-  breakIn: (data) => apiClient.post('/v1/attendance/break-in', data),
+  punchOut: (data = {}) => apiClient.post('/v1/attendance/punch-out', data),
   
   // 獲取今日狀態
   getCurrentStatus: () => apiClient.get('/v1/attendance/current-status'),
@@ -27,3 +18,7 @@ export const attendanceApi = {
     params: { limit, offset: 0 } 
   })
 }
+
+// 注意：後端目前沒有獨立的外出/返回 endpoints
+// Phase 2 暫時只實作上班/下班
+// 外出/返回功能留待後端新增 API 後再實作

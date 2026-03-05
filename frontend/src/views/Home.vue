@@ -36,28 +36,28 @@
             label="上班打卡"
             variant="primary"
             icon="check"
-            :disabled="!canPunchIn"
+            :disabled="!canPunchIn || isLoading"
             @click="handlePunch('IN')"
           />
           <PunchButton 
             label="下班打卡"
             variant="primary"
             icon="logout"
-            :disabled="!canPunchOut"
+            :disabled="!canPunchOut || isLoading"
             @click="handlePunch('OUT')"
           />
           <PunchButton 
             label="外出打卡"
             variant="secondary"
             icon="break"
-            :disabled="!canBreakOut"
+            :disabled="true"
             @click="handlePunch('BREAK_OUT')"
           />
           <PunchButton 
             label="返回打卡"
             variant="secondary"
             icon="check"
-            :disabled="!canBreakIn"
+            :disabled="true"
             @click="handlePunch('BREAK_IN')"
           />
         </div>
@@ -67,6 +67,7 @@
           <span v-if="!todayStatus.punch_in">請先打上班卡</span>
           <span v-else-if="!todayStatus.punch_out">已上班打卡</span>
           <span v-else>今日打卡已完成</span>
+          <span class="block mt-1 text-xs text-text-hint">（外出/返回功能開發中）</span>
         </div>
 
         <!-- Loading 狀態 -->
@@ -78,21 +79,21 @@
 
       <!-- 快速功能 -->
       <div class="quick-actions grid grid-cols-3 gap-4 mb-6">
-        <button class="action-btn bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
+        <button class="action-btn bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow" disabled>
           <svg class="action-icon w-8 h-8 mx-auto mb-2 text-primary" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
           </svg>
           <span class="text-sm text-text-primary">個人資料</span>
         </button>
 
-        <button class="action-btn bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
+        <button class="action-btn bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow" disabled>
           <svg class="action-icon w-8 h-8 mx-auto mb-2 text-primary" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
           </svg>
           <span class="text-sm text-text-primary">請假申請</span>
         </button>
 
-        <button class="action-btn bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
+        <button class="action-btn bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow" disabled>
           <svg class="action-icon w-8 h-8 mx-auto mb-2 text-primary" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
           </svg>
@@ -130,9 +131,22 @@
       <!-- 成功提示 -->
       <div 
         v-if="showSuccessMessage" 
-        class="success-toast fixed bottom-8 right-8 bg-success text-white px-6 py-3 rounded-lg shadow-xl"
+        class="success-toast fixed bottom-8 right-8 bg-success text-white px-6 py-3 rounded-lg shadow-xl z-50"
       >
         ✓ 打卡成功
+      </div>
+
+      <!-- 錯誤提示 -->
+      <div 
+        v-if="showErrorMessage" 
+        class="error-toast fixed bottom-8 right-8 bg-error text-white px-6 py-3 rounded-lg shadow-xl z-50 max-w-md"
+      >
+        <div class="flex items-start gap-2">
+          <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+          <span>{{ errorMessage }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -153,6 +167,8 @@ const { todayStatus, recentLogs, isLoading } = storeToRefs(attendanceStore)
 const { canPunchIn, canPunchOut, canBreakOut, canBreakIn, formattedTodayStatus } = storeToRefs(attendanceStore)
 
 const showSuccessMessage = ref(false)
+const showErrorMessage = ref(false)
+const errorMessage = ref('')
 
 // 格式化日期時間
 const formatDateTime = (timestamp) => {
@@ -188,6 +204,9 @@ const getStatusClass = (log) => {
 
 // 處理打卡
 const handlePunch = async (type) => {
+  // 清除之前的錯誤
+  attendanceStore.clearError()
+  
   try {
     await attendanceStore.punch(type)
     
@@ -198,7 +217,14 @@ const handlePunch = async (type) => {
     }, 3000)
   } catch (error) {
     console.error('打卡失敗:', error)
-    alert('打卡失敗：' + (error.message || '未知錯誤'))
+    
+    // 顯示友善的錯誤訊息
+    errorMessage.value = error.message || '打卡失敗，請稍後再試'
+    showErrorMessage.value = true
+    
+    setTimeout(() => {
+      showErrorMessage.value = false
+    }, 5000)
   }
 }
 
@@ -227,6 +253,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
+  z-index: 10;
 }
 
 .loading-spinner {
@@ -242,7 +269,8 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-.success-toast {
+.success-toast,
+.error-toast {
   animation: slideIn 0.3s ease-out;
 }
 
@@ -266,7 +294,12 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-.action-btn:hover {
+.action-btn:hover:not(:disabled) {
   transform: translateY(-2px);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
