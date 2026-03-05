@@ -8,7 +8,7 @@ from app.core.event_bus import get_event_bus
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 # from app.core.database import init_db  # Deprecated: Use alembic upgrade head instead
-from app.modules.attendance.api import router as attendance_router
+from app.modules.attendance.api import router as attendance_router, router_v1 as attendance_router_v1
 from app.modules.notifications.api import router as notifications_router
 from app.modules.backup.api import router as backup_router
 from app.modules.audit.api import router as audit_router
@@ -35,6 +35,7 @@ register_exception_handlers(app)
 
 # 註冊路由
 app.include_router(attendance_router)
+app.include_router(attendance_router_v1)
 app.include_router(notifications_router)
 app.include_router(backup_router)
 app.include_router(audit_router)
