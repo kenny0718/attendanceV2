@@ -54,3 +54,98 @@
 **Gate 4 Status:** 🔒 CLOSED & FROZEN  
 **Gate 5 Status:** ✅ PHASE 2 & AUTH INTEGRATION COMPLETED  
 **Next Review:** Phase 3 planning or additional features
+
+---
+
+## WP-11-10 — Out Checkpoint + GPS (Design Phase)
+
+**Status:** 📋 DESIGN COMPLETED  
+**Date:** 2026-03-05 22:30  
+**Phase:** Design & Specification
+
+**Deliverables:**
+- ✅ Spec audit completed (searched 6+ docs for break/out/return assumptions)
+- ✅ Design doc created: `WP-11-10_OUTCHECKPOINT_BACKEND_DESIGN.md` (992 lines)
+- ✅ SA_MODULE_SPEC_v1.9.md updated with section 10.1
+- ✅ Changelog entry added (v1.10)
+- ✅ Data model designed (new table `attendance_out_checkpoints`)
+- ✅ API contract designed (POST /out-checkpoint, GET /out-checkpoints)
+- ✅ Validation rules defined (mobile requires GPS, PC optional)
+- ✅ Error semantics defined (422/403/409 with error codes)
+- ✅ Test plan created (8 pytest cases)
+- ✅ Migration strategy defined
+- ✅ Backward compatibility plan defined
+
+**Key Decisions:**
+- ✅ New dedicated table (not reusing attendance_punches)
+- ✅ Multi-checkpoint model (no RETURN/BREAK_IN)
+- ✅ GPS mandatory for mobile, optional for PC
+- ✅ Anti-spam: reject 409 within 30s + 50m
+- ✅ Gradual deprecation of break-out/break-in endpoints
+
+**Next Steps:**
+- ⏳ Backend implementation (WP-11-10 implementation phase)
+- ⏳ Frontend GPS integration (separate WP)
+
+**Notes:**
+- NO CODE IMPLEMENTED in this phase (design only per requirements)
+- Design doc ready for team review and implementation
+
+---
+
+**Tracker Updated:** 2026-03-05 22:30  
+**Overall Progress:** Gate 5 Phase 3 + WP-11-10 design complete
+
+---
+
+## WP-11-10 — Out Checkpoint + GPS (Backend Implementation)
+
+**Status:** ✅ IMPLEMENTED & VERIFIED  
+**Date:** 2026-03-05 23:59  
+**Phase:** Backend Implementation
+
+**Deliverables:**
+- ✅ Migration 007_wp_11_10: attendance_out_checkpoints table
+- ✅ AttendanceOutCheckpoint model with GPS fields
+- ✅ OutCheckpointRepository: create, list, de-dup methods
+- ✅ POST /api/v1/attendance/out-checkpoint endpoint
+- ✅ GET /api/v1/attendance/out-checkpoints endpoint
+- ✅ GPS validation: mobile required, PC optional
+- ✅ De-duplication: 30s + 50m threshold (409 response)
+- ✅ GPS utilities: Haversine distance calculation
+- ✅ 7 pytest test cases (all passing)
+- ✅ Implementation report: `docs/WP-11-10_IMPLEMENTATION_REPORT.md`
+
+**Test Results:**
+- ✅ test_multi_checkpoint_allowed (3 checkpoints in succession)
+- ✅ test_mobile_requires_gps (422 if GPS missing)
+- ✅ test_pc_no_gps_allowed (PC without GPS allowed)
+- ✅ test_anti_spam_duplicate_checkpoint (409 within 30s + 50m)
+- ✅ test_invalid_latitude (422 for invalid GPS coords)
+- ✅ test_list_checkpoints_pagination (pagination works)
+- ✅ test_checkpoint_without_session (allowed without session)
+
+**Key Features:**
+- Multiple OUT checkpoints allowed per session
+- No RETURN/BREAK_IN concept (standalone events)
+- Mobile device MUST provide GPS
+- PC device MAY provide GPS (optional)
+- Server-side timestamp (punch_time)
+- Tenant isolation enforced (company_id)
+- Anti-spam protection (30s + 50m)
+
+**Commits:**
+1. feat(attendance): add out checkpoint table + model
+2. feat(attendance): add out-checkpoint API with gps validation and dedup
+3. test(attendance): cover out checkpoint multi submit, gps rules, dedup
+4. docs: update WP-11-10 implementation report and trackers
+
+**Next Steps:**
+- Frontend integration (GPS prompt UX)
+- History endpoint integration (show checkpoints in session)
+- OR proceed to Phase 3A JWT (per roadmap)
+
+---
+
+**Tracker Updated:** 2026-03-05 23:59  
+**Overall Progress:** WP-11-10 backend complete, ready for frontend integration

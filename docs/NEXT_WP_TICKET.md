@@ -1,12 +1,33 @@
-# Next WP Ticket — Phase 3 Feature Enhancement
+# Next WP Ticket — Frontend OUT Checkpoint Integration
 
-**Selected WP:** WP-11-07 Phase 3 — Feature Enhancement & UI/UX Optimization  
-**Reason:** Phase 2 & Auth Integration 已完成，可進入 Phase 3 開發  
-**Priority:** 🟡 P1 (Feature Enhancement)
+**Selected WP:** WP-11-11 Frontend OUT Checkpoint + GPS Integration  
+**Reason:** WP-11-10 backend完成，需要前端整合  
+**Priority:** 🟡 P1 (Feature Integration)
 
 ---
 
 ## ✅ Completed WPs
+
+### WP-11-10 — OUT Checkpoint + GPS Backend (Backend Implementation)
+**Date**: 2026-03-05 23:59  
+**Status**: ✅ COMPLETED
+
+**Deliverables**:
+- ✅ Migration 007_wp_11_10: attendance_out_checkpoints table
+- ✅ AttendanceOutCheckpoint model with GPS fields
+- ✅ POST /api/v1/attendance/out-checkpoint endpoint
+- ✅ GET /api/v1/attendance/out-checkpoints endpoint
+- ✅ GPS validation (mobile required, PC optional)
+- ✅ De-duplication (30s + 50m threshold)
+- ✅ 7 pytest test cases (all passing)
+- ✅ Implementation report
+
+**Test Results**:
+- ✅ All 7 tests passing
+- ✅ Multi-checkpoint submission works
+- ✅ GPS validation enforced
+- ✅ De-dup logic working (409 response)
+- ✅ Tenant isolation verified
 
 ### WP-11-08 — JWT Auth Integration (Replace Mock User)
 **Date**: 2026-03-05 21:00  
@@ -19,229 +40,186 @@
 - ✅ 路由保護（未登入不可進 Home）
 - ✅ 測試文件：`docs/WP-11-08_AUTH_INTEGRATION_REPORT.md`
 
-**Test Results**:
-- ✅ 登入 API 測試通過
-- ✅ 前端登入流程測試通過
-- ✅ Token 自動帶入測試通過
-- ✅ 登出測試通過
-
-**Test Account**:
-- Company ID: company-a
-- Username: testuser
-- Password: test123
-
 ### WP-11-07 Phase 2 — API Integration (Mock → Real API)
 **Date**: 2026-03-05 20:09  
 **Status**: ✅ VERIFIED & COMPLETED
 
-**Test Results**:
-- ✅ 所有 API 端點測試通過 (4/4)
-- ✅ 錯誤處理測試通過 (3/3)
-- ✅ 測試通過率：100%
-
 ---
 
-## 🚀 WP-11-07 Phase 3 — Feature Enhancement
+## 🚀 WP-11-11 — Frontend OUT Checkpoint + GPS Integration
 
 ### Goal
-在 Phase 2 & Auth Integration 完成後，增強 UI 功能和用戶體驗。
+整合 WP-11-10 後端 API，實現前端外出打卡功能與 GPS 定位。
 
----
+### Scope
 
-## 📊 Phase 3 選項與優先級
+#### 1. API Integration (P0)
+- 新增 `api/attendance.js` 方法：
+  - `createOutCheckpoint(deviceType, gps, notes)`
+  - `getOutCheckpoints(limit, offset, sessionId)`
+- 處理 409 (DUPLICATE_CHECKPOINT) 錯誤
+- 處理 422 (GPS_REQUIRED) 錯誤
 
-### Option A: GPS 定位功能 (推薦 P1)
-
-**工作內容**:
+#### 2. GPS Geolocation (P0)
 - 建立 `composables/useGeolocation.js`
-- 在打卡時自動獲取 GPS 座標
-- 傳送 location 參數到後端
+- 自動偵測裝置類型 (mobile/pc)
+- 獲取 GPS 座標 (latitude, longitude, accuracy)
+- 處理用戶拒絕定位
 - 顯示定位狀態（獲取中/成功/失敗）
-- 處理用戶拒絕定位的情況
 
-**價值**: 高（防止代打卡，提升打卡準確性）  
-**預估時間**: 1-2 天  
-**優先級**: 🟡 P1
+#### 3. UI Components (P0)
+- 更新 `Home.vue`：
+  - 啟用「外出」按鈕
+  - 顯示 GPS 狀態指示器
+  - 顯示最近的 checkpoint 列表
+- 新增 `OutCheckpointButton.vue`：
+  - 外出打卡按鈕
+  - GPS 獲取中的 loading 狀態
+  - 錯誤提示（GPS 未開啟、重複打卡）
 
----
+#### 4. Error Handling (P0)
+- 409 錯誤：顯示「請勿重複打卡」
+- 422 錯誤：顯示「請開啟定位後再外出打卡」
+- GPS 獲取失敗：顯示「無法獲取定位，請檢查權限」
+- 網路錯誤：顯示「網路連線失敗」
 
-### Option B: UI/UX 優化 (推薦 P1)
+#### 5. History Integration (P1)
+- 在 History 頁面顯示 OUT checkpoints
+- 每個 session 下方顯示 checkpoint 列表
+- 顯示 GPS 座標（可選）
+- 顯示裝置類型 (mobile/pc)
 
-**優化項目**:
+### Technical Details
 
-1. **Toast 通知改善**
-   - 使用專業的 Toast 組件庫（如 vue-toastification）
-   - 支援多種類型（success/error/warning/info）
-   - 可堆疊顯示
+#### API Endpoints
+```javascript
+// POST /api/v1/attendance/out-checkpoint
+await attendanceApi.createOutCheckpoint({
+  device_type: 'mobile',
+  gps: {
+    latitude: 25.0330,
+    longitude: 121.5654,
+    accuracy: 15.5,
+    captured_at: new Date().toISOString(),
+    provider: 'gps'
+  },
+  notes: 'Checkpoint at Building A'
+})
 
-2. **Loading 狀態改善**
-   - 全局 Loading 組件
-   - 骨架屏（Skeleton）
-   - 按鈕 Loading 狀態
+// GET /api/v1/attendance/out-checkpoints
+await attendanceApi.getOutCheckpoints({
+  limit: 50,
+  offset: 0,
+  session_id: 'xxx'
+})
+```
 
-3. **動畫效果**
-   - 頁面切換動畫
-   - 列表項目動畫
-   - 按鈕點擊回饋
+#### Geolocation Composable
+```javascript
+// composables/useGeolocation.js
+export function useGeolocation() {
+  const getCurrentPosition = async () => {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            captured_at: new Date().toISOString(),
+            provider: 'gps'
+          })
+        },
+        (error) => reject(error),
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    })
+  }
+  
+  const getDeviceType = () => {
+    return /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'pc'
+  }
+  
+  return { getCurrentPosition, getDeviceType }
+}
+```
 
-4. **響應式優化**
-   - 手機版佈局調整
-   - 平板版佈局調整
-   - 觸控優化
+### Test Plan
 
-**價值**: 中（提升用戶滿意度和使用體驗）  
-**預估時間**: 2-3 天  
-**優先級**: 🟡 P1
+#### Manual Testing
+1. **Mobile 裝置測試**：
+   - 開啟定位 → 外出打卡 → 成功 (201)
+   - 關閉定位 → 外出打卡 → 錯誤 (422)
+   - 30秒內重複打卡 → 錯誤 (409)
 
----
+2. **PC 裝置測試**：
+   - 無定位 → 外出打卡 → 成功 (201)
+   - 有定位 → 外出打卡 → 成功 (201, 帶 GPS)
 
-### Option C: Token Refresh 機制 (推薦 P1)
+3. **History 測試**：
+   - 查看 History → 顯示 checkpoints
+   - 每個 session 顯示多個 checkpoints
 
-**工作內容**:
-- 實作 refresh token API
-- 自動刷新即將過期的 token
-- 無感刷新（用戶無需重新登入）
-- Token 過期前 5 分鐘自動刷新
+#### Automated Testing (Optional)
+- Vitest unit tests for composables
+- Cypress E2E tests for user flow
 
-**價值**: 高（改善用戶體驗，減少重複登入）  
-**預估時間**: 1 天  
-**優先級**: 🟡 P1
+### Definition of Done
 
----
+- [ ] API methods added to `api/attendance.js`
+- [ ] `useGeolocation` composable created
+- [ ] 外出按鈕啟用並可用
+- [ ] GPS 狀態顯示正確
+- [ ] 錯誤處理完整 (409, 422, GPS 失敗)
+- [ ] History 顯示 checkpoints
+- [ ] Manual testing passed (mobile + PC)
+- [ ] Documentation updated
 
-### Option D: 外出/返回功能 (需後端支援)
+### Estimated Time
+- API Integration: 0.5 day
+- GPS Composable: 1 day
+- UI Components: 1 day
+- Error Handling: 0.5 day
+- History Integration: 1 day
+- Testing: 0.5 day
 
-**前提條件**:
-- 後端新增 `/api/v1/attendance/break-out` endpoint
-- 後端新增 `/api/v1/attendance/break-in` endpoint
-
-**工作內容**:
-- 更新 `api/attendance.js` 新增方法
-- 更新 `stores/attendance.js` 支援外出/返回
-- 啟用 Home.vue 的外出/返回按鈕
-- 測試完整流程
-
-**價值**: 中（額外功能）  
-**預估時間**: 1 天（假設後端已完成）  
-**優先級**: 🟢 P2
-
----
-
-### Option E: 其他頁面開發
-
-**頁面清單**:
-
-1. **個人資料頁** (`/profile`)
-   - 顯示個人資訊
-   - 修改密碼功能
-   - 預估時間：2-3 天
-
-2. **請假申請頁** (`/leave-request`)
-   - 請假表單
-   - 請假記錄列表
-   - 預估時間：2-3 天
-
-3. **補打卡申請頁** (`/missed-punch`)
-   - 補打卡表單
-   - 申請記錄列表
-   - 預估時間：2-3 天
-
-4. **報表查詢頁** (`/reports`)
-   - 日期範圍篩選
-   - 打卡記錄表格
-   - 匯出功能
-   - 預估時間：3-4 天
-
-**價值**: 高（完整功能）  
-**預估時間**: 8-12 天  
-**優先級**: 🟢 P2
-
----
-
-## 📝 建議執行順序
-
-### 立即執行（P0）
-1. **手動 UI 測試** - 驗證登入和打卡流程
-   - 預估時間：1-2 小時
-   - 阻塞：無
-   - 價值：確保系統完整性
-
-### 短期（P1）
-2. **Token Refresh 機制** - 改善用戶體驗
-   - 預估時間：1 天
-   - 阻塞：無
-   - 價值：高（減少重複登入）
-
-3. **GPS 定位功能** - 提升打卡準確性
-   - 預估時間：1-2 天
-   - 阻塞：無
-   - 價值：高（防止代打卡）
-
-4. **UI/UX 優化** - 改善用戶體驗
-   - 預估時間：2-3 天
-   - 阻塞：無
-   - 價值：中（提升滿意度）
-
-### 中期（P2）
-5. **其他頁面開發** - 完善系統功能
-   - 預估時間：8-12 天
-   - 阻塞：無
-   - 價值：高（完整功能）
-
-6. **外出/返回功能** - 需要後端支援
-   - 預估時間：1 天（前端）+ 後端開發時間
-   - 阻塞：後端 API
-   - 價值：中（額外功能）
-
-### 長期（P3）
-7. **測試框架** - 單元測試 + E2E 測試
-   - 預估時間：3-5 天
-   - 阻塞：無
-   - 價值：中（代碼質量）
+**Total**: 4-5 days
 
 ---
 
-## 🎯 推薦方案
+## Alternative: Phase 3A JWT Enhancement
 
-### 方案 A：快速迭代（推薦）
-1. 手動 UI 測試（1-2 小時）
-2. Token Refresh 機制（1 天）
-3. GPS 定位功能（1-2 天）
-4. UI/UX 優化（2-3 天）
+如果不優先做前端整合，可以考慮：
 
-**總時間**: 約 1 週  
-**價值**: 高  
-**風險**: 低
+### WP-11-12 — JWT Token Refresh & Role-Based Access
 
----
+**Scope**:
+- Refresh token mechanism
+- Token auto-refresh (5 min before expiry)
+- Role-based route protection
+- Permission-based UI rendering
 
-## 🌐 系統訪問資訊
-
-### 當前環境
-- **Frontend**: http://192.168.88.164:5173
-- **Backend API**: http://192.168.88.164:8000
-- **API Docs**: http://192.168.88.164:8000/docs
-
-### 服務狀態
-- ✅ Backend (uvicorn): Running on port 8000
-- ✅ Frontend (vite): Running on port 5173
-- ✅ Nginx: Running on port 80
-- ✅ Database: Connected
-- ✅ Auth: JWT enabled
-
-### 測試用戶
-- **Company ID**: company-a
-- **Username**: testuser
-- **Password**: test123
-- **User ID**: 11bda10d-7541-4230-b1f3-842afab2cea5
+**Priority**: 🟢 P2  
+**Estimated Time**: 2-3 days
 
 ---
 
-**Ready to Start:** Phase 3 Development  
-**Blocker:** None (Phase 2 & Auth verified)  
-**Assignee:** Frontend Team  
-**Status:** 🎯 READY
+## 🎯 Recommendation
 
-**Document Version:** 11.0  
-**Last Updated:** 2026-03-05 21:00  
-**Next Review:** Phase 3 kickoff or manual UI testing
+**推薦執行**: WP-11-11 Frontend OUT Checkpoint Integration
+
+**理由**:
+1. WP-11-10 後端已完成，前端整合是自然的下一步
+2. GPS 功能對用戶體驗提升明顯
+3. 完整的 OUT checkpoint 功能可以立即使用
+4. 測試和驗證可以同步進行
+
+**Blocker**: None (WP-11-10 已完成)  
+**Assignee**: Frontend Team  
+**Status**: 🎯 READY TO START
+
+---
+
+**Document Version:** 12.0  
+**Last Updated:** 2026-03-05 23:59  
+**Next Review:** WP-11-11 kickoff or alternative selection

@@ -48,6 +48,9 @@ class TestOutCheckpointMultiSubmit:
     
     def test_multi_checkpoint_allowed(self, auth_headers):
         """Test that multiple checkpoints can be created in succession"""
+        # Close any existing session first
+        client.post("/api/v1/attendance/punch-out", headers=auth_headers, json={})
+        
         # Punch in first
         punch_in_response = client.post(
             "/api/v1/attendance/punch-in",
