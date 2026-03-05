@@ -5,10 +5,10 @@ export const useAuthStore = defineStore('auth', {
     user: null,
     token: localStorage.getItem('token'),
     isLoading: false,
-    // MVP: Mock user data
+    // MVP: Mock user data (使用真實數據庫中的用戶 ID)
     mockUser: {
-      id: '1',
-      name: '張三',
+      id: '11bda10d-7541-4230-b1f3-842afab2cea5',
+      name: '測試員工',
       company_id: 'company-a',
       role: 'employee'
     }

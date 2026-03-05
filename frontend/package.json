@@ -9,19 +9,19 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },
   "dependencies": {
-    "vue": "^3.5.13",
-    "vue-router": "^4.6.0",
-    "pinia": "^3.0.1",
     "axios": "^1.13.0",
-    "dayjs": "^1.11.13"
+    "dayjs": "^1.11.13",
+    "pinia": "^3.0.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.6.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
-    "vite": "^7.0.5",
-    "tailwindcss": "^4.0.0",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
+    "autoprefixer": "^10.4.27",
     "eslint": "^9.18.0",
-    "eslint-plugin-vue": "^9.32.0"
+    "eslint-plugin-vue": "^9.32.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "vite": "^5.4.11"
   }
 }

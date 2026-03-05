@@ -8,22 +8,22 @@
         <div class="status-grid grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatusCard 
             label="上班時間" 
-            :value="formattedStatus.punch_in"
+            :value="formattedTodayStatus.punch_in"
             :valueClass="todayStatus.punch_in ? 'active' : 'empty'"
           />
           <StatusCard 
             label="下班時間" 
-            :value="formattedStatus.punch_out"
+            :value="formattedTodayStatus.punch_out"
             :valueClass="todayStatus.punch_out ? 'active' : 'empty'"
           />
           <StatusCard 
             label="外出時間" 
-            :value="formattedStatus.break_out"
+            :value="formattedTodayStatus.break_out"
             :valueClass="todayStatus.break_out ? 'active' : 'empty'"
           />
           <StatusCard 
             label="返回時間" 
-            :value="formattedStatus.break_in"
+            :value="formattedTodayStatus.break_in"
             :valueClass="todayStatus.break_in ? 'active' : 'empty'"
           />
         </div>
