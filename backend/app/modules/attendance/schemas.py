@@ -3,13 +3,14 @@
 WP-11-02: Punch In/Out API
 WP-11-03: Policy Engine Integration
 WP-11-05B: Updated status descriptions to include approval workflow states
+WP-11-07 Phase 3B: Added Break Out/In schemas
 Following WP-11-02_PRECHECK_CHECKLIST.md decisions
 """
 
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 # ============================================
@@ -42,6 +43,26 @@ class PunchOutRequest(BaseModel):
     punch_time: Optional[datetime] = Field(None, description="Optional punch time (for testing/admin)")
 
 
+class BreakOutRequest(BaseModel):
+    """Break out request (WP-11-07 Phase 3B)
+    
+    Note: company_id and user_id come from JWT/tenant context, not from request body
+    """
+    notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
+    location: Optional[LocationData] = Field(None, description="Optional GPS location")
+    punch_time: Optional[datetime] = Field(None, description="Optional punch time (for testing/admin)")
+
+
+class BreakInRequest(BaseModel):
+    """Break in request (WP-11-07 Phase 3B)
+    
+    Note: company_id and user_id come from JWT/tenant context, not from request body
+    """
+    notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
+    location: Optional[LocationData] = Field(None, description="Optional GPS location")
+    punch_time: Optional[datetime] = Field(None, description="Optional punch time (for testing/admin)")
+
+
 class SessionResponse(BaseModel):
     """Attendance session response"""
     session_id: UUID = Field(..., description="Session ID")
@@ -59,6 +80,22 @@ class SessionResponse(BaseModel):
 class PunchInResponse(SessionResponse):
     """Punch in response (201 Created)"""
     pass
+
+
+class BreakOutResponse(BaseModel):
+    """Break out response (WP-11-07 Phase 3B)"""
+    punch_id: UUID = Field(..., description="Punch record ID")
+    session_id: UUID = Field(..., description="Session ID")
+    punch_time: datetime = Field(..., description="Break out time (UTC)")
+    message: str = Field(..., description="Success message")
+
+
+class BreakInResponse(BaseModel):
+    """Break in response (WP-11-07 Phase 3B)"""
+    punch_id: UUID = Field(..., description="Punch record ID")
+    session_id: UUID = Field(..., description="Session ID")
+    punch_time: datetime = Field(..., description="Break in time (UTC)")
+    message: str = Field(..., description="Success message")
 
 
 # ============================================
@@ -137,3 +174,68 @@ class AlreadyOpenSessionError(ErrorResponse):
 class NoOpenSessionError(ErrorResponse):
     """Error response for no open session (404)"""
     error_code: str = Field("NO_OPEN_SESSION", description="Error code")
+
+
+# ============================================
+# WP-11-10: OUT Checkpoint Schemas
+# ============================================
+
+class GPSData(BaseModel):
+    """GPS data for checkpoint events"""
+    latitude: float = Field(..., ge=-90, le=90, description="緯度")
+    longitude: float = Field(..., ge=-180, le=180, description="經度")
+    accuracy: Optional[float] = Field(None, ge=0, description="GPS 精度 (公尺)")
+    captured_at: Optional[datetime] = Field(None, description="GPS 擷取時間")
+    provider: Optional[str] = Field(None, pattern="^(gps|network|fused)$", description="GPS 提供者")
+
+
+class OutCheckpointRequest(BaseModel):
+    """OUT checkpoint request (WP-11-10)
+    
+    Note: company_id and user_id come from JWT/tenant context, not from request body
+    """
+    device_type: str = Field(..., pattern="^(mobile|pc)$", description="裝置類型 (mobile|pc)")
+    gps: Optional[GPSData] = Field(None, description="GPS 資料 (mobile 必填, pc 選填)")
+    notes: Optional[str] = Field(None, max_length=500, description="備註")
+    client_timezone: Optional[str] = Field(None, max_length=50, description="客戶端時區")
+    
+    @validator('gps')
+    def validate_gps_for_mobile(cls, v, values):
+        """Validate that mobile devices provide GPS"""
+        if values.get('device_type') == 'mobile' and not v:
+            raise ValueError('請開啟定位後再外出打卡')
+        return v
+
+
+class OutCheckpointResponse(BaseModel):
+    """OUT checkpoint response (WP-11-10)"""
+    checkpoint_id: UUID = Field(..., description="Checkpoint ID")
+    punch_time: datetime = Field(..., description="打卡時間 (UTC, server-set)")
+    gps: Optional[GPSData] = Field(None, description="GPS 資料")
+    message: str = Field(default="Checkpoint recorded successfully", description="成功訊息")
+
+
+class OutCheckpointListItem(BaseModel):
+    """OUT checkpoint list item (WP-11-10)"""
+    checkpoint_id: UUID = Field(..., description="Checkpoint ID")
+    punch_time: datetime = Field(..., description="打卡時間 (UTC)")
+    device_type: str = Field(..., description="裝置類型")
+    gps: Optional[GPSData] = Field(None, description="GPS 資料")
+    notes: Optional[str] = Field(None, description="備註")
+    
+    class Config:
+        from_attributes = True
+
+
+class OutCheckpointListResponse(BaseModel):
+    """OUT checkpoint list response (WP-11-10)"""
+    checkpoints: list[OutCheckpointListItem] = Field(..., description="Checkpoint 列表")
+    total: int = Field(..., description="總數")
+    limit: int = Field(..., description="每頁筆數")
+    offset: int = Field(..., description="偏移量")
+
+
+class DuplicateCheckpointError(ErrorResponse):
+    """Error response for duplicate checkpoint (409)"""
+    error_code: str = Field("DUPLICATE_CHECKPOINT", description="Error code")
+    last_checkpoint_time: datetime = Field(..., description="上次打卡時間")
