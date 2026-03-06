@@ -117,6 +117,11 @@ export const useAttendanceStore = defineStore('attendance', {
         // 打卡成功後只刷新記錄，不刷新狀態（避免覆蓋剛設置的 is_on_break）
         await this.fetchRecentLogs()
         
+        // 如果是外出或返回打卡，刷新外出打卡記錄
+        if (type === 'BREAK_OUT' || type === 'BREAK_IN') {
+          await this.loadBreakPunches()
+        }
+        
         return { success: true, data: response }
       } catch (error) {
         // 統一錯誤處理
