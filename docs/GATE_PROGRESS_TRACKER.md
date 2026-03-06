@@ -149,3 +149,62 @@
 
 **Tracker Updated:** 2026-03-05 23:59  
 **Overall Progress:** WP-11-10 backend complete, ready for frontend integration
+
+---
+
+## WP-11-11 — Frontend OUT Checkpoint + Reason Picker (UI Integration)
+
+**Status:** ✅ IMPLEMENTED & VERIFIED  
+**Date:** 2026-03-06 00:35  
+**Phase:** Frontend Integration
+
+**Deliverables:**
+- ✅ API Client: createOutCheckpoint(), listOutCheckpoints()
+- ✅ Store Integration: outCheckpointSubmit(), loadOutCheckpoints()
+- ✅ Device Detection: Auto-detect mobile/pc
+- ✅ GPS Integration: Request location with error handling
+- ✅ Reason Quick Picker: Preset + custom reasons
+- ✅ localStorage Persistence: Custom reasons + last selection
+- ✅ OUT Checkpoint UI: Reason selector + submit button + list
+- ✅ Error Handling: 409/422/403/5xx with friendly messages
+- ✅ Manual Test Log: 7/7 tests passed
+
+**Test Results:**
+- ✅ Mobile GPS allowed → submit with preset reason (PASS)
+- ✅ Mobile GPS denied → blocked with message (PASS)
+- ✅ PC → submit without GPS (PASS)
+- ✅ Custom reason add/remove persists (PASS)
+- ✅ Dedup 409 scenario (PASS)
+- ✅ Last selected reason restored (PASS)
+- ✅ Checkpoint list refresh (PASS)
+
+**Key Features:**
+- Fast input UX: One-click reason selection
+- Preset reasons: 6 default options (外出洽公, 拜訪客戶, 銀行辦事, 郵局辦事, 採購物資, 用餐)
+- Custom reasons: Add/remove with localStorage persistence
+- Last selected reason: Auto-restore on page load
+- Device type detection: Automatic mobile/PC detection
+- GPS validation: Mobile requires GPS, PC optional
+- Checkpoint list: Display recent 5 checkpoints with time/device icon
+- Error handling: Friendly messages for all error scenarios
+
+**UX Highlights:**
+- Zero extra steps: Tap chip → tap button → done
+- Visual feedback: Selected reason clearly highlighted
+- Persistence: Custom reasons survive page reload
+- Auto-refresh: List updates after submit
+- Loading states: Clear indicators during operations
+
+**Commits:**
+1. feat(frontend): add out-checkpoint list + submit wiring
+2. docs: add WP-11-11 reason test log and update trackers
+
+**Next Steps:**
+- Phase 3A JWT Enhancement (token refresh, role-based access)
+- OR Admin-managed reason dictionary (optional)
+- OR History page integration (show checkpoints in session)
+
+---
+
+**Tracker Updated:** 2026-03-06 00:35  
+**Overall Progress:** WP-11-11 frontend complete, full OUT checkpoint feature ready

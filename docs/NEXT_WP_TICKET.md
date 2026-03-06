@@ -1,12 +1,39 @@
-# Next WP Ticket — Frontend OUT Checkpoint Integration
+# Next WP Ticket — Phase 3A JWT Enhancement or History Integration
 
-**Selected WP:** WP-11-11 Frontend OUT Checkpoint + GPS Integration  
-**Reason:** WP-11-10 backend完成，需要前端整合  
-**Priority:** 🟡 P1 (Feature Integration)
+**Selected WP:** TBD (Choose between WP-11-12 or WP-11-13)  
+**Reason:** WP-11-11 frontend完成，可選擇增強認證或整合歷史記錄  
+**Priority:** 🟡 P1 (Enhancement)
 
 ---
 
 ## ✅ Completed WPs
+
+### WP-11-11 — Frontend OUT Checkpoint + Reason Picker (UI Integration)
+**Date**: 2026-03-06 00:35  
+**Status**: ✅ COMPLETED & VERIFIED
+
+**Deliverables**:
+- ✅ API Client: createOutCheckpoint(), listOutCheckpoints()
+- ✅ Store Integration: GPS detection, reason management
+- ✅ Reason Quick Picker: Preset + custom + localStorage
+- ✅ OUT Checkpoint UI: Fast input UX
+- ✅ Error Handling: 409/422/403/5xx
+- ✅ Manual Test Log: 7/7 tests passed
+
+**Test Results**:
+- ✅ All 7 manual tests passed
+- ✅ Mobile GPS validation working
+- ✅ PC no-GPS flow working
+- ✅ Custom reasons persist correctly
+- ✅ Dedup 409 handled correctly
+- ✅ Last selection restored
+- ✅ List auto-refresh working
+
+**UX Highlights**:
+- One-click reason selection
+- Zero extra steps for fast input
+- Visual feedback on selection
+- Persistence across reloads
 
 ### WP-11-10 — OUT Checkpoint + GPS Backend (Backend Implementation)
 **Date**: 2026-03-05 23:59  
@@ -14,212 +41,297 @@
 
 **Deliverables**:
 - ✅ Migration 007_wp_11_10: attendance_out_checkpoints table
-- ✅ AttendanceOutCheckpoint model with GPS fields
 - ✅ POST /api/v1/attendance/out-checkpoint endpoint
 - ✅ GET /api/v1/attendance/out-checkpoints endpoint
 - ✅ GPS validation (mobile required, PC optional)
 - ✅ De-duplication (30s + 50m threshold)
 - ✅ 7 pytest test cases (all passing)
-- ✅ Implementation report
-
-**Test Results**:
-- ✅ All 7 tests passing
-- ✅ Multi-checkpoint submission works
-- ✅ GPS validation enforced
-- ✅ De-dup logic working (409 response)
-- ✅ Tenant isolation verified
 
 ### WP-11-08 — JWT Auth Integration (Replace Mock User)
 **Date**: 2026-03-05 21:00  
 **Status**: ✅ COMPLETED
 
-**Deliverables**:
-- ✅ 前端新增 Login flow（拿 token / 保存）
-- ✅ axios interceptor 使用真 token + company context
-- ✅ 移除 authStore.mockUser 依賴
-- ✅ 路由保護（未登入不可進 Home）
-- ✅ 測試文件：`docs/WP-11-08_AUTH_INTEGRATION_REPORT.md`
-
-### WP-11-07 Phase 2 — API Integration (Mock → Real API)
-**Date**: 2026-03-05 20:09  
-**Status**: ✅ VERIFIED & COMPLETED
-
 ---
 
-## 🚀 WP-11-11 — Frontend OUT Checkpoint + GPS Integration
+## 🚀 Option A: WP-11-12 — JWT Token Refresh & Role-Based Access
 
 ### Goal
-整合 WP-11-10 後端 API，實現前端外出打卡功能與 GPS 定位。
+增強 JWT 認證機制，實現 token 自動刷新和基於角色的訪問控制。
 
 ### Scope
 
-#### 1. API Integration (P0)
-- 新增 `api/attendance.js` 方法：
-  - `createOutCheckpoint(deviceType, gps, notes)`
-  - `getOutCheckpoints(limit, offset, sessionId)`
-- 處理 409 (DUPLICATE_CHECKPOINT) 錯誤
-- 處理 422 (GPS_REQUIRED) 錯誤
+#### 1. Token Refresh Mechanism (P0)
+- 實現 refresh token API
+- Token 過期前 5 分鐘自動刷新
+- 無感刷新（用戶無需重新登入）
+- 處理 refresh token 過期情況
 
-#### 2. GPS Geolocation (P0)
-- 建立 `composables/useGeolocation.js`
-- 自動偵測裝置類型 (mobile/pc)
-- 獲取 GPS 座標 (latitude, longitude, accuracy)
-- 處理用戶拒絕定位
-- 顯示定位狀態（獲取中/成功/失敗）
+#### 2. Role-Based Access Control (P0)
+- 定義角色權限矩陣
+- 實現路由級別權限檢查
+- 實現組件級別權限控制
+- 實現 API 級別權限驗證
 
-#### 3. UI Components (P0)
-- 更新 `Home.vue`：
-  - 啟用「外出」按鈕
-  - 顯示 GPS 狀態指示器
-  - 顯示最近的 checkpoint 列表
-- 新增 `OutCheckpointButton.vue`：
-  - 外出打卡按鈕
-  - GPS 獲取中的 loading 狀態
-  - 錯誤提示（GPS 未開啟、重複打卡）
+#### 3. Permission-Based UI Rendering (P1)
+- 根據權限顯示/隱藏功能
+- 禁用無權限的按鈕
+- 顯示權限不足提示
 
-#### 4. Error Handling (P0)
-- 409 錯誤：顯示「請勿重複打卡」
-- 422 錯誤：顯示「請開啟定位後再外出打卡」
-- GPS 獲取失敗：顯示「無法獲取定位，請檢查權限」
-- 網路錯誤：顯示「網路連線失敗」
-
-#### 5. History Integration (P1)
-- 在 History 頁面顯示 OUT checkpoints
-- 每個 session 下方顯示 checkpoint 列表
-- 顯示 GPS 座標（可選）
-- 顯示裝置類型 (mobile/pc)
+#### 4. Session Management (P1)
+- 多設備登入管理
+- 強制登出功能
+- Session 過期提示
 
 ### Technical Details
 
-#### API Endpoints
+#### Refresh Token Flow
 ```javascript
-// POST /api/v1/attendance/out-checkpoint
-await attendanceApi.createOutCheckpoint({
-  device_type: 'mobile',
-  gps: {
-    latitude: 25.0330,
-    longitude: 121.5654,
-    accuracy: 15.5,
-    captured_at: new Date().toISOString(),
-    provider: 'gps'
-  },
-  notes: 'Checkpoint at Building A'
-})
-
-// GET /api/v1/attendance/out-checkpoints
-await attendanceApi.getOutCheckpoints({
-  limit: 50,
-  offset: 0,
-  session_id: 'xxx'
-})
-```
-
-#### Geolocation Composable
-```javascript
-// composables/useGeolocation.js
-export function useGeolocation() {
-  const getCurrentPosition = async () => {
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            captured_at: new Date().toISOString(),
-            provider: 'gps'
-          })
-        },
-        (error) => reject(error),
-        { enableHighAccuracy: true, timeout: 10000 }
-      )
-    })
-  }
+// stores/auth.js
+async refreshToken() {
+  const refreshToken = localStorage.getItem('refreshToken')
+  const response = await authApi.refreshToken(refreshToken)
   
-  const getDeviceType = () => {
-    return /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'pc'
-  }
+  localStorage.setItem('accessToken', response.access_token)
+  localStorage.setItem('refreshToken', response.refresh_token)
   
-  return { getCurrentPosition, getDeviceType }
+  return response.access_token
 }
+
+// Auto-refresh before expiry
+setInterval(() => {
+  const expiresAt = localStorage.getItem('tokenExpiresAt')
+  const now = Date.now()
+  
+  if (expiresAt - now < 5 * 60 * 1000) { // 5 minutes
+    this.refreshToken()
+  }
+}, 60 * 1000) // Check every minute
 ```
 
-### Test Plan
+#### Role-Based Route Protection
+```javascript
+// router/index.js
+{
+  path: '/admin',
+  component: AdminPanel,
+  meta: { 
+    requiresAuth: true,
+    roles: ['admin', 'super_admin']
+  }
+}
 
-#### Manual Testing
-1. **Mobile 裝置測試**：
-   - 開啟定位 → 外出打卡 → 成功 (201)
-   - 關閉定位 → 外出打卡 → 錯誤 (422)
-   - 30秒內重複打卡 → 錯誤 (409)
-
-2. **PC 裝置測試**：
-   - 無定位 → 外出打卡 → 成功 (201)
-   - 有定位 → 外出打卡 → 成功 (201, 帶 GPS)
-
-3. **History 測試**：
-   - 查看 History → 顯示 checkpoints
-   - 每個 session 顯示多個 checkpoints
-
-#### Automated Testing (Optional)
-- Vitest unit tests for composables
-- Cypress E2E tests for user flow
+// Navigation guard
+router.beforeEach((to, from, next) => {
+  if (to.meta.requiresAuth) {
+    const userRole = authStore.user.role
+    
+    if (to.meta.roles && !to.meta.roles.includes(userRole)) {
+      next('/403')
+      return
+    }
+  }
+  
+  next()
+})
+```
 
 ### Definition of Done
-
-- [ ] API methods added to `api/attendance.js`
-- [ ] `useGeolocation` composable created
-- [ ] 外出按鈕啟用並可用
-- [ ] GPS 狀態顯示正確
-- [ ] 錯誤處理完整 (409, 422, GPS 失敗)
-- [ ] History 顯示 checkpoints
-- [ ] Manual testing passed (mobile + PC)
+- [ ] Refresh token API implemented
+- [ ] Auto-refresh working (5 min before expiry)
+- [ ] Role-based route protection working
+- [ ] Permission-based UI rendering working
+- [ ] Session management working
+- [ ] Manual testing passed
 - [ ] Documentation updated
 
 ### Estimated Time
-- API Integration: 0.5 day
-- GPS Composable: 1 day
-- UI Components: 1 day
-- Error Handling: 0.5 day
-- History Integration: 1 day
+- Token Refresh: 1 day
+- Role-Based Access: 2 days
+- Permission UI: 1 day
+- Session Management: 1 day
 - Testing: 0.5 day
 
-**Total**: 4-5 days
+**Total**: 5-6 days
 
 ---
 
-## Alternative: Phase 3A JWT Enhancement
+## 🚀 Option B: WP-11-13 — History Page Integration (Show Checkpoints)
 
-如果不優先做前端整合，可以考慮：
+### Goal
+在 History 頁面整合 OUT checkpoints，顯示每個 session 的外出記錄。
 
-### WP-11-12 — JWT Token Refresh & Role-Based Access
+### Scope
 
-**Scope**:
-- Refresh token mechanism
-- Token auto-refresh (5 min before expiry)
-- Role-based route protection
-- Permission-based UI rendering
+#### 1. History API Enhancement (P0)
+- 修改 GET /history 返回 out_checkpoints
+- 每個 session 包含 checkpoints 陣列
+- 支援日期範圍篩選
 
-**Priority**: 🟢 P2  
-**Estimated Time**: 2-3 days
+#### 2. History Page UI (P0)
+- 在每個 session 下方顯示 checkpoints
+- 顯示 checkpoint 時間、原因、裝置類型
+- 顯示 GPS 座標（可選）
+- 支援展開/收合 checkpoints
+
+#### 3. Checkpoint Detail View (P1)
+- 點擊 checkpoint 顯示詳細資訊
+- 顯示 GPS 地圖（如果有座標）
+- 顯示裝置資訊、IP 地址
+
+#### 4. Export Functionality (P1)
+- 匯出 history 包含 checkpoints
+- CSV/Excel 格式
+- 日期範圍選擇
+
+### Technical Details
+
+#### Backend API Response
+```json
+{
+  "sessions": [
+    {
+      "session_id": "...",
+      "punch_in_time": "2026-03-06T09:00:00+08:00",
+      "punch_out_time": "2026-03-06T18:00:00+08:00",
+      "out_checkpoints": [
+        {
+          "checkpoint_id": "...",
+          "punch_time": "2026-03-06T14:30:00+08:00",
+          "notes": "外出洽公",
+          "device_type": "mobile",
+          "gps": {
+            "latitude": 25.0330,
+            "longitude": 121.5654
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Frontend Display
+```vue
+<div v-for="session in sessions" class="session-card">
+  <div class="session-header">
+    <span>上班: {{ session.punch_in_time }}</span>
+    <span>下班: {{ session.punch_out_time }}</span>
+  </div>
+  
+  <div v-if="session.out_checkpoints.length > 0" class="checkpoints">
+    <h4>外出記錄 ({{ session.out_checkpoints.length }})</h4>
+    <div v-for="cp in session.out_checkpoints" class="checkpoint-item">
+      <span>{{ cp.punch_time }}</span>
+      <span>{{ cp.notes }}</span>
+      <span>{{ cp.device_type === 'mobile' ? '📍' : '💻' }}</span>
+    </div>
+  </div>
+</div>
+```
+
+### Definition of Done
+- [ ] Backend API returns checkpoints in history
+- [ ] History page displays checkpoints
+- [ ] Checkpoint detail view working
+- [ ] Export includes checkpoints
+- [ ] Manual testing passed
+- [ ] Documentation updated
+
+### Estimated Time
+- Backend API: 1 day
+- Frontend UI: 2 days
+- Detail View: 1 day
+- Export: 1 day
+- Testing: 0.5 day
+
+**Total**: 5-6 days
+
+---
+
+## 🚀 Option C: WP-11-14 — Admin Reason Dictionary (Optional)
+
+### Goal
+允許管理員管理全公司的外出原因字典，取代前端 hard-coded 的 preset reasons。
+
+### Scope
+
+#### 1. Backend API (P0)
+- GET /api/v1/admin/reasons: 獲取原因列表
+- POST /api/v1/admin/reasons: 新增原因
+- PUT /api/v1/admin/reasons/:id: 更新原因
+- DELETE /api/v1/admin/reasons/:id: 刪除原因
+
+#### 2. Admin UI (P0)
+- 原因管理頁面
+- 新增/編輯/刪除原因
+- 排序原因順序
+- 啟用/停用原因
+
+#### 3. Frontend Integration (P0)
+- 從 API 載入 preset reasons
+- 快取到 localStorage
+- 定期更新（每天一次）
+
+### Estimated Time: 3-4 days
 
 ---
 
 ## 🎯 Recommendation
 
-**推薦執行**: WP-11-11 Frontend OUT Checkpoint Integration
+**推薦執行順序**:
 
-**理由**:
-1. WP-11-10 後端已完成，前端整合是自然的下一步
-2. GPS 功能對用戶體驗提升明顯
-3. 完整的 OUT checkpoint 功能可以立即使用
-4. 測試和驗證可以同步進行
+1. **WP-11-13 (History Integration)** - 優先推薦
+   - 理由：完善 OUT checkpoint 功能，讓用戶看到完整的外出記錄
+   - 價值：高（用戶可以查看歷史外出記錄）
+   - 風險：低（純前端展示，不影響現有功能）
+   - 時間：5-6 天
 
-**Blocker**: None (WP-11-10 已完成)  
-**Assignee**: Frontend Team  
+2. **WP-11-12 (JWT Enhancement)** - 次要推薦
+   - 理由：改善用戶體驗，減少重複登入
+   - 價值：中（提升 UX，但非必需）
+   - 風險：中（涉及認證機制，需謹慎測試）
+   - 時間：5-6 天
+
+3. **WP-11-14 (Admin Reason Dictionary)** - 可選
+   - 理由：提供更靈活的原因管理
+   - 價值：中（管理便利性）
+   - 風險：低（獨立功能）
+   - 時間：3-4 天
+
+**Blocker**: None (WP-11-11 已完成)  
+**Assignee**: Frontend Team + Backend Team  
 **Status**: 🎯 READY TO START
 
 ---
 
-**Document Version:** 12.0  
-**Last Updated:** 2026-03-05 23:59  
-**Next Review:** WP-11-11 kickoff or alternative selection
+## 📊 Current System Status
+
+### Completed Features
+- ✅ JWT Auth (login/logout)
+- ✅ Punch In/Out
+- ✅ Break Out/In (deprecated)
+- ✅ OUT Checkpoint (new, with GPS)
+- ✅ Reason Quick Picker
+- ✅ Current Status Display
+- ✅ Recent Logs Display
+
+### Pending Features
+- ⏳ History Page (basic version exists, needs checkpoint integration)
+- ⏳ Token Refresh
+- ⏳ Role-Based Access
+- ⏳ Leave Request
+- ⏳ Missed Punch Request
+- ⏳ Reports/Analytics
+
+### System Health
+- **Backend**: ✅ Running (port 8000)
+- **Frontend**: ✅ Running (port 5173)
+- **Database**: ✅ Connected
+- **Auth**: ✅ JWT enabled
+- **OUT Checkpoint**: ✅ Fully functional
+
+---
+
+**Document Version:** 13.0  
+**Last Updated:** 2026-03-06 00:35  
+**Next Review:** Team decision on WP-11-12 vs WP-11-13
