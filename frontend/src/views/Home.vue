@@ -50,14 +50,14 @@
             label="外出打卡"
             variant="secondary"
             icon="break"
-            :disabled="true"
+            :disabled="!canBreakOut || isLoading"
             @click="handlePunch('BREAK_OUT')"
           />
           <PunchButton 
             label="返回打卡"
             variant="secondary"
             icon="check"
-            :disabled="true"
+            :disabled="!canBreakIn || isLoading"
             @click="handlePunch('BREAK_IN')"
           />
         </div>
@@ -65,15 +65,125 @@
         <!-- 提示訊息 -->
         <div class="punch-hint text-center text-sm text-text-secondary mt-4">
           <span v-if="!todayStatus.punch_in">請先打上班卡</span>
+          <span v-else-if="todayStatus.is_on_break">目前外出中，請返回打卡</span>
           <span v-else-if="!todayStatus.punch_out">已上班打卡</span>
           <span v-else>今日打卡已完成</span>
-          <span class="block mt-1 text-xs text-text-hint">（外出/返回功能開發中）</span>
         </div>
 
         <!-- Loading 狀態 -->
         <div v-if="isLoading" class="loading-overlay">
           <div class="loading-spinner"></div>
           <p class="text-text-secondary mt-2">打卡中...</p>
+        </div>
+      </Card>
+
+      <!-- WP-11-11: OUT Checkpoint 區塊 -->
+      <Card title="外出打點" class="mb-6">
+        <!-- 原因選擇器 -->
+        <div class="reason-picker mb-4">
+          <label class="block text-sm font-medium text-text-primary mb-2">
+            選擇外出原因
+            <span v-if="deviceType === 'pc'" class="text-xs text-text-hint ml-2">(PC 不記錄定位)</span>
+            <span v-else class="text-xs text-text-hint ml-2">(需要定位權限)</span>
+          </label>
+          
+          <!-- Preset 原因 -->
+          <div class="reason-chips flex flex-wrap gap-2 mb-3">
+            <button
+              v-for="reason in reasonPresets"
+              :key="reason"
+              @click="selectReason(reason)"
+              :class="[
+                'reason-chip px-4 py-2 rounded-full text-sm transition-all',
+                selectedReason === reason 
+                  ? 'bg-primary text-white shadow-md' 
+                  : 'bg-white text-text-primary border border-gray-300 hover:border-primary hover:text-primary'
+              ]"
+            >
+              {{ reason }}
+            </button>
+          </div>
+          
+          <!-- Custom 原因 -->
+          <div v-if="reasonCustoms.length > 0" class="custom-reasons mb-3">
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="reason in reasonCustoms"
+                :key="reason"
+                @click="selectReason(reason)"
+                :class="[
+                  'reason-chip px-4 py-2 rounded-full text-sm transition-all flex items-center gap-2',
+                  selectedReason === reason 
+                    ? 'bg-primary text-white shadow-md' 
+                    : 'bg-white text-text-primary border border-gray-300 hover:border-primary hover:text-primary'
+                ]"
+              >
+                {{ reason }}
+                <span 
+                  @click.stop="removeCustomReason(reason)"
+                  class="remove-btn text-xs opacity-70 hover:opacity-100"
+                >
+                  ✕
+                </span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- 新增自訂原因 -->
+          <div class="add-custom-reason flex gap-2">
+            <input
+              v-model="newCustomReason"
+              @keyup.enter="addCustomReason"
+              type="text"
+              placeholder="輸入自訂原因..."
+              class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary text-sm"
+              maxlength="20"
+            />
+            <button
+              @click="addCustomReason"
+              :disabled="!newCustomReason.trim()"
+              class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              ＋新增
+            </button>
+          </div>
+        </div>
+        
+        <!-- OUT Checkpoint 按鈕 -->
+        <button
+          @click="handleOutCheckpoint"
+          :disabled="!canCreateOutCheckpoint || outCheckpointLoading"
+          class="w-full py-3 bg-secondary text-white rounded-lg font-medium hover:bg-secondary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        >
+          <svg v-if="!outCheckpointLoading" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+          </svg>
+          <div v-else class="loading-spinner-small"></div>
+          <span>{{ outCheckpointLoading ? '提交中...' : '外出打點' }}</span>
+        </button>
+        
+        <!-- OUT Checkpoints 列表 -->
+        <div v-if="outCheckpointList.length > 0" class="checkpoint-list mt-4 pt-4 border-t border-gray-200">
+          <h4 class="text-sm font-medium text-text-primary mb-2">今日外出記錄</h4>
+          <div class="space-y-2">
+            <div
+              v-for="checkpoint in outCheckpointList.slice(0, 5)"
+              :key="checkpoint.checkpoint_id"
+              class="checkpoint-item flex items-center justify-between p-2 bg-bg-main rounded text-sm"
+            >
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-secondary" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                </svg>
+                <span class="text-text-primary">{{ checkpoint.notes || '外出' }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-text-secondary text-xs">{{ formatTime(checkpoint.punch_time) }}</span>
+                <span v-if="checkpoint.device_type === 'mobile'" class="text-xs text-success">📍</span>
+                <span v-else class="text-xs text-text-hint">💻</span>
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -133,7 +243,7 @@
         v-if="showSuccessMessage" 
         class="success-toast fixed bottom-8 right-8 bg-success text-white px-6 py-3 rounded-lg shadow-xl z-50"
       >
-        ✓ 打卡成功
+        ✓ {{ successMessage }}
       </div>
 
       <!-- 錯誤提示 -->
@@ -163,16 +273,45 @@ import StatusCard from '@/components/StatusCard.vue'
 import PunchButton from '@/components/PunchButton.vue'
 
 const attendanceStore = useAttendanceStore()
-const { todayStatus, recentLogs, isLoading } = storeToRefs(attendanceStore)
-const { canPunchIn, canPunchOut, canBreakOut, canBreakIn, formattedTodayStatus } = storeToRefs(attendanceStore)
+const { 
+  todayStatus, 
+  recentLogs, 
+  isLoading,
+  outCheckpointList,
+  outCheckpointLoading,
+  reasonPresets,
+  reasonCustoms,
+  lastSelectedReason
+} = storeToRefs(attendanceStore)
+
+const { 
+  canPunchIn, 
+  canPunchOut, 
+  canBreakOut, 
+  canBreakIn, 
+  formattedTodayStatus,
+  canCreateOutCheckpoint,
+  allReasons
+} = storeToRefs(attendanceStore)
 
 const showSuccessMessage = ref(false)
 const showErrorMessage = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('打卡成功')
+
+// WP-11-11: OUT Checkpoint 狀態
+const selectedReason = ref('')
+const newCustomReason = ref('')
+const deviceType = ref('pc')
 
 // 格式化日期時間
 const formatDateTime = (timestamp) => {
   return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
+}
+
+// 格式化時間（僅時分）
+const formatTime = (timestamp) => {
+  return dayjs(timestamp).format('HH:mm')
 }
 
 // 獲取打卡類型標籤
@@ -211,6 +350,7 @@ const handlePunch = async (type) => {
     await attendanceStore.punch(type)
     
     // 顯示成功訊息
+    successMessage.value = '打卡成功'
     showSuccessMessage.value = true
     setTimeout(() => {
       showSuccessMessage.value = false
@@ -228,10 +368,82 @@ const handlePunch = async (type) => {
   }
 }
 
+// WP-11-11: 選擇原因
+const selectReason = (reason) => {
+  selectedReason.value = reason
+}
+
+// WP-11-11: 新增自訂原因
+const addCustomReason = () => {
+  if (!newCustomReason.value.trim()) return
+  
+  attendanceStore.addCustomReason(newCustomReason.value)
+  selectedReason.value = newCustomReason.value
+  newCustomReason.value = ''
+}
+
+// WP-11-11: 移除自訂原因
+const removeCustomReason = (reason) => {
+  attendanceStore.removeCustomReason(reason)
+  if (selectedReason.value === reason) {
+    selectedReason.value = ''
+  }
+}
+
+// WP-11-11: 處理 OUT checkpoint
+const handleOutCheckpoint = async () => {
+  // 驗證是否選擇原因
+  if (!selectedReason.value) {
+    errorMessage.value = '請先選擇原因'
+    showErrorMessage.value = true
+    setTimeout(() => {
+      showErrorMessage.value = false
+    }, 3000)
+    return
+  }
+  
+  attendanceStore.clearError()
+  
+  try {
+    await attendanceStore.outCheckpointSubmit(selectedReason.value)
+    
+    // 顯示成功訊息
+    successMessage.value = '外出打點成功'
+    showSuccessMessage.value = true
+    setTimeout(() => {
+      showSuccessMessage.value = false
+    }, 3000)
+    
+    // 不清除選擇的原因，方便下次使用
+  } catch (error) {
+    console.error('外出打點失敗:', error)
+    
+    // 顯示友善的錯誤訊息
+    errorMessage.value = error.message || '外出打點失敗，請稍後再試'
+    showErrorMessage.value = true
+    
+    setTimeout(() => {
+      showErrorMessage.value = false
+    }, 5000)
+  }
+}
+
 // 頁面載入時獲取狀態
 onMounted(() => {
   attendanceStore.fetchTodayStatus()
   attendanceStore.fetchRecentLogs()
+  
+  // WP-11-11: 載入 OUT checkpoints 和原因
+  attendanceStore.loadOutCheckpoints()
+  attendanceStore.hydrateReasonsFromLocalStorage()
+  
+  // 設定裝置類型
+  deviceType.value = attendanceStore.detectDeviceType()
+  
+  // 恢復最後選擇的原因
+  if (lastSelectedReason.value) {
+    selectedReason.value = lastSelectedReason.value
+  }
 })
 </script>
 
@@ -261,6 +473,15 @@ onMounted(() => {
   height: 40px;
   border: 4px solid var(--primary-lighter);
   border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -301,5 +522,27 @@ onMounted(() => {
 .action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.reason-chip {
+  cursor: pointer;
+  user-select: none;
+}
+
+.reason-chip:active {
+  transform: scale(0.95);
+}
+
+.remove-btn {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.checkpoint-item {
+  transition: background-color 0.2s;
+}
+
+.checkpoint-item:hover {
+  background-color: var(--bg-hover);
 }
 </style>
