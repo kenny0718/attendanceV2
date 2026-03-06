@@ -351,7 +351,13 @@ const handlePunch = async (type) => {
   attendanceStore.clearError()
   
   try {
-    await attendanceStore.punch(type)
+    // 如果是外出打卡，使用選擇的原因
+    let notes = ''
+    if (type === 'BREAK_OUT' && selectedReason.value) {
+      notes = selectedReason.value
+    }
+    
+    await attendanceStore.punch(type, notes)
     
     // 顯示成功訊息
     successMessage.value = '打卡成功'

@@ -64,7 +64,7 @@ export const useAttendanceStore = defineStore('attendance', {
   
   actions: {
     // 打卡（真實 API - WP-11-07 Phase 3B: 支援外出/返回）
-    async punch(type) {
+    async punch(type, notes = '') {
       // 防止重複點擊
       if (this.isLoading) {
         console.warn('操作進行中，請稍候...')
@@ -80,7 +80,7 @@ export const useAttendanceStore = defineStore('attendance', {
         
         switch (type) {
           case 'IN':
-            response = await attendanceApi.punchIn({ notes: '' })
+            response = await attendanceApi.punchIn({ notes: notes || '' })
             this.todayStatus.punch_in = response.punch_in_time
             this.todayStatus.is_punched_in = true
             this.todayStatus.session_id = response.session_id
@@ -89,7 +89,7 @@ export const useAttendanceStore = defineStore('attendance', {
             break
             
           case 'OUT':
-            response = await attendanceApi.punchOut({ notes: '' })
+            response = await attendanceApi.punchOut({ notes: notes || '' })
             this.todayStatus.punch_out = response.punch_out_time
             this.todayStatus.is_punched_in = false
             this.todayStatus.is_on_break = false
@@ -97,17 +97,21 @@ export const useAttendanceStore = defineStore('attendance', {
             break
             
           case 'BREAK_OUT':
-            response = await attendanceApi.breakOut({ notes: '' })
+            response = await attendanceApi.breakOut({ notes: notes || '' })
             this.todayStatus.break_out = response.punch_time
             this.todayStatus.is_on_break = true
             localStorage.setItem('is_on_break', 'true')
+            // 打卡成功後刷新外出打卡記錄
+            await this.loadBreakPunches()
             break
             
           case 'BREAK_IN':
-            response = await attendanceApi.breakIn({ notes: '' })
+            response = await attendanceApi.breakIn({ notes: notes || '' })
             this.todayStatus.break_in = response.punch_time
             this.todayStatus.is_on_break = false
             localStorage.setItem('is_on_break', 'false')
+            // 打卡成功後刷新外出打卡記錄
+            await this.loadBreakPunches()
             break
             
           default:
