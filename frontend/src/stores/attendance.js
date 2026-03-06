@@ -371,55 +371,24 @@ export const useAttendanceStore = defineStore('attendance', {
       try {
         const data = await attendanceApi.getHistory({ limit: 10, offset: 0 })
         
-        // 轉換後端數據格式為前端需要的格式
-        // 將所有 sessions 的 punches 展開成單獨的記錄
-        const allLogs = []
-        
-        data.sessions.forEach(session => {
-          if (session.punches && session.punches.length > 0) {
-            // 如果有 punches，顯示所有 punch 記錄
-            session.punches.forEach(punch => {
-              allLogs.push({
-                id: punch.punch_id,
-                timestamp: punch.punch_time,
-                attendance_type: this.getPunchTypeLabel(punch.punch_type),
-                status: 'success',
-                is_late: false,
-                notes: punch.notes
-              })
-            })
-          } else {
-            // 如果沒有 punches（舊數據），使用 session 的上班/下班時間
-            const isPunchOut = session.punch_out_time
-            allLogs.push({
-              id: session.session_id,
-              timestamp: isPunchOut ? session.punch_out_time : session.punch_in_time,
-              attendance_type: isPunchOut ? 'OUT' : 'IN',
-              status: 'success',
-              is_late: false,
-              duration_minutes: session.duration_minutes
-            })
+        // 只顯示上班/下班記錄（不包含外出/返回）
+        this.recentLogs = data.sessions.map(session => {
+          // 判斷是上班還是下班
+          const isPunchIn = session.punch_in_time && !session.punch_out_time
+          const isPunchOut = session.punch_out_time
+          
+          return {
+            id: session.session_id,
+            timestamp: isPunchOut ? session.punch_out_time : session.punch_in_time,
+            attendance_type: isPunchOut ? 'OUT' : 'IN',
+            status: 'success',
+            is_late: false,
+            duration_minutes: session.duration_minutes
           }
         })
-        
-        // 按時間倒序排列
-        this.recentLogs = allLogs.sort((a, b) => 
-          new Date(b.timestamp) - new Date(a.timestamp)
-        ).slice(0, 20) // 只保留最近 20 筆
       } catch (error) {
         console.error('獲取記錄失敗:', error)
       }
-    },
-    
-    // 輔助方法：將 punch_type 轉換為顯示標籤
-    getPunchTypeLabel(punchType) {
-      const typeMap = {
-        'in': 'IN',
-        'out': 'OUT',
-        'break_start': 'BREAK_OUT',
-        'break_end': 'BREAK_IN'
-      }
-      return typeMap[punchType] || punchType.toUpperCase()
     },
     
     // 統一錯誤處理

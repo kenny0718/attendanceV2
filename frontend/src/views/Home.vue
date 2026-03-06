@@ -162,25 +162,28 @@
           <span>{{ outCheckpointLoading ? '提交中...' : '記錄當前位置' }}</span>
         </button>
         
-        <!-- OUT Checkpoints 列表 -->
-        <div v-if="outCheckpointList.length > 0" class="checkpoint-list mt-4 pt-4 border-t border-gray-200">
-          <h4 class="text-sm font-medium text-text-primary mb-2">今日位置記錄</h4>
+        <!-- 今日外出打卡記錄 -->
+        <div v-if="breakPunches.length > 0" class="checkpoint-list mt-4 pt-4 border-t border-gray-200">
+          <h4 class="text-sm font-medium text-text-primary mb-2">今日外出打卡記錄</h4>
           <div class="space-y-2">
             <div
-              v-for="checkpoint in outCheckpointList.slice(0, 5)"
-              :key="checkpoint.checkpoint_id"
+              v-for="punch in breakPunches.slice(0, 10)"
+              :key="punch.punch_id"
               class="checkpoint-item flex items-center justify-between p-2 bg-bg-main rounded text-sm"
             >
               <div class="flex items-center gap-2">
-                <svg class="w-4 h-4 text-secondary" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                <svg v-if="punch.punch_type === 'break_start'" class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
                 </svg>
-                <span class="text-text-primary">{{ checkpoint.notes || '外出' }}</span>
+                <svg v-else class="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                <span class="text-text-primary font-medium">{{ punch.punch_type === 'break_start' ? '外出' : '返回' }}</span>
+                <span v-if="punch.notes" class="text-text-secondary text-xs">{{ punch.notes }}</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="text-text-secondary text-xs">{{ formatTime(checkpoint.punch_time) }}</span>
-                <span v-if="checkpoint.device_type === 'mobile'" class="text-xs text-success">📍</span>
-                <span v-else class="text-xs text-text-hint">💻</span>
+                <span class="text-text-secondary text-xs">{{ formatTime(punch.punch_time) }}</span>
+                <span v-if="punch.location_lat && punch.location_lng" class="text-xs text-success">📍</span>
               </div>
             </div>
           </div>
@@ -278,6 +281,7 @@ const {
   recentLogs, 
   isLoading,
   outCheckpointList,
+  breakPunches,
   outCheckpointLoading,
   reasonPresets,
   reasonCustoms,
@@ -435,6 +439,7 @@ onMounted(() => {
   
   // WP-11-11: 載入 OUT checkpoints 和原因
   attendanceStore.loadOutCheckpoints()
+  attendanceStore.loadBreakPunches()
   attendanceStore.hydrateReasonsFromLocalStorage()
   
   // 設定裝置類型

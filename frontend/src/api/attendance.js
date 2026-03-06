@@ -29,5 +29,8 @@ export const attendanceApi = {
   createOutCheckpoint: (data) => apiClient.post('/v1/attendance/out-checkpoint', data),
   
   // 獲取 OUT checkpoints 列表
-  listOutCheckpoints: (params = {}) => apiClient.get('/v1/attendance/out-checkpoints', { params })
+  listOutCheckpoints: (params = {}) => apiClient.get('/v1/attendance/out-checkpoints', { params }),
+  
+  // 獲取今日外出打卡記錄
+  getBreakPunches: (params = {}) => apiClient.get('/v1/attendance/break-punches', { params })
 }
