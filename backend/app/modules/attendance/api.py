@@ -612,7 +612,7 @@ async def get_attendance_history(
 
 @router_v1.patch("/punch/{punch_id}/note", response_model=dict)
 async def update_punch_note(
-    punch_id: int,
+    punch_id: str,
     note_data: dict,
     user_id: int = Depends(get_current_user_id),
     company_id: str = Depends(get_current_company_id),
@@ -622,7 +622,7 @@ async def update_punch_note(
     更新打卡記錄的備註
     
     Args:
-        punch_id: 打卡記錄 ID
+        punch_id: 打卡記錄 ID (UUID 字符串)
         note_data: 包含 notes 字段的字典
         user_id: 當前用戶 ID
         company_id: 公司 ID
@@ -653,7 +653,7 @@ async def update_punch_note(
     
     return {
         "message": "備註已更新",
-        "punch_id": punch.punch_id,
+        "punch_id": str(punch.punch_id),
         "notes": punch.notes
     }
 
