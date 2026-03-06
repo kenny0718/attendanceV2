@@ -315,6 +315,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAttendanceStore } from '@/stores/attendance'
+import { attendanceApi } from '@/api/attendance'
 import dayjs from 'dayjs'
 import Navbar from '@/components/Navbar.vue'
 import Card from '@/components/Card.vue'
