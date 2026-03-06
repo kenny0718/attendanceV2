@@ -335,15 +335,14 @@ const {
   lastSelectedReason
 } = storeToRefs(attendanceStore)
 
-const { 
-  canPunchIn, 
-  canPunchOut, 
-  canBreakOut, 
-  canBreakIn, 
-  formattedTodayStatus,
-  canCreateOutCheckpoint,
-  allReasons
-} = storeToRefs(attendanceStore)
+// Getters 直接從 store 訪問
+const canPunchIn = computed(() => attendanceStore.canPunchIn)
+const canPunchOut = computed(() => attendanceStore.canPunchOut)
+const canBreakOut = computed(() => attendanceStore.canBreakOut)
+const canBreakIn = computed(() => attendanceStore.canBreakIn)
+const formattedTodayStatus = computed(() => attendanceStore.formattedTodayStatus)
+const canCreateOutCheckpoint = computed(() => attendanceStore.canCreateOutCheckpoint)
+const allReasons = computed(() => attendanceStore.allReasons)
 
 const showSuccessMessage = ref(false)
 const showErrorMessage = ref(false)
