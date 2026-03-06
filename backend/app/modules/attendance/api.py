@@ -634,7 +634,7 @@ async def update_punch_note(
     """
     # 獲取打卡記錄
     punch = db.query(AttendancePunch).filter(
-        AttendancePunch.punch_id == punch_id,
+        AttendancePunch.id == punch_id,
         AttendancePunch.user_id == user_id
     ).first()
     
@@ -652,7 +652,7 @@ async def update_punch_note(
     
     return {
         "message": "備註已更新",
-        "punch_id": str(punch.punch_id),
+        "punch_id": str(punch.id),
         "notes": punch.notes
     }
 
