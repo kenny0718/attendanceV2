@@ -169,17 +169,23 @@
             <div
               v-for="punch in breakPunches.slice(0, 10)"
               :key="punch.punch_id"
-              class="checkpoint-item flex items-center justify-between p-2 bg-bg-main rounded text-sm"
+              class="checkpoint-item flex items-center justify-between p-2 bg-bg-main rounded text-sm hover:bg-gray-50 cursor-pointer transition-colors"
+              @click="editPunchNote(punch)"
             >
-              <div class="flex items-center gap-2">
-                <svg v-if="punch.punch_type === 'break_start'" class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+              <div class="flex items-center gap-2 flex-1">
+                <svg v-if="punch.punch_type === 'break_start'" class="w-4 h-4 text-warning flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
                 </svg>
-                <svg v-else class="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20">
+                <svg v-else class="w-4 h-4 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                 </svg>
-                <span class="text-text-primary font-medium">{{ punch.punch_type === 'break_start' ? '外出' : '返回' }}</span>
-                <span v-if="punch.notes" class="text-text-secondary text-xs">{{ punch.notes }}</span>
+                <!-- 只顯示原因，如果沒有原因則顯示類型 -->
+                <span v-if="punch.notes" class="text-text-primary font-medium">{{ punch.notes }}</span>
+                <span v-else class="text-text-secondary italic">{{ punch.punch_type === 'break_start' ? '外出' : '返回' }}</span>
+                <!-- 編輯提示 -->
+                <svg class="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-text-secondary text-xs">{{ formatTime(punch.punch_time) }}</span>
@@ -263,7 +269,47 @@
       </div>
     </div>
   </div>
-</template>
+
+    <!-- 編輯備註對話框 -->
+    <div v-if="showEditDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cancelEdit">
+      <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-semibold text-text-primary mb-4">編輯外出原因</h3>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-text-secondary mb-2">
+            原因說明
+          </label>
+          <input
+            v-model="editingNote"
+            type="text"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            placeholder="例如：拜訪客戶-A客戶"
+            @keyup.enter="saveEditedNote"
+            @keyup.esc="cancelEdit"
+          />
+          <p class="mt-1 text-xs text-text-secondary">
+            提示：可以在原因後面加上詳細說明，例如「拜訪客戶-A客戶」
+          </p>
+        </div>
+        
+        <div class="flex gap-3 justify-end">
+          <button
+            @click="cancelEdit"
+            class="px-4 py-2 text-sm font-medium text-text-secondary bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            取消
+          </button>
+          <button
+            @click="saveEditedNote"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark transition-colors"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
@@ -305,6 +351,9 @@ const successMessage = ref('打卡成功')
 
 // WP-11-11: OUT Checkpoint 狀態
 const selectedReason = ref('')
+const editingPunch = ref(null)
+const editingNote = ref('')
+const showEditDialog = ref(false)
 const newCustomReason = ref('')
 const deviceType = ref('pc')
 
@@ -381,6 +430,62 @@ const handlePunch = async (type) => {
 // WP-11-11: 選擇原因
 const selectReason = (reason) => {
   selectedReason.value = reason
+}
+
+// 編輯打卡備註
+const editPunchNote = (punch) => {
+  // 只允許編輯外出記錄（break_start）
+  if (punch.punch_type !== 'break_start') {
+    return
+  }
+  
+  editingPunch.value = punch
+  editingNote.value = punch.notes || ''
+  showEditDialog.value = true
+}
+
+// 保存編輯的備註
+const saveEditedNote = async () => {
+  if (!editingPunch.value) return
+  
+  try {
+    // 調用 API 更新備註
+    await attendanceApi.updatePunchNote(editingPunch.value.punch_id, {
+      notes: editingNote.value
+    })
+    
+    // 更新本地數據
+    const index = breakPunches.value.findIndex(p => p.punch_id === editingPunch.value.punch_id)
+    if (index !== -1) {
+      breakPunches.value[index].notes = editingNote.value
+    }
+    
+    // 關閉對話框
+    showEditDialog.value = false
+    editingPunch.value = null
+    editingNote.value = ''
+    
+    // 顯示成功訊息
+    successMessage.value = '備註已更新'
+    showSuccessMessage.value = true
+    setTimeout(() => {
+      showSuccessMessage.value = false
+    }, 2000)
+  } catch (error) {
+    console.error('更新備註失敗:', error)
+    errorMessage.value = '更新失敗，請稍後再試'
+    showErrorMessage.value = true
+    setTimeout(() => {
+      showErrorMessage.value = false
+    }, 3000)
+  }
+}
+
+// 取消編輯
+const cancelEdit = () => {
+  showEditDialog.value = false
+  editingPunch.value = null
+  editingNote.value = ''
 }
 
 // WP-11-11: 新增自訂原因

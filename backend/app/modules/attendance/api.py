@@ -609,6 +609,55 @@ async def get_attendance_history(
     )
 
 
+
+@router_v1.patch("/punch/{punch_id}/note", response_model=dict)
+async def update_punch_note(
+    punch_id: int,
+    note_data: dict,
+    user_id: int = Depends(get_current_user_id),
+    company_id: str = Depends(get_current_company_id),
+    db: Session = Depends(get_db)
+):
+    """
+    更新打卡記錄的備註
+    
+    Args:
+        punch_id: 打卡記錄 ID
+        note_data: 包含 notes 字段的字典
+        user_id: 當前用戶 ID
+        company_id: 公司 ID
+        db: 數據庫會話
+    
+    Returns:
+        更新後的打卡記錄
+    """
+    repo = AttendanceRepository(db)
+    
+    # 獲取打卡記錄
+    punch = db.query(Punch).filter(
+        Punch.punch_id == punch_id,
+        Punch.user_id == user_id
+    ).first()
+    
+    if not punch:
+        raise HTTPException(status_code=404, detail="打卡記錄不存在")
+    
+    # 只允許更新外出打卡的備註
+    if punch.punch_type not in ['break_start', 'break_end']:
+        raise HTTPException(status_code=400, detail="只能編輯外出打卡記錄")
+    
+    # 更新備註
+    punch.notes = note_data.get('notes', '')
+    db.commit()
+    db.refresh(punch)
+    
+    return {
+        "message": "備註已更新",
+        "punch_id": punch.punch_id,
+        "notes": punch.notes
+    }
+
+
 @router_v1.get("/break-punches", response_model=dict)
 async def get_break_punches(
     limit: int = 50,

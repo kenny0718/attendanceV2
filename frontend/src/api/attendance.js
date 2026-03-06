@@ -32,5 +32,8 @@ export const attendanceApi = {
   listOutCheckpoints: (params = {}) => apiClient.get('/v1/attendance/out-checkpoints', { params }),
   
   // 獲取今日外出打卡記錄
-  getBreakPunches: (params = {}) => apiClient.get('/v1/attendance/break-punches', { params })
+  getBreakPunches: (params = {}) => apiClient.get('/v1/attendance/break-punches', { params }),
+  
+  // 更新打卡備註
+  updatePunchNote: (punchId, data) => apiClient.patch(`/v1/attendance/punch/${punchId}/note`, data)
 }
