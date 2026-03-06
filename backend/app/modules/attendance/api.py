@@ -19,6 +19,7 @@ from app.core.tenant_context import get_current_company_id, get_current_user_id
 from app.core.database import get_db
 from app.core.config import is_testing, TIMEZONE, get_current_time
 from app.modules.attendance.repo import get_attendance_session_repository
+from app.modules.attendance.models import AttendancePunch
 from app.modules.attendance.schemas import (
     PunchInRequest,
     PunchInResponse,
@@ -632,9 +633,9 @@ async def update_punch_note(
         更新後的打卡記錄
     """
     # 獲取打卡記錄
-    punch = db.query(Punch).filter(
-        Punch.punch_id == punch_id,
-        Punch.user_id == user_id
+    punch = db.query(AttendancePunch).filter(
+        AttendancePunch.punch_id == punch_id,
+        AttendancePunch.user_id == user_id
     ).first()
     
     if not punch:
