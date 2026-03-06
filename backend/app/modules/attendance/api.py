@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Body
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -613,7 +613,7 @@ async def get_attendance_history(
 @router_v1.patch("/punch/{punch_id}/note", response_model=dict)
 async def update_punch_note(
     punch_id: str,
-    note_data: dict,
+    note_data: dict = Body(...),
     user_id: int = Depends(get_current_user_id),
     company_id: str = Depends(get_current_company_id),
     db: Session = Depends(get_db)
