@@ -68,8 +68,8 @@ class SessionResponse(BaseModel):
     session_id: UUID = Field(..., description="Session ID")
     user_id: UUID = Field(..., description="User ID")
     company_id: str = Field(..., description="Company ID")
-    punch_in_time: datetime = Field(..., description="Punch in time (UTC)")
-    punch_out_time: Optional[datetime] = Field(None, description="Punch out time (UTC, null if open)")
+    punch_in_time: datetime = Field(..., description="Punch in time (UTC+8)")
+    punch_out_time: Optional[datetime] = Field(None, description="Punch out time (UTC+8, null if open)")
     duration_minutes: Optional[int] = Field(None, description="Duration in minutes (null if open)")
     status: str = Field(..., description="Session status (open/closed/pending/approved/rejected/missing_punch_out)")
     
@@ -86,7 +86,7 @@ class BreakOutResponse(BaseModel):
     """Break out response (WP-11-07 Phase 3B)"""
     punch_id: UUID = Field(..., description="Punch record ID")
     session_id: UUID = Field(..., description="Session ID")
-    punch_time: datetime = Field(..., description="Break out time (UTC)")
+    punch_time: datetime = Field(..., description="Break out time (UTC+8)")
     message: str = Field(..., description="Success message")
 
 
@@ -94,7 +94,7 @@ class BreakInResponse(BaseModel):
     """Break in response (WP-11-07 Phase 3B)"""
     punch_id: UUID = Field(..., description="Punch record ID")
     session_id: UUID = Field(..., description="Session ID")
-    punch_time: datetime = Field(..., description="Break in time (UTC)")
+    punch_time: datetime = Field(..., description="Break in time (UTC+8)")
     message: str = Field(..., description="Success message")
 
 
@@ -131,6 +131,7 @@ class CurrentStatusResponse(BaseModel):
     has_open_session: bool = Field(..., description="Whether user has an open session")
     session: Optional[SessionResponse] = Field(None, description="Open session details (null if no open session)")
     elapsed_minutes: Optional[int] = Field(None, description="Elapsed minutes since punch in (null if no open session)")
+    is_on_break: bool = Field(False, description="Whether user is currently on break")
 
 
 # ============================================
@@ -210,7 +211,7 @@ class OutCheckpointRequest(BaseModel):
 class OutCheckpointResponse(BaseModel):
     """OUT checkpoint response (WP-11-10)"""
     checkpoint_id: UUID = Field(..., description="Checkpoint ID")
-    punch_time: datetime = Field(..., description="打卡時間 (UTC, server-set)")
+    punch_time: datetime = Field(..., description="打卡時間 (UTC+8, server-set)")
     gps: Optional[GPSData] = Field(None, description="GPS 資料")
     message: str = Field(default="Checkpoint recorded successfully", description="成功訊息")
 
@@ -218,7 +219,7 @@ class OutCheckpointResponse(BaseModel):
 class OutCheckpointListItem(BaseModel):
     """OUT checkpoint list item (WP-11-10)"""
     checkpoint_id: UUID = Field(..., description="Checkpoint ID")
-    punch_time: datetime = Field(..., description="打卡時間 (UTC)")
+    punch_time: datetime = Field(..., description="打卡時間 (UTC+8)")
     device_type: str = Field(..., description="裝置類型")
     gps: Optional[GPSData] = Field(None, description="GPS 資料")
     notes: Optional[str] = Field(None, description="備註")

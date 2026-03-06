@@ -8,6 +8,7 @@ WP-11-01: 定義 AttendancePolicy, AttendanceSession, AttendancePunch models
 """
 
 from datetime import datetime
+from app.core.config import get_current_time
 from uuid import UUID, uuid4
 from sqlalchemy import Column, String, DateTime, Integer, Boolean, Text, Time, Index, CheckConstraint, ForeignKeyConstraint, Numeric
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -50,8 +51,8 @@ class AttendancePolicy(Base):
     is_default = Column(Boolean, nullable=False, server_default='false', comment='是否為預設政策')
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC)')
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='更新時間 (UTC)')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC+8)')
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='更新時間 (UTC+8)')
     
     # Indexes and constraints
     __table_args__ = (
@@ -89,16 +90,16 @@ class AttendanceSession(Base):
     user_id = Column(PGUUID(as_uuid=True), nullable=False, comment='員工 ID (global user)')
     
     # Session fields
-    punch_in_time = Column(DateTime(timezone=True), nullable=False, comment='打卡上班時間 (UTC)')
-    punch_out_time = Column(DateTime(timezone=True), nullable=True, comment='打卡下班時間 (UTC, NULL = open session)')
+    punch_in_time = Column(DateTime(timezone=True), nullable=False, comment='打卡上班時間 (UTC+8)')
+    punch_out_time = Column(DateTime(timezone=True), nullable=True, comment='打卡下班時間 (UTC+8, NULL = open session)')
     status = Column(String(20), nullable=False, server_default='open', comment='Session 狀態 (open/closed/pending/approved/rejected/missing_punch_out)')
     duration_minutes = Column(Integer, nullable=True, comment='工作時長 (分鐘, computed on close)')
     policy_id = Column(PGUUID(as_uuid=True), nullable=True, comment='適用的考勤政策')
     notes = Column(Text, nullable=True, comment='備註')
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC)')
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='更新時間 (UTC)')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC+8)')
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='更新時間 (UTC+8)')
     
     # Indexes and constraints
     __table_args__ = (
@@ -141,7 +142,7 @@ class AttendancePunch(Base):
     
     # Punch fields
     punch_type = Column(String(20), nullable=False, comment='打卡類型 (in/out/break_start/break_end)')
-    punch_time = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='打卡時間 (UTC)')
+    punch_time = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='打卡時間 (UTC+8)')
     
     # Context fields
     ip_address = Column(String(45), nullable=True, comment='IP 地址 (IPv4/IPv6)')
@@ -153,7 +154,7 @@ class AttendancePunch(Base):
     notes = Column(Text, nullable=True, comment='備註')
     
     # Timestamp
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC)')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC+8)')
     
     # Indexes and constraints
     __table_args__ = (
@@ -223,7 +224,7 @@ class AttendanceOutCheckpoint(Base):
     notes = Column(Text, nullable=True, comment='備註')
     
     # Audit
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC)')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC+8)')
     
     # Indexes and constraints
     __table_args__ = (
@@ -271,8 +272,8 @@ class AttendanceRecord(Base):
     # 業務欄位
     employee_id = Column(String(255), nullable=False, comment="員工 ID")
     approved_by = Column(String(255), nullable=True, comment="核准人 ID")
-    approved_at = Column(DateTime, nullable=True, comment="核准時間（UTC）")
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="建立時間（UTC）")
+    approved_at = Column(DateTime, nullable=True, comment="核准時間（UTC+8）")
+    created_at = Column(DateTime, nullable=False, default=get_current_time, comment="建立時間（UTC+8）")
     
     # 索引（支援單一租戶全量抽取與高效查詢）
     __table_args__ = (

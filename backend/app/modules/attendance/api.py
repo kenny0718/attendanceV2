@@ -7,7 +7,7 @@ WP-11-07 Phase 3B: Break Out/In API
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Dict, Any, Optional
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.modules.attendance.service import get_attendance_service
 from app.core.tenant_context import get_current_company_id, get_current_user_id
 from app.core.database import get_db
-from app.core.config import is_testing
+from app.core.config import is_testing, TIMEZONE, get_current_time
 from app.modules.attendance.repo import get_attendance_session_repository
 from app.modules.attendance.schemas import (
     PunchInRequest,
@@ -155,13 +155,13 @@ async def punch_in(
             punch_in_time = request.punch_time
         else:
             # Naive datetime: treat as local timezone
-            from zoneinfo import ZoneInfo
-            local_tz = ZoneInfo('Asia/Taipei')
+            # from zoneinfo import ZoneInfo  # 已在 config 中定義
+            local_tz = TIMEZONE
             punch_in_time = request.punch_time.replace(tzinfo=local_tz)
     else:
         # Use local time for current time
-        from zoneinfo import ZoneInfo
-        local_tz = ZoneInfo('Asia/Taipei')
+        # from zoneinfo import ZoneInfo  # 已在 config 中定義
+        local_tz = TIMEZONE
         punch_in_time = datetime.now(local_tz)
     
     session = repo.create_session(
@@ -232,6 +232,22 @@ async def punch_out(
             }
         )
     
+    # WP-11-XX: 如果在外出狀態下打下班卡，自動補上返回記錄
+    last_break_punch = repo.get_last_break_punch(session.id)
+    if last_break_punch and last_break_punch.punch_type == 'break_start':
+        # 自動創建返回打卡記錄
+        logger.info(f"Auto break-in before punch-out: user={user_id}, session={session.id}")
+        auto_break_in_time = datetime.now(TIMEZONE)
+        repo.create_punch(
+            session_id=session.id,
+            company_id=company_id,
+            user_id=user_uuid,
+            punch_type='break_end',
+            punch_time=auto_break_in_time,
+            ip_address=http_request.client.host if http_request and http_request.client else None,
+            notes='自動返回（下班時補）'
+        )
+    
     # Punch out
     # Use provided punch_time or current time
     if request.punch_time:
@@ -240,13 +256,13 @@ async def punch_out(
             punch_out_time = request.punch_time
         else:
             # Naive datetime: treat as local timezone
-            from zoneinfo import ZoneInfo
-            local_tz = ZoneInfo('Asia/Taipei')
+            # from zoneinfo import ZoneInfo  # 已在 config 中定義
+            local_tz = TIMEZONE
             punch_out_time = request.punch_time.replace(tzinfo=local_tz)
     else:
         # Use local time for current time
-        from zoneinfo import ZoneInfo
-        local_tz = ZoneInfo('Asia/Taipei')
+        # from zoneinfo import ZoneInfo  # 已在 config 中定義
+        local_tz = TIMEZONE
         punch_out_time = datetime.now(local_tz)
     
     # Create punch record
@@ -347,29 +363,30 @@ async def break_out(
             }
         )
     
-    # Check if already on break (has break_start without break_end)
-    last_break_punch = repo.get_last_break_punch(session.id)
-    if last_break_punch and last_break_punch.punch_type == 'break_start':
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "error": "Already on break. Please break in first.",
-                "error_code": "ALREADY_ON_BREAK",
-                "last_break_out_time": last_break_punch.punch_time.isoformat()
-            }
-        )
+    # WP-11-XX: 允許連續外出打卡，移除 ALREADY_ON_BREAK 檢查
+    #     # Check if already on break (has break_start without break_end)
+    #     last_break_punch = repo.get_last_break_punch(session.id)
+    #     if last_break_punch and last_break_punch.punch_type == 'break_start':
+    #         raise HTTPException(
+    #             status_code=409,
+    #             detail={
+    #                 "error": "Already on break. Please break in first.",
+    #                 "error_code": "ALREADY_ON_BREAK",
+    #                 "last_break_out_time": last_break_punch.punch_time.isoformat()
+    #             }
+    #         )
     
     # Create break out punch
     if request.punch_time:
         if request.punch_time.tzinfo:
             break_out_time = request.punch_time
         else:
-            from zoneinfo import ZoneInfo
-            local_tz = ZoneInfo('Asia/Taipei')
+            # from zoneinfo import ZoneInfo  # 已在 config 中定義
+            local_tz = TIMEZONE
             break_out_time = request.punch_time.replace(tzinfo=local_tz)
     else:
-        from zoneinfo import ZoneInfo
-        local_tz = ZoneInfo('Asia/Taipei')
+        # from zoneinfo import ZoneInfo  # 已在 config 中定義
+        local_tz = TIMEZONE
         break_out_time = datetime.now(local_tz)
     
     ip_address = http_request.client.host if http_request and http_request.client else None
@@ -445,12 +462,12 @@ async def break_in(
         if request.punch_time.tzinfo:
             break_in_time = request.punch_time
         else:
-            from zoneinfo import ZoneInfo
-            local_tz = ZoneInfo('Asia/Taipei')
+            # from zoneinfo import ZoneInfo  # 已在 config 中定義
+            local_tz = TIMEZONE
             break_in_time = request.punch_time.replace(tzinfo=local_tz)
     else:
-        from zoneinfo import ZoneInfo
-        local_tz = ZoneInfo('Asia/Taipei')
+        # from zoneinfo import ZoneInfo  # 已在 config 中定義
+        local_tz = TIMEZONE
         break_in_time = datetime.now(local_tz)
     
     ip_address = http_request.client.host if http_request and http_request.client else None
@@ -490,8 +507,14 @@ async def get_current_status(
     session = repo.get_open_session(company_id, user_uuid)
     
     if session:
-        elapsed = datetime.now(timezone.utc) - session.punch_in_time
+        elapsed = get_current_time() - session.punch_in_time
         elapsed_minutes = int(elapsed.total_seconds() / 60)
+        
+        # Check if user is on break (WP-11-07 Phase 3B)
+        is_on_break = False
+        last_break_punch = repo.get_last_break_punch(session.id)
+        if last_break_punch and last_break_punch.punch_type == 'break_start':
+            is_on_break = True
         
         session_response = SessionResponse(
             session_id=session.id,
@@ -506,13 +529,15 @@ async def get_current_status(
         return CurrentStatusResponse(
             has_open_session=True,
             session=session_response,
-            elapsed_minutes=elapsed_minutes
+            elapsed_minutes=elapsed_minutes,
+            is_on_break=is_on_break
         )
     else:
         return CurrentStatusResponse(
             has_open_session=False,
             session=None,
-            elapsed_minutes=None
+            elapsed_minutes=None,
+            is_on_break=False
         )
 
 
@@ -643,7 +668,7 @@ async def create_out_checkpoint(
     user_agent = req.headers.get("user-agent")
     
     # Server-set punch time
-    punch_time = datetime.now(timezone.utc)
+    punch_time = get_current_time()
     
     # Create checkpoint
     checkpoint = checkpoint_repo.create_checkpoint(

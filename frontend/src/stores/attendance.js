@@ -44,7 +44,7 @@ export const useAttendanceStore = defineStore('attendance', {
   getters: {
     canPunchIn: (state) => !state.todayStatus.is_punched_in,
     canPunchOut: (state) => state.todayStatus.is_punched_in && !state.todayStatus.punch_out,
-    canBreakOut: (state) => state.todayStatus.is_punched_in && !state.todayStatus.is_on_break && !state.todayStatus.punch_out,
+    canBreakOut: (state) => state.todayStatus.is_punched_in && !state.todayStatus.punch_out, // WP-11-XX: 允許連續外出打卡
     canBreakIn: (state) => state.todayStatus.is_on_break,
     
     // WP-11-11: 可以創建 OUT checkpoint（不需要 open session）
@@ -306,8 +306,11 @@ export const useAttendanceStore = defineStore('attendance', {
         const data = await attendanceApi.getCurrentStatus()
         
         if (data.has_open_session && data.session) {
-          // 從 localStorage 讀取 is_on_break 狀態
-          const savedIsOnBreak = localStorage.getItem('is_on_break') === 'true'
+          // 使用後端返回的 is_on_break 狀態（優先於 localStorage）
+          const isOnBreak = data.is_on_break || false
+          
+          // 同步到 localStorage
+          localStorage.setItem('is_on_break', isOnBreak ? 'true' : 'false')
           
           this.todayStatus = {
             punch_in: data.session.punch_in_time,
@@ -315,7 +318,7 @@ export const useAttendanceStore = defineStore('attendance', {
             break_out: this.todayStatus.break_out,
             break_in: this.todayStatus.break_in,
             is_punched_in: data.session.status === 'open',
-            is_on_break: savedIsOnBreak,
+            is_on_break: isOnBreak,
             session_id: data.session.session_id
           }
         } else {
@@ -375,7 +378,7 @@ export const useAttendanceStore = defineStore('attendance', {
             if (error.data?.detail?.error_code === 'DUPLICATE_CHECKPOINT') {
               errorMessage = '請勿重複打點（短時間/近距離）'
             } else if (error.data?.detail?.error_code === 'ALREADY_ON_BREAK') {
-              errorMessage = '已經在外出狀態，請先返回打卡'
+              errorMessage = '已經在外出狀態，請先返回打卡' // WP-11-XX: 此錯誤已廢棄（允許連續外出）
             } else if (error.data?.detail?.error_code === 'NOT_ON_BREAK') {
               errorMessage = '目前不在外出狀態，請先外出打卡'
             } else {

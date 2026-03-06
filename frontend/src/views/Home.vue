@@ -65,7 +65,7 @@
         <!-- 提示訊息 -->
         <div class="punch-hint text-center text-sm text-text-secondary mt-4">
           <span v-if="!todayStatus.punch_in">請先打上班卡</span>
-          <span v-else-if="todayStatus.is_on_break">目前外出中，請返回打卡</span>
+          <span v-else-if="todayStatus.is_on_break">目前外出中（可繼續外出打卡或返回打卡）</span>
           <span v-else-if="!todayStatus.punch_out">已上班打卡</span>
           <span v-else>今日打卡已完成</span>
         </div>

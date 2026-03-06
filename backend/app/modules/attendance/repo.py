@@ -11,6 +11,7 @@ WP-11-07 Phase 3B: Added get_last_break_punch method
 
 import logging
 from datetime import datetime
+from app.core.config import get_current_time
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
@@ -118,7 +119,7 @@ class AttendanceSessionRepository:
         session.status = 'closed'
         session.duration_minutes = duration_minutes
         session.policy_id = policy_id
-        session.updated_at = datetime.utcnow()
+        session.updated_at = get_current_time()
         
         self.db.commit()
         self.db.refresh(session)
@@ -373,7 +374,7 @@ class AttendanceRepository:
             return None
         
         record.approved_by = approved_by
-        record.approved_at = datetime.utcnow()
+        record.approved_at = get_current_time()
         
         self.db.commit()
         self.db.refresh(record)
@@ -485,7 +486,7 @@ class OutCheckpointRepository:
         from app.modules.attendance.models import AttendanceOutCheckpoint
         from datetime import timedelta
         
-        cutoff_time = datetime.utcnow() - timedelta(seconds=within_seconds)
+        cutoff_time = get_current_time() - timedelta(seconds=within_seconds)
         
         return (
             self.db.query(AttendanceOutCheckpoint)
