@@ -78,7 +78,7 @@
       </Card>
 
       <!-- WP-11-11: OUT Checkpoint 區塊 -->
-      <Card title="外出打點" class="mb-6">
+      <Card title="外出位置記錄（選用）" class="mb-6">
         <!-- 原因選擇器 -->
         <div class="reason-picker mb-4">
           <label class="block text-sm font-medium text-text-primary mb-2">
@@ -159,12 +159,12 @@
             <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
           </svg>
           <div v-else class="loading-spinner-small"></div>
-          <span>{{ outCheckpointLoading ? '提交中...' : '外出打點' }}</span>
+          <span>{{ outCheckpointLoading ? '提交中...' : '記錄當前位置' }}</span>
         </button>
         
         <!-- OUT Checkpoints 列表 -->
         <div v-if="outCheckpointList.length > 0" class="checkpoint-list mt-4 pt-4 border-t border-gray-200">
-          <h4 class="text-sm font-medium text-text-primary mb-2">今日外出記錄</h4>
+          <h4 class="text-sm font-medium text-text-primary mb-2">今日位置記錄</h4>
           <div class="space-y-2">
             <div
               v-for="checkpoint in outCheckpointList.slice(0, 5)"
@@ -408,7 +408,7 @@ const handleOutCheckpoint = async () => {
     await attendanceStore.outCheckpointSubmit(selectedReason.value)
     
     // 顯示成功訊息
-    successMessage.value = '外出打點成功'
+    successMessage.value = '位置記錄成功'
     showSuccessMessage.value = true
     setTimeout(() => {
       showSuccessMessage.value = false
@@ -419,7 +419,7 @@ const handleOutCheckpoint = async () => {
     console.error('外出打點失敗:', error)
     
     // 顯示友善的錯誤訊息
-    errorMessage.value = error.message || '外出打點失敗，請稍後再試'
+    errorMessage.value = error.message || '位置記錄失敗，請稍後再試'
     showErrorMessage.value = true
     
     setTimeout(() => {
