@@ -631,8 +631,6 @@ async def update_punch_note(
     Returns:
         更新後的打卡記錄
     """
-    repo = AttendanceRepository(db)
-    
     # 獲取打卡記錄
     punch = db.query(Punch).filter(
         Punch.punch_id == punch_id,
