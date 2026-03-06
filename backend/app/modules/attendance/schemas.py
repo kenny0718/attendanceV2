@@ -63,6 +63,18 @@ class BreakInRequest(BaseModel):
     punch_time: Optional[datetime] = Field(None, description="Optional punch time (for testing/admin)")
 
 
+
+class PunchResponse(BaseModel):
+    """Single punch record response"""
+    punch_id: UUID = Field(..., description="Punch ID")
+    punch_type: str = Field(..., description="Punch type (in/out/break_start/break_end)")
+    punch_time: datetime = Field(..., description="Punch time (UTC+8)")
+    notes: Optional[str] = Field(None, description="Notes")
+    
+    class Config:
+        from_attributes = True
+
+
 class SessionResponse(BaseModel):
     """Attendance session response"""
     session_id: UUID = Field(..., description="Session ID")
@@ -72,6 +84,7 @@ class SessionResponse(BaseModel):
     punch_out_time: Optional[datetime] = Field(None, description="Punch out time (UTC+8, null if open)")
     duration_minutes: Optional[int] = Field(None, description="Duration in minutes (null if open)")
     status: str = Field(..., description="Session status (open/closed/pending/approved/rejected/missing_punch_out)")
+    punches: Optional[list] = Field(default_factory=list, description="All punches in this session (including break_start/break_end)")
     
     class Config:
         from_attributes = True

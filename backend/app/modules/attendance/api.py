@@ -574,18 +574,32 @@ async def get_attendance_history(
         status=status
     )
     
-    session_responses = [
-        SessionResponse(
-            session_id=s.id,
-            user_id=s.user_id,
-            company_id=s.company_id,
-            punch_in_time=s.punch_in_time,
-            punch_out_time=s.punch_out_time,
-            duration_minutes=s.duration_minutes,
-            status=s.status
+    session_responses = []
+    for s in sessions:
+        # 獲取該 session 的所有 punches
+        punches = repo.get_session_punches(s.id)
+        punch_list = [
+            {
+                'punch_id': str(p.id),
+                'punch_type': p.punch_type,
+                'punch_time': p.punch_time,
+                'notes': p.notes
+            }
+            for p in punches
+        ]
+        
+        session_responses.append(
+            SessionResponse(
+                session_id=s.id,
+                user_id=s.user_id,
+                company_id=s.company_id,
+                punch_in_time=s.punch_in_time,
+                punch_out_time=s.punch_out_time,
+                duration_minutes=s.duration_minutes,
+                status=s.status,
+                punches=punch_list
+            )
         )
-        for s in sessions
-    ]
     
     return AttendanceHistoryResponse(
         sessions=session_responses,
@@ -593,6 +607,59 @@ async def get_attendance_history(
         limit=limit,
         offset=offset
     )
+
+
+@router_v1.get("/break-punches", response_model=dict)
+async def get_break_punches(
+    limit: int = 50,
+    company_id: str = Depends(get_current_company_id),
+    user_id: Optional[str] = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """Get today's break punches (外出打卡記錄)"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID is required")
+    
+    from datetime import datetime, time
+    from app.modules.attendance.models import AttendancePunch
+    
+    user_uuid = UUID(user_id)
+    repo = get_attendance_session_repository(db)
+    
+    # Get today's open session
+    session = repo.get_open_session(company_id, user_uuid)
+    if not session:
+        return {"punches": [], "total": 0}
+    
+    # Get all break punches for this session
+    punches = (
+        db.query(AttendancePunch)
+        .filter(
+            AttendancePunch.session_id == session.id,
+            AttendancePunch.punch_type.in_(['break_start', 'break_end'])
+        )
+        .order_by(AttendancePunch.punch_time.desc())
+        .limit(limit)
+        .all()
+    )
+    
+    punch_list = [
+        {
+            "punch_id": str(p.id),
+            "punch_type": p.punch_type,
+            "punch_time": p.punch_time.isoformat(),
+            "notes": p.notes,
+            "location_lat": p.location_lat,
+            "location_lng": p.location_lng
+        }
+        for p in punches
+    ]
+    
+    return {
+        "punches": punch_list,
+        "total": len(punch_list),
+        "session_id": str(session.id)
+    }
 
 
 # ============================================

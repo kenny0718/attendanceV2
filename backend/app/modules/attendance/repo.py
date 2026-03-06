@@ -311,6 +311,26 @@ class AttendanceSessionRepository:
             .first()
         )
 
+    
+    def get_session_punches(
+        self,
+        session_id: UUID
+    ) -> list:
+        """獲取 session 的所有 punch 記錄
+        
+        Args:
+            session_id: Session ID
+        
+        Returns:
+            List of AttendancePunch
+        """
+        return (
+            self.db.query(AttendancePunch)
+            .filter(AttendancePunch.session_id == session_id)
+            .order_by(AttendancePunch.punch_time.asc())
+            .all()
+        )
+
 
 def get_attendance_session_repository(db: Session) -> AttendanceSessionRepository:
     """Factory function for dependency injection"""
