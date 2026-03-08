@@ -141,7 +141,8 @@ class AttendanceSessionRepository:
         ip_address: Optional[str] = None,
         location_lat: Optional[float] = None,
         location_lng: Optional[float] = None,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        location_id: Optional[UUID] = None  # WP-11-13: 允許地點 ID
     ) -> AttendancePunch:
         """創建打卡記錄
         
@@ -168,7 +169,8 @@ class AttendanceSessionRepository:
             ip_address=ip_address,
             location_lat=location_lat,
             location_lng=location_lng,
-            notes=notes
+            notes=notes,
+            location_id=location_id  # WP-11-13: 記錄匹配的地點
         )
         
         self.db.add(punch)
