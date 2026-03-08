@@ -550,7 +550,10 @@ onMounted(() => {
   attendanceStore.fetchRecentLogs()
   
   // WP-11-11: 載入 OUT checkpoints 和原因
-  attendanceStore.loadOutCheckpoints()
+  // TODO: WP-11-10 待開發功能 - OUT Checkpoint API 尚未實作
+  // 後端缺少: POST /v1/attendance/out-checkpoint, GET /v1/attendance/out-checkpoints
+  // 暫時停用自動載入，避免頁面初始化時固定報 404
+  // attendanceStore.loadOutCheckpoints()
   attendanceStore.loadBreakPunches()
   attendanceStore.hydrateReasonsFromLocalStorage()
   

@@ -107,3 +107,41 @@ INFO:     Waiting for application startup.
 2026-03-08 15:41:10,079 - app.modules.notifications.event_handlers - INFO - Notifications 事件處理器已註冊: attendance.approved
 2026-03-08 15:41:10,079 - app.main - INFO - EventBus 已初始化，所有訂閱者已註冊
 INFO:     Application startup complete.
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+2026-03-08 15:41:24,653 - app.modules.attendance.repo - INFO - Created punch: id=6d08bc4a-f24c-4ecf-8b37-dc0d6353a31a, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_end
+INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-in HTTP/1.1" 201 Created
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+2026-03-08 15:57:38,944 - app.modules.auth.service - INFO - Login successful: user=11bda10d-7541-4230-b1f3-842afab2cea5, company=company-a, role=employee
+INFO:     192.168.89.55:0 - "POST /api/internal/auth/login HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
