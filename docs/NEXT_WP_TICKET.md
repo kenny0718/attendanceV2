@@ -1,337 +1,215 @@
-# Next WP Ticket — Phase 3A JWT Enhancement or History Integration
+# Next WP Ticket
 
-**Selected WP:** TBD (Choose between WP-11-12 or WP-11-13)  
-**Reason:** WP-11-11 frontend完成，可選擇增強認證或整合歷史記錄  
-**Priority:** 🟡 P1 (Enhancement)
+**更新日期**: 2026-03-08
 
 ---
 
-## ✅ Completed WPs
+## 當前狀態
 
-### WP-11-11 — Frontend OUT Checkpoint + Reason Picker (UI Integration)
-**Date**: 2026-03-06 00:35  
-**Status**: ✅ COMPLETED & VERIFIED
+### 已完成
+- ✅ WP-11-07: Break Out/In 功能
+- ✅ WP-11-10: OUT Checkpoint 功能
+- ✅ WP-11-11: OUT Checkpoint 前端整合
+- ✅ WP-11-11.5: GPS Legacy Cleanup（程式碼重構完成）
 
-**Deliverables**:
-- ✅ API Client: createOutCheckpoint(), listOutCheckpoints()
-- ✅ Store Integration: GPS detection, reason management
-- ✅ Reason Quick Picker: Preset + custom + localStorage
-- ✅ OUT Checkpoint UI: Fast input UX
-- ✅ Error Handling: 409/422/403/5xx
-- ✅ Manual Test Log: 7/7 tests passed
-
-**Test Results**:
-- ✅ All 7 manual tests passed
-- ✅ Mobile GPS validation working
-- ✅ PC no-GPS flow working
-- ✅ Custom reasons persist correctly
-- ✅ Dedup 409 handled correctly
-- ✅ Last selection restored
-- ✅ List auto-refresh working
-
-**UX Highlights**:
-- One-click reason selection
-- Zero extra steps for fast input
-- Visual feedback on selection
-- Persistence across reloads
-
-### WP-11-10 — OUT Checkpoint + GPS Backend (Backend Implementation)
-**Date**: 2026-03-05 23:59  
-**Status**: ✅ COMPLETED
-
-**Deliverables**:
-- ✅ Migration 007_wp_11_10: attendance_out_checkpoints table
-- ✅ POST /api/v1/attendance/out-checkpoint endpoint
-- ✅ GET /api/v1/attendance/out-checkpoints endpoint
-- ✅ GPS validation (mobile required, PC optional)
-- ✅ De-duplication (30s + 50m threshold)
-- ✅ 7 pytest test cases (all passing)
-
-### WP-11-08 — JWT Auth Integration (Replace Mock User)
-**Date**: 2026-03-05 21:00  
-**Status**: ✅ COMPLETED
+### 進行中
+- 🔄 WP-11-12: Shared Location Module（設計階段）
 
 ---
 
-## 🚀 Option A: WP-11-12 — JWT Token Refresh & Role-Based Access
+## WP-11-11.5: GPS Legacy Cleanup（已完成）
 
-### Goal
-增強 JWT 認證機制，實現 token 自動刷新和基於角色的訪問控制。
+### 狀態
+✅ **程式碼重構完成** (2026-03-08)  
+⏸️ **手動 QA 驗證待執行**
 
-### Scope
+### 已完成
+1. ✅ 建立 Legacy GPS Inventory
+2. ✅ 建立 Cleanup Plan
+3. ✅ 刪除前端備份檔案（死碼）
+4. ✅ 建立 Location Adapter（臨時過渡層）
+5. ✅ 更新 `frontend/src/stores/attendance.js`
+   - 添加 locationAdapter import
+   - 刪除 `detectDeviceType()` 方法
+   - 刪除 `getGPSLocation()` 方法
+   - 重構 `outCheckpointSubmit()` 使用 adapter
+   - 更新 `handleError()` 處理 LocationError
+6. ✅ 更新 `frontend/src/views/Home.vue`
+   - 添加 locationAdapter import
+   - 更新 `onMounted()` 使用 adapter
+7. ✅ 建立 `frontend/src/utils/README.md`
 
-#### 1. Token Refresh Mechanism (P0)
-- 實現 refresh token API
-- Token 過期前 5 分鐘自動刷新
-- 無感刷新（用戶無需重新登入）
-- 處理 refresh token 過期情況
+### 待執行（手動 QA）
+- [ ] 部署到測試環境
+- [ ] OUT checkpoint 功能驗證
+- [ ] Mobile 裝置 GPS 必填驗證
+- [ ] PC 裝置 GPS 選填驗證
+- [ ] GPS 錯誤訊息驗證
+- [ ] 權限拒絕情境測試
+- [ ] 超時情境測試
 
-#### 2. Role-Based Access Control (P0)
-- 定義角色權限矩陣
-- 實現路由級別權限檢查
-- 實現組件級別權限控制
-- 實現 API 級別權限驗證
-
-#### 3. Permission-Based UI Rendering (P1)
-- 根據權限顯示/隱藏功能
-- 禁用無權限的按鈕
-- 顯示權限不足提示
-
-#### 4. Session Management (P1)
-- 多設備登入管理
-- 強制登出功能
-- Session 過期提示
-
-### Technical Details
-
-#### Refresh Token Flow
-```javascript
-// stores/auth.js
-async refreshToken() {
-  const refreshToken = localStorage.getItem('refreshToken')
-  const response = await authApi.refreshToken(refreshToken)
-  
-  localStorage.setItem('accessToken', response.access_token)
-  localStorage.setItem('refreshToken', response.refresh_token)
-  
-  return response.access_token
-}
-
-// Auto-refresh before expiry
-setInterval(() => {
-  const expiresAt = localStorage.getItem('tokenExpiresAt')
-  const now = Date.now()
-  
-  if (expiresAt - now < 5 * 60 * 1000) { // 5 minutes
-    this.refreshToken()
-  }
-}, 60 * 1000) // Check every minute
-```
-
-#### Role-Based Route Protection
-```javascript
-// router/index.js
-{
-  path: '/admin',
-  component: AdminPanel,
-  meta: { 
-    requiresAuth: true,
-    roles: ['admin', 'super_admin']
-  }
-}
-
-// Navigation guard
-router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth) {
-    const userRole = authStore.user.role
-    
-    if (to.meta.roles && !to.meta.roles.includes(userRole)) {
-      next('/403')
-      return
-    }
-  }
-  
-  next()
-})
-```
-
-### Definition of Done
-- [ ] Refresh token API implemented
-- [ ] Auto-refresh working (5 min before expiry)
-- [ ] Role-based route protection working
-- [ ] Permission-based UI rendering working
-- [ ] Session management working
-- [ ] Manual testing passed
-- [ ] Documentation updated
-
-### Estimated Time
-- Token Refresh: 1 day
-- Role-Based Access: 2 days
-- Permission UI: 1 day
-- Session Management: 1 day
-- Testing: 0.5 day
-
-**Total**: 5-6 days
+### 完成報告
+- `docs/WP-11-11.5_COMPLETION_REPORT.md`
 
 ---
 
-## 🚀 Option B: WP-11-13 — History Page Integration (Show Checkpoints)
+## WP-11-12: Shared Location Module（當前票）
 
-### Goal
-在 History 頁面整合 OUT checkpoints，顯示每個 session 的外出記錄。
+### 狀態
+🔄 **設計階段進行中**
 
-### Scope
+### 目標
+實作可重用的 shared location module，取代臨時 locationAdapter。
 
-#### 1. History API Enhancement (P0)
-- 修改 GET /history 返回 out_checkpoints
-- 每個 session 包含 checkpoints 陣列
-- 支援日期範圍篩選
+### 範圍
+1. 建立 `composables/useLocation.js`
+2. 實作 location state management
+3. 實作統一的錯誤處理
+4. 實作 loading state 管理
+5. 實作 retry 機制
+6. 替換所有 locationAdapter 引用
 
-#### 2. History Page UI (P0)
-- 在每個 session 下方顯示 checkpoints
-- 顯示 checkpoint 時間、原因、裝置類型
-- 顯示 GPS 座標（可選）
-- 支援展開/收合 checkpoints
+### 不包含（後續票）
+- ❌ Location policy（範圍驗證、精度要求）→ WP-11-13
+- ❌ 地圖 UI → WP-11-14
+- ❌ Location analytics → WP-11-15
 
-#### 3. Checkpoint Detail View (P1)
-- 點擊 checkpoint 顯示詳細資訊
-- 顯示 GPS 地圖（如果有座標）
-- 顯示裝置資訊、IP 地址
+### 前置條件
+- ✅ GPS Legacy Cleanup 完成
+- ✅ Store 重構完成
+- ✅ locationAdapter 已建立
 
-#### 4. Export Functionality (P1)
-- 匯出 history 包含 checkpoints
-- CSV/Excel 格式
-- 日期範圍選擇
+### 預計時程
+- 設計階段: 1 天（進行中）
+- 實作階段: 2 天
+- 測試階段: 1 天
+- 總計: 4 天
 
-### Technical Details
+### 設計文件（本輪建立）
+- ⏳ `docs/ATTENDANCE_LOCATION_MODULE_SPEC.md`
+- ⏳ `docs/ATTENDANCE_LOCATION_FRONTEND_REFACTOR_PLAN.md`
+- ⏳ `docs/ATTENDANCE_LOCATION_API_CONTRACT_DRAFT.md`
+- ⏳ `docs/ATTENDANCE_LOCATION_TEST_PLAN.md`
 
-#### Backend API Response
-```json
-{
-  "sessions": [
-    {
-      "session_id": "...",
-      "punch_in_time": "2026-03-06T09:00:00+08:00",
-      "punch_out_time": "2026-03-06T18:00:00+08:00",
-      "out_checkpoints": [
-        {
-          "checkpoint_id": "...",
-          "punch_time": "2026-03-06T14:30:00+08:00",
-          "notes": "外出洽公",
-          "device_type": "mobile",
-          "gps": {
-            "latitude": 25.0330,
-            "longitude": 121.5654
-          }
-        }
-      ]
-    }
-  ]
-}
-```
+### 關鍵設計決策
+1. **Composable API 設計**
+   - 使用 Vue 3 Composition API
+   - 提供 reactive state
+   - 支援多個元件同時使用
 
-#### Frontend Display
-```vue
-<div v-for="session in sessions" class="session-card">
-  <div class="session-header">
-    <span>上班: {{ session.punch_in_time }}</span>
-    <span>下班: {{ session.punch_out_time }}</span>
-  </div>
-  
-  <div v-if="session.out_checkpoints.length > 0" class="checkpoints">
-    <h4>外出記錄 ({{ session.out_checkpoints.length }})</h4>
-    <div v-for="cp in session.out_checkpoints" class="checkpoint-item">
-      <span>{{ cp.punch_time }}</span>
-      <span>{{ cp.notes }}</span>
-      <span>{{ cp.device_type === 'mobile' ? '📍' : '💻' }}</span>
-    </div>
-  </div>
-</div>
-```
+2. **向後相容**
+   - 第一階段保持 API contract 不變
+   - 不修改後端
+   - 不修改 payload 格式
 
-### Definition of Done
-- [ ] Backend API returns checkpoints in history
-- [ ] History page displays checkpoints
-- [ ] Checkpoint detail view working
-- [ ] Export includes checkpoints
-- [ ] Manual testing passed
-- [ ] Documentation updated
+3. **錯誤處理統一**
+   - 統一 LocationError 格式
+   - 統一錯誤碼
+   - 統一錯誤訊息
 
-### Estimated Time
-- Backend API: 1 day
-- Frontend UI: 2 days
-- Detail View: 1 day
-- Export: 1 day
-- Testing: 0.5 day
-
-**Total**: 5-6 days
+4. **State Management**
+   - 使用 composable 內部 state
+   - 不依賴 Pinia store
+   - 支援 SSR（未來）
 
 ---
 
-## 🚀 Option C: WP-11-14 — Admin Reason Dictionary (Optional)
+## 未來票務規劃
 
-### Goal
-允許管理員管理全公司的外出原因字典，取代前端 hard-coded 的 preset reasons。
+### WP-11-13: Location Policy Migration
+**預計開始**: WP-11-12 完成後
 
-### Scope
+**範圍**:
+- 將現有的 GPS 驗證邏輯遷移到 location policy
+- 實作範圍驗證（geofencing）
+- 實作精度要求驗證
+- 實作自訂驗證規則
 
-#### 1. Backend API (P0)
-- GET /api/v1/admin/reasons: 獲取原因列表
-- POST /api/v1/admin/reasons: 新增原因
-- PUT /api/v1/admin/reasons/:id: 更新原因
-- DELETE /api/v1/admin/reasons/:id: 刪除原因
+### WP-11-14: Location UI Enhancement
+**預計開始**: WP-11-13 完成後
 
-#### 2. Admin UI (P0)
-- 原因管理頁面
-- 新增/編輯/刪除原因
-- 排序原因順序
-- 啟用/停用原因
+**範圍**:
+- 地圖顯示當前位置
+- 地圖顯示歷史打卡點
+- 地圖顯示允許範圍
+- 地圖互動功能
 
-#### 3. Frontend Integration (P0)
-- 從 API 載入 preset reasons
-- 快取到 localStorage
-- 定期更新（每天一次）
+### WP-11-15: Location Analytics
+**預計開始**: WP-11-14 完成後
 
-### Estimated Time: 3-4 days
-
----
-
-## 🎯 Recommendation
-
-**推薦執行順序**:
-
-1. **WP-11-13 (History Integration)** - 優先推薦
-   - 理由：完善 OUT checkpoint 功能，讓用戶看到完整的外出記錄
-   - 價值：高（用戶可以查看歷史外出記錄）
-   - 風險：低（純前端展示，不影響現有功能）
-   - 時間：5-6 天
-
-2. **WP-11-12 (JWT Enhancement)** - 次要推薦
-   - 理由：改善用戶體驗，減少重複登入
-   - 價值：中（提升 UX，但非必需）
-   - 風險：中（涉及認證機制，需謹慎測試）
-   - 時間：5-6 天
-
-3. **WP-11-14 (Admin Reason Dictionary)** - 可選
-   - 理由：提供更靈活的原因管理
-   - 價值：中（管理便利性）
-   - 風險：低（獨立功能）
-   - 時間：3-4 天
-
-**Blocker**: None (WP-11-11 已完成)  
-**Assignee**: Frontend Team + Backend Team  
-**Status**: 🎯 READY TO START
+**範圍**:
+- 打卡位置分析
+- 異常位置偵測
+- 位置軌跡報表
+- 位置熱力圖
 
 ---
 
-## 📊 Current System Status
+## 技術債務
 
-### Completed Features
-- ✅ JWT Auth (login/logout)
-- ✅ Punch In/Out
-- ✅ Break Out/In (deprecated)
-- ✅ OUT Checkpoint (new, with GPS)
-- ✅ Reason Quick Picker
-- ✅ Current Status Display
-- ✅ Recent Logs Display
+### 高優先級
+1. **手動 QA 驗證**（WP-11-11.5）
+   - 風險：程式碼已修改但未實際測試
+   - 影響：可能有執行時錯誤
+   - 建議：盡快在測試環境驗證
 
-### Pending Features
-- ⏳ History Page (basic version exists, needs checkpoint integration)
-- ⏳ Token Refresh
-- ⏳ Role-Based Access
-- ⏳ Leave Request
-- ⏳ Missed Punch Request
-- ⏳ Reports/Analytics
+2. **前端測試覆蓋**
+   - 風險：重構後沒有測試保護
+   - 影響：回歸風險高
+   - 建議：為 locationAdapter 和 useLocation 建立單元測試
 
-### System Health
-- **Backend**: ✅ Running (port 8000)
-- **Frontend**: ✅ Running (port 5173)
-- **Database**: ✅ Connected
-- **Auth**: ✅ JWT enabled
-- **OUT Checkpoint**: ✅ Fully functional
+### 中優先級
+1. **API 文件更新**
+   - OUT checkpoint API 文件需要補充
+   - GPS payload 格式需要明確定義
+   - 建議：在 WP-11-12 設計階段完成
+
+2. **錯誤碼統一**
+   - `GPS_REQUIRED` vs `LOCATION_REQUIRED`
+   - 建議統一使用 `LOCATION_REQUIRED`
+   - 建議：在 WP-11-12 實作時處理
+
+### 低優先級
+1. **裝置判斷邏輯優化**
+   - 目前使用簡單的 User Agent 判斷
+   - 可考慮使用更精確的方法
+   - 建議：在 WP-11-13 或更後期處理
 
 ---
 
-**Document Version:** 13.0  
-**Last Updated:** 2026-03-06 00:35  
-**Next Review:** Team decision on WP-11-12 vs WP-11-13
+## 決策記錄
+
+### 2026-03-08: 為什麼使用臨時 Adapter？
+- **原因**: 避免一次性大規模重構造成功能中斷
+- **好處**: 漸進式重構，保持功能可用
+- **代價**: 需要兩階段重構（adapter → useLocation）
+- **決定**: 接受兩階段重構，優先保證穩定性
+- **結果**: ✅ adapter 已建立並整合
+
+### 2026-03-08: 為什麼不直接實作 useLocation？
+- **原因**: 需要先清理舊流程，避免衝突
+- **好處**: 清理後的程式碼更容易整合新 module
+- **代價**: 多一個臨時 adapter 層
+- **決定**: 先清理再實作，確保架構清晰
+- **結果**: ✅ 清理完成，可以開始 useLocation 設計
+
+### 2026-03-08: WP-11-12 範圍決策
+- **決定**: 第一階段只實作核心 composable，不包含 policy 和 UI
+- **原因**: 降低複雜度，確保核心功能穩定
+- **好處**: 更快交付，更容易測試
+- **代價**: 需要多個票務完成完整功能
+- **結果**: 分為 WP-11-12/13/14/15 四個階段
+
+---
+
+## 聯絡資訊
+
+如有問題，請參考：
+- 技術文件: `docs/` 目錄
+- Git 歷史: 查看相關 commit
+- 程式碼註解: 查看 `@deprecated` 標記
+
+---
+
+**最後更新**: 2026-03-08  
+**下次檢視**: WP-11-12 設計完成後

@@ -317,6 +317,7 @@ import { storeToRefs } from 'pinia'
 import { useAttendanceStore } from '@/stores/attendance'
 import { attendanceApi } from '@/api/attendance'
 import dayjs from 'dayjs'
+import { detectDeviceType } from '@/utils/locationAdapter'
 import Navbar from '@/components/Navbar.vue'
 import Card from '@/components/Card.vue'
 import StatusCard from '@/components/StatusCard.vue'
@@ -554,7 +555,7 @@ onMounted(() => {
   attendanceStore.hydrateReasonsFromLocalStorage()
   
   // 設定裝置類型
-  deviceType.value = attendanceStore.detectDeviceType()
+  deviceType.value = detectDeviceType()
   
   // 恢復最後選擇的原因
   if (lastSelectedReason.value) {

@@ -2,6 +2,8 @@
 
 import os
 import sys
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -58,3 +60,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+# Timezone configuration (Added to fix ImportError from commit 601387c)
+TIMEZONE = ZoneInfo("Asia/Taipei")
+
+
+def get_current_time() -> datetime:
+    """獲取當前時間（帶時區）
+    
+    Returns:
+        datetime: 當前時間（Asia/Taipei UTC+8）
+    """
+    return datetime.now(TIMEZONE)
