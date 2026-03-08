@@ -341,7 +341,7 @@ export const useAttendanceStore = defineStore('attendance', {
         
         try {
           const breakData = await attendanceApi.getBreakPunches({ limit: 50 })
-          if (breakData.punches && breakData.punches.length > 0) {
+          if (breakData && breakData.punches && breakData.punches.length > 0) {
             // 找最新的 break_start 和 break_end
             const breakStarts = breakData.punches.filter(p => p.punch_type === 'break_start')
             const breakEnds = breakData.punches.filter(p => p.punch_type === 'break_end')
@@ -351,6 +351,7 @@ export const useAttendanceStore = defineStore('attendance', {
           }
         } catch (breakError) {
           console.error('獲取外出記錄失敗:', breakError)
+          // 忽略錯誤，繼續執行
         }
         
         if (data.has_open_session && data.session) {
@@ -410,7 +411,7 @@ export const useAttendanceStore = defineStore('attendance', {
         // 獲取今日外出/返回記錄
         try {
           const breakData = await attendanceApi.getBreakPunches({ limit: 20 })
-          if (breakData.punches && breakData.punches.length > 0) {
+          if (breakData && breakData.punches && breakData.punches.length > 0) {
             const breakLogs = breakData.punches.map(punch => ({
               id: punch.punch_id,
               timestamp: punch.punch_time,
