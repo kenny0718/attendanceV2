@@ -12,11 +12,11 @@
 
 ### 必須完成
 
-- [ ] ✅ WP-11-11.5 QA passed
-- [ ] ✅ 基線 tag / restore point 確認完成
+- [x] ✅ WP-11-11.5 QA passed
+- [x] ✅ 基線 tag / restore point 確認完成
   - 建議 tag: `qa-passed/wp-11-11.5` 或 `milestone/wp-11-11.5-qa-passed`
-- [ ] ✅ 結案摘要已確認
-- [ ] ✅ 主打卡流程穩定運行
+- [x] ✅ 結案摘要已確認
+- [x] ✅ 主打卡流程穩定運行
 
 ### 明確排除項目
 
