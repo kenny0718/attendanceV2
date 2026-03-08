@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import dayjs from 'dayjs'
 import { attendanceApi } from '@/api/attendance'
+import { useLocation } from '@/composables/useLocation'
 
 export const useAttendanceStore = defineStore('attendance', {
   state: () => ({
@@ -82,9 +83,6 @@ export const useAttendanceStore = defineStore('attendance', {
           case 'IN':
             response = await attendanceApi.punchIn({ notes: notes || '' })
             this.todayStatus.punch_in = response.punch_in_time
-            this.todayStatus.punch_out = null  // 明確清除下班時間
-            this.todayStatus.break_out = null  // 明確清除外出時間
-            this.todayStatus.break_in = null   // 明確清除返回時間
             this.todayStatus.is_punched_in = true
             this.todayStatus.session_id = response.session_id
             this.todayStatus.is_on_break = false
@@ -185,7 +183,7 @@ export const useAttendanceStore = defineStore('attendance', {
         localStorage.setItem('lastSelectedReason', reasonText)
         
         // 刷新 checkpoint 列表
-        // await this.loadOutCheckpoints()  // WP-11-11.5: 暫時停用，避免 404
+        await this.loadOutCheckpoints()
         
         return { success: true, data: response }
       } catch (error) {
@@ -193,7 +191,7 @@ export const useAttendanceStore = defineStore('attendance', {
         
         // 即使錯誤也嘗試刷新列表（可能是 409 重複）
         try {
-          // await this.loadOutCheckpoints()  // WP-11-11.5: 暫時停用，避免 404
+          await this.loadOutCheckpoints()
         } catch (refreshError) {
           console.error('刷新列表失敗:', refreshError)
         }
@@ -338,25 +336,6 @@ export const useAttendanceStore = defineStore('attendance', {
       try {
         const data = await attendanceApi.getCurrentStatus()
         
-        // WP-11-11.5 Blocker Fix: 從 break-punches 獲取最新的外出/返回時間
-        let breakOut = null
-        let breakIn = null
-        
-        try {
-          const breakData = await attendanceApi.getBreakPunches({ limit: 50 })
-          if (breakData && breakData.punches && breakData.punches.length > 0) {
-            // 找最新的 break_start 和 break_end
-            const breakStarts = breakData.punches.filter(p => p.punch_type === 'break_start')
-            const breakEnds = breakData.punches.filter(p => p.punch_type === 'break_end')
-            
-            if (breakStarts.length > 0) breakOut = breakStarts[0].punch_time
-            if (breakEnds.length > 0) breakIn = breakEnds[0].punch_time
-          }
-        } catch (breakError) {
-          console.error('獲取外出記錄失敗:', breakError)
-          // 忽略錯誤，繼續執行
-        }
-        
         if (data.has_open_session && data.session) {
           // 使用後端返回的 is_on_break 狀態（優先於 localStorage）
           const isOnBreak = data.is_on_break || false
@@ -367,8 +346,8 @@ export const useAttendanceStore = defineStore('attendance', {
           this.todayStatus = {
             punch_in: data.session.punch_in_time,
             punch_out: data.session.punch_out_time,
-            break_out: breakOut,
-            break_in: breakIn,
+            break_out: this.todayStatus.break_out,
+            break_in: this.todayStatus.break_in,
             is_punched_in: data.session.status === 'open',
             is_on_break: isOnBreak,
             session_id: data.session.session_id
@@ -379,8 +358,8 @@ export const useAttendanceStore = defineStore('attendance', {
           this.todayStatus = {
             punch_in: null,
             punch_out: null,
-            break_out: breakOut,
-            break_in: breakIn,
+            break_out: null,
+            break_in: null,
             is_punched_in: false,
             is_on_break: false,
             session_id: null
@@ -397,8 +376,10 @@ export const useAttendanceStore = defineStore('attendance', {
       try {
         const data = await attendanceApi.getHistory({ limit: 10, offset: 0 })
         
-        // WP-11-11.5 Blocker Fix: 包含外出/返回記錄
-        const sessionLogs = data.sessions.map(session => {
+        // 只顯示上班/下班記錄（不包含外出/返回）
+        this.recentLogs = data.sessions.map(session => {
+          // 判斷是上班還是下班
+          const isPunchIn = session.punch_in_time && !session.punch_out_time
           const isPunchOut = session.punch_out_time
           
           return {
@@ -410,31 +391,6 @@ export const useAttendanceStore = defineStore('attendance', {
             duration_minutes: session.duration_minutes
           }
         })
-        
-        // 獲取今日外出/返回記錄
-        try {
-          const breakData = await attendanceApi.getBreakPunches({ limit: 20 })
-          if (breakData && breakData.punches && breakData.punches.length > 0) {
-            const breakLogs = breakData.punches.map(punch => ({
-              id: punch.punch_id,
-              timestamp: punch.punch_time,
-              attendance_type: punch.punch_type === 'break_start' ? 'BREAK_OUT' : 'BREAK_IN',
-              status: 'success',
-              is_late: false,
-              notes: punch.notes
-            }))
-            
-            // 合併並按時間排序
-            this.recentLogs = [...sessionLogs, ...breakLogs]
-              .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-              .slice(0, 10)
-          } else {
-            this.recentLogs = sessionLogs
-          }
-        } catch (breakError) {
-          console.error('獲取外出記錄失敗:', breakError)
-          this.recentLogs = sessionLogs
-        }
       } catch (error) {
         console.error('獲取記錄失敗:', error)
       }
