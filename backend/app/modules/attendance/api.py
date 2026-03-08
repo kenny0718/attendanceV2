@@ -288,10 +288,18 @@ async def get_current_status(
             status=session.status
         )
         
+        # WP-11-11.5 Blocker Fix: 計算 is_on_break 狀態
+        # 檢查最後一筆 break punch 是 break_start 還是 break_end
+        is_on_break = False
+        last_break_punch = repo.get_last_break_punch(session.id)
+        if last_break_punch and last_break_punch.punch_type == 'break_start':
+            is_on_break = True
+        
         return CurrentStatusResponse(
             has_open_session=True,
             session=session_response,
-            elapsed_minutes=elapsed_minutes
+            elapsed_minutes=elapsed_minutes,
+            is_on_break=is_on_break
         )
     else:
         return CurrentStatusResponse(
@@ -522,4 +530,42 @@ async def get_break_punches(
     return {
         "punches": punch_list,
         "total": len(punch_list)
+    }
+
+
+@router_v1.patch("/punch/{punch_id}/note")
+async def update_punch_note(
+    punch_id: str,
+    request: dict,
+    company_id: str = Depends(get_current_company_id),
+    user_id: Optional[str] = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """Update punch note (更新打卡備註) - WP-11-11.5"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID is required")
+    
+    user_uuid = UUID(user_id)
+    punch_uuid = UUID(punch_id)
+    
+    # Get punch record
+    from app.modules.attendance.models import AttendancePunch
+    punch = db.query(AttendancePunch).filter(
+        AttendancePunch.id == punch_uuid,
+        AttendancePunch.company_id == company_id,
+        AttendancePunch.user_id == user_uuid
+    ).first()
+    
+    if not punch:
+        raise HTTPException(status_code=404, detail="Punch record not found")
+    
+    # Update notes
+    notes = request.get('notes', '')
+    punch.notes = notes
+    db.commit()
+    
+    return {
+        "success": True,
+        "punch_id": str(punch.id),
+        "notes": punch.notes
     }

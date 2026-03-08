@@ -1,185 +1,109 @@
-INFO:     Started server process [1327930]
-INFO:     Waiting for application startup.
-2026-03-08 12:08:12,326 - app.main - INFO - 應用啟動 - 確保已執行 alembic upgrade head
-2026-03-08 12:08:12,326 - app.modules.notifications.event_handlers - INFO - Notifications 事件處理器已註冊: attendance.approved
-2026-03-08 12:08:12,327 - app.main - INFO - EventBus 已初始化，所有訂閱者已註冊
-INFO:     Application startup complete.
+INFO:     Will watch for changes in these directories: ['/opt/attendance-system/backend']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:51168 - "GET /health HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
+INFO:     Started reloader process [1361373] using WatchFiles
+INFO:     Started server process [1361375]
+INFO:     Waiting for application startup.
+2026-03-08 15:27:35,813 - app.main - INFO - 應用啟動 - 確保已執行 alembic upgrade head
+2026-03-08 15:27:35,813 - app.modules.notifications.event_handlers - INFO - Notifications 事件處理器已註冊: attendance.approved
+2026-03-08 15:27:35,814 - app.main - INFO - EventBus 已初始化，所有訂閱者已註冊
+INFO:     Application startup complete.
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
 INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
 INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:20:49,456 - app.modules.attendance.api - INFO - Auto break-in before punch-out: user=11bda10d-7541-4230-b1f3-842afab2cea5, session=5f6fbde4-f04d-41c6-9e80-ffea8f88bac8
-2026-03-08 14:20:49,510 - app.modules.attendance.repo - INFO - Created punch: id=52a21724-3ccb-4e7e-bd77-19ce23bf53e4, session_id=5f6fbde4-f04d-41c6-9e80-ffea8f88bac8, type=break_end
-2026-03-08 14:20:49,528 - app.modules.attendance.repo - INFO - Created punch: id=ef10f50c-bf50-4059-9b27-545dd9955829, session_id=5f6fbde4-f04d-41c6-9e80-ffea8f88bac8, type=out
-2026-03-08 14:20:49,533 - app.modules.attendance.policy_engine - INFO - Policy evaluation: session_id=5f6fbde4-f04d-41c6-9e80-ffea8f88bac8, late=True (42m), early_leave=True (219m), overtime=True (1237m)
-2026-03-08 14:20:49,563 - app.modules.attendance.repo - INFO - Closed session: id=5f6fbde4-f04d-41c6-9e80-ffea8f88bac8, duration=1717m, policy_id=None
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-out HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:20:50,544 - app.modules.attendance.repo - INFO - Created session: id=092043db-1edf-4623-af2c-53cdfd1d9895, company_id=company-a, user_id=11bda10d-7541-4230-b1f3-842afab2cea5
-2026-03-08 14:20:50,556 - app.modules.attendance.repo - INFO - Created punch: id=b1a64aff-ce24-44a6-8079-47224a25094a, session_id=092043db-1edf-4623-af2c-53cdfd1d9895, type=in
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:21:08,511 - app.modules.attendance.repo - INFO - Created punch: id=fb825506-b1f0-45e5-aa00-a99eab068e9e, session_id=092043db-1edf-4623-af2c-53cdfd1d9895, type=out
-2026-03-08 14:21:08,513 - app.modules.attendance.policy_engine - INFO - Policy evaluation: session_id=092043db-1edf-4623-af2c-53cdfd1d9895, late=True (320m), early_leave=True (218m), overtime=False (0m)
-2026-03-08 14:21:08,525 - app.modules.attendance.repo - INFO - Closed session: id=092043db-1edf-4623-af2c-53cdfd1d9895, duration=0m, policy_id=None
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-out HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:21:09,357 - app.modules.attendance.repo - INFO - Created session: id=a160aa2a-e36e-46af-9038-16dcf5a75cd8, company_id=company-a, user_id=11bda10d-7541-4230-b1f3-842afab2cea5
-2026-03-08 14:21:09,369 - app.modules.attendance.repo - INFO - Created punch: id=49e81049-a792-47cc-9ee0-863e2083bed9, session_id=a160aa2a-e36e-46af-9038-16dcf5a75cd8, type=in
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:33:07,469 - app.modules.attendance.repo - INFO - Created punch: id=132f6f1b-8a7d-41c0-a7c4-111586b5d20b, session_id=a160aa2a-e36e-46af-9038-16dcf5a75cd8, type=out
-2026-03-08 14:33:07,471 - app.modules.attendance.policy_engine - INFO - Policy evaluation: session_id=a160aa2a-e36e-46af-9038-16dcf5a75cd8, late=True (321m), early_leave=True (206m), overtime=False (0m)
-2026-03-08 14:33:07,491 - app.modules.attendance.repo - INFO - Closed session: id=a160aa2a-e36e-46af-9038-16dcf5a75cd8, duration=11m, policy_id=None
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-out HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:33:08,790 - app.modules.attendance.repo - INFO - Created session: id=277ce20e-3c6a-4036-919d-ef63398c61ef, company_id=company-a, user_id=11bda10d-7541-4230-b1f3-842afab2cea5
-2026-03-08 14:33:08,798 - app.modules.attendance.repo - INFO - Created punch: id=a66d2535-a157-454d-939a-17a67bc95090, session_id=277ce20e-3c6a-4036-919d-ef63398c61ef, type=in
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:36:59,040 - app.modules.attendance.repo - INFO - Created punch: id=cf387031-2176-4c59-b12d-9b4375cda003, session_id=277ce20e-3c6a-4036-919d-ef63398c61ef, type=out
-2026-03-08 14:36:59,041 - app.modules.attendance.policy_engine - INFO - Policy evaluation: session_id=277ce20e-3c6a-4036-919d-ef63398c61ef, late=True (333m), early_leave=True (203m), overtime=False (0m)
-2026-03-08 14:36:59,059 - app.modules.attendance.repo - INFO - Closed session: id=277ce20e-3c6a-4036-919d-ef63398c61ef, duration=3m, policy_id=None
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-out HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:36:59,810 - app.modules.attendance.repo - INFO - Created session: id=210b4fa1-9997-4be6-b945-a43fb3502ac7, company_id=company-a, user_id=11bda10d-7541-4230-b1f3-842afab2cea5
-2026-03-08 14:36:59,819 - app.modules.attendance.repo - INFO - Created punch: id=52bc8d14-c922-438e-8ba5-7e500a8136e1, session_id=210b4fa1-9997-4be6-b945-a43fb3502ac7, type=in
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:37:17,344 - app.modules.attendance.repo - INFO - Created punch: id=04f5fa4e-e7bc-4ff0-aed0-772f6879a119, session_id=210b4fa1-9997-4be6-b945-a43fb3502ac7, type=out
-2026-03-08 14:37:17,346 - app.modules.attendance.policy_engine - INFO - Policy evaluation: session_id=210b4fa1-9997-4be6-b945-a43fb3502ac7, late=True (336m), early_leave=True (202m), overtime=False (0m)
-2026-03-08 14:37:17,352 - app.modules.attendance.repo - INFO - Closed session: id=210b4fa1-9997-4be6-b945-a43fb3502ac7, duration=0m, policy_id=None
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-out HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:37:19,284 - app.modules.attendance.repo - INFO - Created session: id=42a89a23-a447-4955-a6c6-6b01388540e4, company_id=company-a, user_id=11bda10d-7541-4230-b1f3-842afab2cea5
-2026-03-08 14:37:19,294 - app.modules.attendance.repo - INFO - Created punch: id=39961501-3f85-4d52-9b9c-81011f329d60, session_id=42a89a23-a447-4955-a6c6-6b01388540e4, type=in
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-2026-03-08 14:45:01,159 - app.modules.attendance.repo - INFO - Created punch: id=b4393eb7-d444-42de-b061-a2666169bbcb, session_id=42a89a23-a447-4955-a6c6-6b01388540e4, type=out
-2026-03-08 14:45:01,161 - app.modules.attendance.policy_engine - INFO - Policy evaluation: session_id=42a89a23-a447-4955-a6c6-6b01388540e4, late=True (337m), early_leave=True (194m), overtime=False (0m)
-2026-03-08 14:45:01,188 - app.modules.attendance.repo - INFO - Closed session: id=42a89a23-a447-4955-a6c6-6b01388540e4, duration=7m, policy_id=None
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-out HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:45:01,966 - app.modules.attendance.repo - INFO - Created session: id=fa7c4e56-ef75-455b-9aad-3fb1e65f4d48, company_id=company-a, user_id=11bda10d-7541-4230-b1f3-842afab2cea5
-2026-03-08 14:45:01,974 - app.modules.attendance.repo - INFO - Created punch: id=b179d260-1965-4fc7-a3a0-15325c6c54de, session_id=fa7c4e56-ef75-455b-9aad-3fb1e65f4d48, type=in
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:45:31,387 - app.modules.attendance.repo - INFO - Created punch: id=ed9d6179-06a9-42fb-b08e-6620614cf436, session_id=fa7c4e56-ef75-455b-9aad-3fb1e65f4d48, type=out
-2026-03-08 14:45:31,390 - app.modules.attendance.policy_engine - INFO - Policy evaluation: session_id=fa7c4e56-ef75-455b-9aad-3fb1e65f4d48, late=True (345m), early_leave=True (194m), overtime=False (0m)
-2026-03-08 14:45:31,404 - app.modules.attendance.repo - INFO - Closed session: id=fa7c4e56-ef75-455b-9aad-3fb1e65f4d48, duration=0m, policy_id=None
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-out HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:45:34,688 - app.modules.attendance.repo - INFO - Created session: id=5f390a66-86ae-4188-8996-ee8e634e24c6, company_id=company-a, user_id=11bda10d-7541-4230-b1f3-842afab2cea5
-2026-03-08 14:45:34,696 - app.modules.attendance.repo - INFO - Created punch: id=b51fa2ff-dd8b-4bb1-b2aa-a6d0cd6a3ef5, session_id=5f390a66-86ae-4188-8996-ee8e634e24c6, type=in
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:45:36,038 - app.modules.attendance.repo - INFO - Created punch: id=ebf937f2-26a7-40dc-a697-78115ff7cc8d, session_id=5f390a66-86ae-4188-8996-ee8e634e24c6, type=out
-2026-03-08 14:45:36,040 - app.modules.attendance.policy_engine - INFO - Policy evaluation: session_id=5f390a66-86ae-4188-8996-ee8e634e24c6, late=True (345m), early_leave=True (194m), overtime=False (0m)
-2026-03-08 14:45:36,052 - app.modules.attendance.repo - INFO - Closed session: id=5f390a66-86ae-4188-8996-ee8e634e24c6, duration=0m, policy_id=None
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-out HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:51:30,657 - app.modules.attendance.repo - INFO - Created session: id=fbbce200-b087-458d-b861-1b984b530ea8, company_id=company-a, user_id=11bda10d-7541-4230-b1f3-842afab2cea5
-2026-03-08 14:51:30,688 - app.modules.attendance.repo - INFO - Created punch: id=ffac07fb-6152-48a4-bb0a-1d66b9be2321, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=in
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/punch-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:51:31,538 - app.modules.attendance.repo - INFO - Created punch: id=d56f2a99-c211-4f04-9ee1-bd65ffcb6864, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+2026-03-08 15:35:18,151 - app.modules.attendance.repo - INFO - Created punch: id=88014130-15be-4051-ad20-94a66af383b4, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
 INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-out HTTP/1.1" 201 Created
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
 INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:51:32,772 - app.modules.attendance.repo - INFO - Created punch: id=c5697fa5-8783-4c1d-85e2-82c48025915d, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_end
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:51:33,609 - app.modules.attendance.repo - INFO - Created punch: id=6c049b01-ea01-4596-a0a2-f25e1e896540, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+2026-03-08 15:35:20,510 - app.modules.attendance.repo - INFO - Created punch: id=45c69a18-fa69-4367-ab74-bfc36445c888, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
 INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-out HTTP/1.1" 201 Created
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
 INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:51:53,494 - app.modules.attendance.repo - INFO - Created punch: id=6feaeb47-cbee-4baf-84f7-53201977de21, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-out HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:51:54,102 - app.modules.attendance.repo - INFO - Created punch: id=f702f10e-cf85-4224-ac6f-23b999a5e81a, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_end
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:51:55,331 - app.modules.attendance.repo - INFO - Created punch: id=035b95dc-566c-49cb-a4e6-9a563a187a36, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-out HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:51:55,826 - app.modules.attendance.repo - INFO - Created punch: id=5466b2d4-18f1-4d0e-9b7e-8b2f0ec589f6, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-out HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:51:56,493 - app.modules.attendance.repo - INFO - Created punch: id=8c73ea54-f622-4940-883f-f93922f14f1d, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_end
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-in HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:52:38,569 - app.modules.attendance.repo - INFO - Created punch: id=cb17faca-7dcc-4d3a-8fe7-f28a695a86b4, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-out HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:52:42,873 - app.modules.attendance.repo - INFO - Created punch: id=e48ccbf9-79ac-4cc5-9722-456dc1d2272c, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-out HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
-2026-03-08 14:52:43,523 - app.modules.attendance.repo - INFO - Created punch: id=bfed9722-cf3c-4f83-863c-3c5acd4e810c, session_id=fbbce200-b087-458d-b861-1b984b530ea8, type=break_start
-INFO:     192.168.89.55:0 - "POST /api/v1/attendance/break-out HTTP/1.1" 201 Created
-INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "PATCH /api/v1/attendance/punch/88014130-15be-4051-ad20-94a66af383b4/note HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "PATCH /api/v1/attendance/punch/88014130-15be-4051-ad20-94a66af383b4/note HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "PATCH /api/v1/attendance/punch/88014130-15be-4051-ad20-94a66af383b4/note HTTP/1.1" 404 Not Found
+WARNING:  WatchFiles detected changes in 'app/modules/attendance/api.py'. Reloading...
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [1327930]
+INFO:     Finished server process [1361375]
+INFO:     Started server process [1362358]
+INFO:     Waiting for application startup.
+2026-03-08 15:36:04,594 - app.main - INFO - 應用啟動 - 確保已執行 alembic upgrade head
+2026-03-08 15:36:04,594 - app.modules.notifications.event_handlers - INFO - Notifications 事件處理器已註冊: attendance.approved
+2026-03-08 15:36:04,594 - app.main - INFO - EventBus 已初始化，所有訂閱者已註冊
+INFO:     Application startup complete.
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "PATCH /api/v1/attendance/punch/45c69a18-fa69-4367-ab74-bfc36445c888/note HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "PATCH /api/v1/attendance/punch/88014130-15be-4051-ad20-94a66af383b4/note HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/out-checkpoints?limit=50&offset=0 HTTP/1.1" 404 Not Found
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/current-status HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/history?limit=10&offset=0 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=50 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "GET /api/v1/attendance/break-punches?limit=20 HTTP/1.1" 200 OK
+INFO:     192.168.89.55:0 - "PATCH /api/v1/attendance/punch/45c69a18-fa69-4367-ab74-bfc36445c888/note HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/modules/attendance/api.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1362358]
+INFO:     Started server process [1363266]
+INFO:     Waiting for application startup.
+2026-03-08 15:41:10,079 - app.main - INFO - 應用啟動 - 確保已執行 alembic upgrade head
+2026-03-08 15:41:10,079 - app.modules.notifications.event_handlers - INFO - Notifications 事件處理器已註冊: attendance.approved
+2026-03-08 15:41:10,079 - app.main - INFO - EventBus 已初始化，所有訂閱者已註冊
+INFO:     Application startup complete.
