@@ -82,6 +82,9 @@ export const useAttendanceStore = defineStore('attendance', {
           case 'IN':
             response = await attendanceApi.punchIn({ notes: notes || '' })
             this.todayStatus.punch_in = response.punch_in_time
+            this.todayStatus.punch_out = null  // 明確清除下班時間
+            this.todayStatus.break_out = null  // 明確清除外出時間
+            this.todayStatus.break_in = null   // 明確清除返回時間
             this.todayStatus.is_punched_in = true
             this.todayStatus.session_id = response.session_id
             this.todayStatus.is_on_break = false
