@@ -3,7 +3,7 @@
     <Navbar />
     
     <div class="container">
-      <!-- 今日狀態 - 簡化為只顯示上班/下班 -->
+      <!-- 今日狀態 - 只保留上班/下班時間 -->
       <Card title="今日狀態" class="status-section">
         <div class="status-grid-simple">
           <StatusCard 
@@ -19,11 +19,11 @@
         </div>
       </Card>
 
-      <!-- 打卡操作 - 只有上班/下班 -->
+      <!-- 打卡操作 - 上班/下班 -->
       <div class="section-title">
         <h2>打卡操作</h2>
       </div>
-      <div class="punch-grid-main">
+      <div class="punch-grid">
         <!-- 上班打卡 -->
         <div 
           @click="handlePunch('IN')"
@@ -112,12 +112,13 @@
         </div>
       </div>
 
-      <!-- 外出原因輸入 -->
+      <!-- 外出紀錄 - 整合所有外出相關功能 -->
       <div class="section-title">
-        <h2>外出原因</h2>
+        <h2>外出紀錄</h2>
       </div>
-      <Card class="reason-section">
-        <div class="reason-input-area">
+      <Card class="break-section">
+        <!-- 外出原因輸入區 -->
+        <div class="break-input-area">
           <label class="input-label">
             外出原因
           </label>
@@ -186,46 +187,43 @@
             </button>
           </div>
         </div>
+
+        <!-- 外出/返回打卡按鈕 - 整合在同一張卡內 -->
+        <div class="break-actions">
+          <!-- 外出打卡 -->
+          <div 
+            @click="handleBreakOutPunch"
+            :class="[
+              'punch-card',
+              { 'disabled': !canBreakOut || isLoading }
+            ]"
+          >
+            <div class="card-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </div>
+            <div class="card-label">外出打卡</div>
+            <div v-if="todayStatus.is_on_break" class="status-badge active">外出中</div>
+          </div>
+
+          <!-- 返回打卡 -->
+          <div 
+            @click="handleBreakInPunch"
+            :class="[
+              'punch-card',
+              { 'disabled': !canBreakIn || isLoading }
+            ]"
+          >
+            <div class="card-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+              </svg>
+            </div>
+            <div class="card-label">返回打卡</div>
+          </div>
+        </div>
       </Card>
-
-      <!-- 外出 / 返回打卡 - 移到外出原因下方 -->
-      <div class="section-title">
-        <h2>外出 / 返回</h2>
-      </div>
-      <div class="punch-grid-break">
-        <!-- 外出打卡 -->
-        <div 
-          @click="handleBreakOutPunch"
-          :class="[
-            'punch-card',
-            { 'disabled': !canBreakOut || isLoading }
-          ]"
-        >
-          <div class="card-icon">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </div>
-          <div class="card-label">外出打卡</div>
-          <div v-if="todayStatus.is_on_break" class="status-badge active">外出中</div>
-        </div>
-
-        <!-- 返回打卡 -->
-        <div 
-          @click="handleBreakInPunch"
-          :class="[
-            'punch-card',
-            { 'disabled': !canBreakIn || isLoading }
-          ]"
-        >
-          <div class="card-icon">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-            </svg>
-          </div>
-          <div class="card-label">返回打卡</div>
-        </div>
-      </div>
 
       <!-- 今日外出/返回記錄 - 可收合 -->
       <div v-if="breakPunches.length > 0" class="records-collapsible">
@@ -281,7 +279,7 @@
                 </div>
               </div>
               
-              <div class="break-actions">
+              <div class="break-actions-inline">
                 <a
                   v-if="punch.location_lat && punch.location_lng"
                   :href="`https://www.google.com/maps?q=${punch.location_lat},${punch.location_lng}`"
@@ -503,8 +501,6 @@ const handlePunch = async (type) => {
   attendanceStore.clearError()
   
   try {
-    // 呼叫 store 的 punch 方法，它會自動刷新狀態
-    // store 會保留 punch_in 和 punch_out 時間
     await attendanceStore.punch(type, '')
     
     successMessage.value = '打卡成功'
@@ -720,7 +716,7 @@ onMounted(() => {
   padding-bottom: 24px;
 }
 
-/* 容器 - 移動優先 */
+/* 容器 - 移動優先，緊湊佈局 */
 .container {
   padding: 16px;
   max-width: 480px;
@@ -739,7 +735,7 @@ onMounted(() => {
   color: var(--heading);
 }
 
-/* 狀態區塊 - 簡化為 2 欄 */
+/* 狀態區塊 - 2 欄緊湊佈局 */
 .status-section {
   margin-bottom: 16px;
 }
@@ -750,16 +746,8 @@ onMounted(() => {
   gap: 12px;
 }
 
-/* 打卡卡片 - 主要打卡（上班/下班）*/
-.punch-grid-main {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-/* 打卡卡片 - 外出/返回 */
-.punch-grid-break {
+/* 打卡卡片網格 */
+.punch-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
@@ -808,7 +796,7 @@ onMounted(() => {
   border-color: var(--success);
 }
 
-/* 卡片 Icon - 清晰的線條風格 */
+/* 卡片 Icon */
 .punch-card .card-icon {
   width: 32px;
   height: 32px;
@@ -994,132 +982,16 @@ onMounted(() => {
   font-size: 13px;
 }
 
-/* 外出記錄列表 */
-.break-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.break-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--bg-main);
-  border-radius: 12px;
-  transition: background-color 0.2s;
-}
-
-.break-item:active {
-  background: var(--bg-hover);
-}
-
-.break-icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-}
-
-.break-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-.break-icon svg:first-child {
-  color: var(--warning);
-}
-
-.break-icon svg:last-child {
-  color: var(--success);
-}
-
-.break-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.break-type-time {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-
-.break-type {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.break-time {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.break-notes {
-  font-size: 12px;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.break-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.map-link,
-.edit-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  font-size: 11px;
-  transition: all 0.2s;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-.map-link {
-  color: var(--primary);
-  text-decoration: none;
-}
-
-.map-link:active {
-  background: var(--primary-light);
-  color: white;
-}
-
-.edit-btn {
-  color: var(--text-secondary);
-}
-
-.edit-btn:active {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.map-link svg,
-.edit-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-/* 原因輸入區 */
-.reason-section {
+/* 外出紀錄區塊 - 緊湊佈局 */
+.break-section {
   margin-bottom: 16px;
 }
 
-.reason-input-area {
+.break-input-area {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .input-label {
@@ -1234,6 +1106,132 @@ onMounted(() => {
 .add-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 外出/返回打卡按鈕區 - 整合在同一張卡內 */
+.break-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* 外出記錄列表 */
+.break-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.break-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-main);
+  border-radius: 12px;
+  transition: background-color 0.2s;
+}
+
+.break-item:active {
+  background: var(--bg-hover);
+}
+
+.break-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.break-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.break-icon svg:first-child {
+  color: var(--warning);
+}
+
+.break-icon svg:last-child {
+  color: var(--success);
+}
+
+.break-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.break-type-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.break-type {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.break-time {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.break-notes {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.break-actions-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.map-link,
+.edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.map-link {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.map-link:active {
+  background: var(--primary-light);
+  color: white;
+}
+
+.edit-btn {
+  color: var(--text-secondary);
+}
+
+.edit-btn:active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.map-link svg,
+.edit-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* 快捷功能卡片 */
@@ -1453,26 +1451,11 @@ onMounted(() => {
   background: var(--primary-hover);
 }
 
-/* 桌面版調整 */
+/* 桌面版調整 - 保持緊湊 */
 @media (min-width: 768px) {
   .container {
-    max-width: 1200px;
-    padding: 24px 32px;
-  }
-  
-  .status-grid-simple {
-    grid-template-columns: repeat(2, 1fr);
     max-width: 600px;
-  }
-  
-  .punch-grid-main,
-  .punch-grid-break {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 600px;
-  }
-  
-  .shortcut-grid {
-    grid-template-columns: repeat(6, 1fr);
+    padding: 24px;
   }
   
   .toast {
