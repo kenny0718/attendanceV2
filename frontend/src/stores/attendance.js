@@ -90,8 +90,11 @@ export const useAttendanceStore = defineStore('attendance', {
             break
             
           case 'OUT':
+            console.log('[PUNCH_OUT_START] 開始下班打卡')
             response = await attendanceApi.punchOut({ notes: notes || '' })
+            console.log('[PUNCH_OUT_RESPONSE]', JSON.stringify(response, null, 2))
             this.todayStatus.punch_out = response.punch_out_time
+            console.log('[PUNCH_OUT_WRITTEN] todayStatus.punch_out =', this.todayStatus.punch_out)
             this.todayStatus.is_punched_in = false
             this.todayStatus.is_on_break = false
             localStorage.removeItem('is_on_break')
@@ -119,7 +122,8 @@ export const useAttendanceStore = defineStore('attendance', {
             throw new Error('未知的打卡類型')
         }
         
-        // 打卡成功後只刷新記錄，不刷新狀態（避免覆蓋剛設置的 is_on_break）
+        // 打卡成功後刷新狀態和記錄，確保 UI 完全同步
+        await this.fetchTodayStatus()
         await this.fetchRecentLogs()
         
         // 如果是外出或返回打卡，刷新外出打卡記錄
@@ -140,6 +144,69 @@ export const useAttendanceStore = defineStore('attendance', {
         }
         
         throw this.error
+      } finally {
+        this.isLoading = false
+      }
+    },
+    
+    // WP-11-12: 接收 location 作為參數的打卡方法
+    // UI 層負責取得 location，store 層負責業務邏輯
+    async punchWithLocation(type, payload) {
+      // 防止重複點擊
+      if (this.isLoading) {
+        console.warn('操作進行中，請稍候...')
+        return
+      }
+      
+      this.isLoading = true
+      this.error = null
+      this.lastAction = type
+      
+      try {
+        let response
+        
+        switch (type) {
+          case 'BREAK_OUT':
+            // 直接使用傳入的 payload（包含 notes 和 gps）
+            response = await attendanceApi.breakOut(payload)
+            this.todayStatus.break_out = response.punch_time
+            this.todayStatus.is_on_break = true
+            localStorage.setItem('is_on_break', 'true')
+            // 打卡成功後刷新外出打卡記錄
+            await this.loadBreakPunches()
+            break
+            
+          case 'BREAK_IN':
+            // 未來可以用相同方式處理返回打卡
+            response = await attendanceApi.breakIn(payload)
+            this.todayStatus.break_in = response.punch_time
+            this.todayStatus.is_on_break = false
+            localStorage.setItem('is_on_break', 'false')
+            await this.loadBreakPunches()
+            break
+            
+          default:
+            throw new Error('未知的打卡類型')
+        }
+        
+        // 打卡成功後刷新記錄
+        await this.fetchRecentLogs()
+        
+        return { success: true, data: response }
+        
+      } catch (error) {
+        // 統一錯誤處理
+        this.error = this.handleError(error)
+        
+        // 發生錯誤時刷新狀態，確保 UI 與後端同步
+        try {
+          await this.fetchTodayStatus()
+        } catch (refreshError) {
+          console.error('刷新狀態失敗:', refreshError)
+        }
+        
+        throw this.error
+        
       } finally {
         this.isLoading = false
       }
@@ -233,6 +300,10 @@ export const useAttendanceStore = defineStore('attendance', {
       }
     },
     
+    // @deprecated WP-11-12: 請使用 useLocation composable
+    // 保留此方法僅供向後相容，未來將移除
+    // @deprecated WP-11-12: 請使用 useLocation composable
+    // 保留此方法僅供向後相容，未來將移除
     // WP-11-11: 偵測裝置類型
     detectDeviceType() {
       const userAgent = navigator.userAgent || ''
@@ -240,6 +311,10 @@ export const useAttendanceStore = defineStore('attendance', {
       return isMobile ? 'mobile' : 'pc'
     },
     
+    // @deprecated WP-11-12: 請使用 useLocation composable
+    // 保留此方法僅供向後相容，未來將移除
+    // @deprecated WP-11-12: 請使用 useLocation composable
+    // 保留此方法僅供向後相容，未來將移除
     // WP-11-11: 獲取 GPS 位置
     async getGPSLocation() {
       return new Promise((resolve, reject) => {
@@ -333,14 +408,16 @@ export const useAttendanceStore = defineStore('attendance', {
     
     // 獲取今日狀態（真實 API）- WP-11-07 Phase 3B: 從 localStorage 恢復狀態
     async fetchTodayStatus() {
+      console.log('[FETCH_TODAY_STATUS_START] ===== 開始 fetchTodayStatus =====')
+      console.log('[FETCH_TODAY_STATUS_START] 當前 todayStatus.punch_out =', this.todayStatus.punch_out)
       try {
         const data = await attendanceApi.getCurrentStatus()
+        console.log('[CURRENT_STATUS_RESPONSE]', JSON.stringify(data, null, 2))
         
         if (data.has_open_session && data.session) {
-          // 使用後端返回的 is_on_break 狀態（優先於 localStorage）
+          console.log('[HAS_OPEN_SESSION] 有 open session，使用後端資料')
+          // 有 open session，使用後端返回的資料
           const isOnBreak = data.is_on_break || false
-          
-          // 同步到 localStorage
           localStorage.setItem('is_on_break', isOnBreak ? 'true' : 'false')
           
           this.todayStatus = {
@@ -353,8 +430,49 @@ export const useAttendanceStore = defineStore('attendance', {
             session_id: data.session.session_id
           }
         } else {
-          // 沒有 open session，重置狀態並清除 localStorage
+          console.log('[NO_OPEN_SESSION] 沒有 open session，查詢歷史記錄')
+          // 沒有 open session，嘗試從今日歷史記錄取得最新狀態
           localStorage.removeItem('is_on_break')
+          
+          // 查詢今日記錄
+          const historyData = await attendanceApi.getHistory({ limit: 1, offset: 0 })
+          console.log('[HISTORY_RESPONSE]', JSON.stringify(historyData, null, 2))
+          
+          if (historyData.sessions && historyData.sessions.length > 0) {
+            const latestSession = historyData.sessions[0]
+            // 檢查是否為今日記錄：
+            // punch_in_time 是今天，或者 punch_out_time 是今天（跨日 session 也能正確顯示）
+            const today = dayjs().startOf('day')
+            const punchInDate = dayjs(latestSession.punch_in_time).startOf('day')
+            const punchOutDate = latestSession.punch_out_time 
+              ? dayjs(latestSession.punch_out_time).startOf('day')
+              : null
+            const isTodaySession = punchInDate.isSame(today) || (punchOutDate && punchOutDate.isSame(today))
+            console.log('[TODAY_MATCH_CHECK] today =', today.format('YYYY-MM-DD'))
+            console.log('[TODAY_MATCH_CHECK] punchInDate =', punchInDate.format('YYYY-MM-DD'))
+            console.log('[TODAY_MATCH_CHECK] punchOutDate =', punchOutDate ? punchOutDate.format('YYYY-MM-DD') : 'null')
+            console.log('[TODAY_MATCH_CHECK] isTodaySession =', isTodaySession)
+            console.log('[TODAY_MATCH_CHECK] latestSession.punch_out_time =', latestSession.punch_out_time)
+            
+            if (isTodaySession) {
+              console.log('[TODAY_MATCH] 是今日記錄，使用該記錄')
+              // 使用今日最新記錄
+              this.todayStatus = {
+                punch_in: latestSession.punch_in_time,
+                punch_out: latestSession.punch_out_time,
+                break_out: this.todayStatus.break_out,
+                break_in: this.todayStatus.break_in,
+                is_punched_in: false,
+                is_on_break: false,
+                session_id: latestSession.session_id
+              }
+              console.log('[FINAL_TODAY_STATUS_SET] 設定完成 todayStatus =', JSON.stringify(this.todayStatus, null, 2))
+              return
+            }
+          }
+          
+          // 真的沒有今日記錄，才清空
+          console.log('[NO_TODAY_RECORD] 沒有今日記錄，清空狀態')
           this.todayStatus = {
             punch_in: null,
             punch_out: null,
@@ -366,9 +484,11 @@ export const useAttendanceStore = defineStore('attendance', {
           }
         }
       } catch (error) {
-        console.error('獲取狀態失敗:', error)
+        console.error('[FETCH_TODAY_STATUS_ERROR]', error)
         // 不拋出錯誤，避免影響頁面載入
       }
+      console.log('[FETCH_TODAY_STATUS_END] ===== 結束 fetchTodayStatus =====')
+      console.log('[FETCH_TODAY_STATUS_END] 最終 todayStatus.punch_out =', this.todayStatus.punch_out)
     },
     
     // 獲取最近記錄（真實 API）
