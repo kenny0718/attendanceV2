@@ -2,6 +2,13 @@
 
 提供稽核紀錄的查詢與匯出 API。
 Phase 8: 新增 retention policy 與 purge API
+
+WP-C1-03: 遷移至 JWT Actor 驗證
+- 移除 get_current_company_id Header 依賴
+- 改用 get_actor_with_company()，company_id 從 actor.active_company_id 取得
+- GET /export、PUT /retention、POST /purge 加入 admin RBAC（assert_admin_scope）
+- GET /logs、GET /retention 不需要 admin（任何公司成員可存取）
+- PUT /retention、POST /purge 的 request body 中 actor 欄位保持不變
 """
 
 import logging
@@ -12,7 +19,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.core.tenant_context import get_current_company_id
+from app.core.scope import Actor, ScopeError, assert_admin_scope
+from app.core.dependencies import get_actor_with_company
 from app.modules.audit.repo import AuditLogRepository
 from app.modules.audit.service import AuditLogService
 
@@ -31,9 +39,9 @@ def get_audit_service(db: Session = Depends(get_db)) -> AuditLogService:
 
 @router.get("/logs")
 def query_audit_logs(
-    company_id: str = Depends(get_current_company_id),
+    actor: Actor = Depends(get_actor_with_company),
     event_type: Optional[str] = Query(None, description="事件類型（例如：backup.export）"),
-    actor: Optional[str] = Query(None, description="執行者"),
+    actor_filter: Optional[str] = Query(None, alias="actor", description="執行者"),
     date_from: Optional[str] = Query(None, description="開始日期（ISO 8601）"),
     date_to: Optional[str] = Query(None, description="結束日期（ISO 8601）"),
     q: Optional[str] = Query(None, description="關鍵字搜尋"),
@@ -43,13 +51,13 @@ def query_audit_logs(
     service: AuditLogService = Depends(get_audit_service)
 ):
     """查詢稽核紀錄
-    
+
     支援篩選、分頁、排序功能。
-    
+
     **權限規則：**
-    - 必須提供 X-Company-ID header
+    - 需有效 JWT 公司範圍（actor.active_company_id）
     - 只能查詢該公司的稽核紀錄（tenant isolation）
-    
+
     **Query 參數：**
     - event_type: 事件類型（例如：backup.export, backup.restore）
     - actor: 執行者
@@ -59,7 +67,7 @@ def query_audit_logs(
     - page: 頁碼（預設 1）
     - page_size: 每頁筆數（預設 50，最大 200）
     - sort: 排序欄位（預設 -created_at，支援 created_at, action）
-    
+
     **回應格式：**
     ```json
     {
@@ -83,11 +91,13 @@ def query_audit_logs(
     }
     ```
     """
+    company_id = actor.active_company_id
+
     try:
         result = service.query_logs(
             company_id=company_id,
             event_type=event_type,
-            actor=actor,
+            actor=actor_filter,
             date_from=date_from,
             date_to=date_to,
             q=q,
@@ -103,68 +113,83 @@ def query_audit_logs(
 
 @router.get("/export")
 def export_audit_logs(
-    company_id: str = Depends(get_current_company_id),
+    actor: Actor = Depends(get_actor_with_company),
     format: str = Query("json", pattern="^(json|csv)$", description="匯出格式（json 或 csv）"),
     event_type: Optional[str] = Query(None, description="事件類型"),
-    actor: Optional[str] = Query(None, description="執行者"),
+    actor_filter: Optional[str] = Query(None, alias="actor", description="執行者"),
     date_from: Optional[str] = Query(None, description="開始日期（ISO 8601）"),
     date_to: Optional[str] = Query(None, description="結束日期（ISO 8601）"),
     q: Optional[str] = Query(None, description="關鍵字搜尋"),
     sort: str = Query("-created_at", description="排序欄位"),
-    service: AuditLogService = Depends(get_audit_service)
+    service: AuditLogService = Depends(get_audit_service),
+    db: Session = Depends(get_db)
 ):
     """匯出稽核紀錄
-    
+
     支援 JSON 和 CSV 兩種格式。
-    
+
     **權限規則：**
-    - 必須提供 X-Company-ID header
-    - 只能匯出該公司的稽核紀錄（tenant isolation）
-    
+    - 需為該公司的管理員（admin / manager / hr）或 super_admin
+
     **Query 參數：**
     - format: 匯出格式（json 或 csv，預設 json）
     - event_type, actor, date_from, date_to, q: 篩選條件（同 /api/audit/logs）
     - sort: 排序欄位
-    
+
     **限制：**
     - 最多匯出 5000 筆
     - 若超過 5000 筆，回傳 400 錯誤並提示縮小條件
-    
+
     **JSON 格式：**
     - Content-Type: application/json
     - 回傳 items 陣列
-    
+
     **CSV 格式：**
     - Content-Type: text/csv; charset=utf-8
     - 第一列為 header
     - UTF-8 編碼（含 BOM，讓 Excel 正確識別）
     """
+    company_id = actor.active_company_id
+
+    # RBAC：只有管理員可匯出稽核紀錄
+    try:
+        assert_admin_scope(actor, company_id, db)
+    except ScopeError as e:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "ADMIN_REQUIRED",
+                "company_id": company_id,
+                "message": str(e)
+            }
+        )
+
     try:
         if format == "json":
             # JSON 格式
             items = service.export_logs_json(
                 company_id=company_id,
                 event_type=event_type,
-                actor=actor,
+                actor=actor_filter,
                 date_from=date_from,
                 date_to=date_to,
                 q=q,
                 sort=sort
             )
             return items
-        
+
         elif format == "csv":
             # CSV 格式
             csv_content = service.export_logs_csv(
                 company_id=company_id,
                 event_type=event_type,
-                actor=actor,
+                actor=actor_filter,
                 date_from=date_from,
                 date_to=date_to,
                 q=q,
                 sort=sort
             )
-            
+
             # 回傳 CSV（含 UTF-8 BOM）
             return Response(
                 content=csv_content.encode("utf-8"),
@@ -173,15 +198,15 @@ def export_audit_logs(
                     "Content-Disposition": f"attachment; filename=audit_logs_{company_id}.csv"
                 }
             )
-        
+
         else:
             raise HTTPException(status_code=400, detail="不支援的格式，請使用 json 或 csv")
-    
+
     except ValueError as e:
         # 超過 5000 筆限制
         logger.warning(f"匯出稽核紀錄失敗: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-    
+
     except Exception as e:
         logger.error(f"匯出稽核紀錄失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"匯出失敗: {str(e)}")
@@ -191,14 +216,14 @@ def export_audit_logs(
 
 @router.get("/retention")
 def get_retention_policy(
-    company_id: str = Depends(get_current_company_id),
+    actor: Actor = Depends(get_actor_with_company),
     service: AuditLogService = Depends(get_audit_service)
 ):
     """取得 audit log 保留政策
-    
+
     **權限規則：**
-    - 必須提供 X-Company-ID header
-    
+    - 需有效 JWT 公司範圍（actor.active_company_id）
+
     **回應格式：**
     ```json
     {
@@ -209,13 +234,15 @@ def get_retention_policy(
         "updated_at": null
     }
     ```
-    
+
     **說明：**
     - `retention_days`: 保留天數（7 ~ 3650）
     - `is_default`: 是否使用預設值（true = 使用預設 365 天）
     - `created_at`: 建立時間（若未設定則為 null）
     - `updated_at`: 更新時間（若未設定則為 null）
     """
+    company_id = actor.active_company_id
+
     try:
         result = service.get_retention_days(company_id)
         return result
@@ -233,14 +260,15 @@ class UpdateRetentionRequest(BaseModel):
 @router.put("/retention")
 def update_retention_policy(
     request: UpdateRetentionRequest,
-    company_id: str = Depends(get_current_company_id),
-    service: AuditLogService = Depends(get_audit_service)
+    jwt_actor: Actor = Depends(get_actor_with_company),
+    service: AuditLogService = Depends(get_audit_service),
+    db: Session = Depends(get_db)
 ):
     """更新 audit log 保留政策
-    
+
     **權限規則：**
-    - 必須提供 X-Company-ID header
-    
+    - 需為該公司的管理員（admin / manager / hr）或 super_admin
+
     **Body 參數：**
     ```json
     {
@@ -248,7 +276,7 @@ def update_retention_policy(
         "actor": "admin"
     }
     ```
-    
+
     **回應格式：**
     ```json
     {
@@ -259,11 +287,27 @@ def update_retention_policy(
         "updated_at": "2026-01-28T10:00:00Z"
     }
     ```
-    
+
     **注意：**
     - 更新行為會寫入 audit log（event_type: audit.retention.update）
     - retention_days 必須在 7 ~ 3650 之間
+    - request.actor 欄位為執行者識別字串，與 JWT actor 分開
     """
+    company_id = jwt_actor.active_company_id
+
+    # RBAC：只有管理員可更新 retention policy
+    try:
+        assert_admin_scope(jwt_actor, company_id, db)
+    except ScopeError as e:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "ADMIN_REQUIRED",
+                "company_id": company_id,
+                "message": str(e)
+            }
+        )
+
     try:
         result = service.update_retention_days(
             company_id=company_id,
@@ -290,14 +334,15 @@ class PurgeRequest(BaseModel):
 @router.post("/purge")
 def purge_old_audit_logs(
     request: PurgeRequest,
-    company_id: str = Depends(get_current_company_id),
-    service: AuditLogService = Depends(get_audit_service)
+    jwt_actor: Actor = Depends(get_actor_with_company),
+    service: AuditLogService = Depends(get_audit_service),
+    db: Session = Depends(get_db)
 ):
     """清理過期的 audit logs
-    
+
     **權限規則：**
-    - 必須提供 X-Company-ID header
-    
+    - 需為該公司的管理員（admin / manager / hr）或 super_admin
+
     **Body 參數：**
     ```json
     {
@@ -307,7 +352,7 @@ def purge_old_audit_logs(
         "max_delete": 10000
     }
     ```
-    
+
     **回應格式：**
     ```json
     {
@@ -323,7 +368,7 @@ def purge_old_audit_logs(
         "duration_ms": 123
     }
     ```
-    
+
     **說明：**
     - `cutoff_date`: 截止日期（created_at < cutoff_date 的紀錄會被刪除）
     - `deleted_count`: 刪除筆數（dry_run=true 時為預估值）
@@ -331,13 +376,29 @@ def purge_old_audit_logs(
     - `dry_run`: 是否為 dry run
     - `batches_executed`: 執行的批次數（dry_run=true 時為 0）
     - `duration_ms`: 執行時間（毫秒）
-    
+
     **注意：**
     - 建議先用 `dry_run=true` 測試
     - Purge 行為會寫入 audit log（event_type: audit.purge）
     - 刪除條件：`created_at < now - retention_days`
     - 分批刪除，避免 DB lock
+    - request.actor 欄位為執行者識別字串，與 JWT actor 分開
     """
+    company_id = jwt_actor.active_company_id
+
+    # RBAC：只有管理員可執行 purge
+    try:
+        assert_admin_scope(jwt_actor, company_id, db)
+    except ScopeError as e:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "ADMIN_REQUIRED",
+                "company_id": company_id,
+                "message": str(e)
+            }
+        )
+
     try:
         result = service.purge_old_logs(
             company_id=company_id,

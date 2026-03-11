@@ -17,7 +17,7 @@
 
 ## Last Updated
 
-2026-03-11（首次建立，基線版本）
+2026-03-11（WP-C1-01 完成後更新）
 
 ## 更新規則
 
@@ -195,88 +195,43 @@
 
 ---
 
-## 當前系統基線狀態（2026-03-11）
+### WP-C1-01：PostgreSQL 執行環境驗證
 
-| 項目 | 數值 |
-|------|------|
-| 已實作後端模組 | 7 |
-| AUTH JWT 完成模組 | 2（tenants, customer_service） |
-| AUTH Header 待轉換模組 | 5（attendance, audit, backup, notifications, admin_location） |
-| Migration 數量 | 10（含 deprecated 1 個） |
-| Migration Head | 008_wp_11_13 |
-| 有效前端路由 | 2（/, /login） |
-| 回歸測試實作數 | 1/8（Test 8 骨架） |
-| 回歸測試在真實 DB 通過 | 0/8 |
-| P0 技術債 | 4 項 |
+**完成日期：** 2026-03-11  
+**Git Commit：** N/A（純環境驗證，無程式碼修改）  
+**負責人：** AI session（Cursor）
 
----
+**已完成：**
+- PostgreSQL 服務確認可連線（localhost:5432 accepting connections）
+- `attendance_test` 資料庫確認存在
+- `attendance_user` 密碼重設為 `attendance_pass`（與測試檔案硬碼一致）
+- `attendance_test` public schema 權限設定（GRANT ALL ON SCHEMA public TO attendance_user; ALTER SCHEMA public OWNER TO attendance_user）
+- `alembic upgrade head` 對 `attendance_test` 執行成功（10 個 migration 步驟全部通過）
+- `alembic current` 確認：`008_wp_11_13 (head)`
+- `alembic heads` 確認：只有一個 head `008_wp_11_13`
+- 三個基線測試執行完畢，取得通過率基線
 
-## 待更新提醒
+**已驗證（VERIFIED）：**
+- PostgreSQL localhost:5432 可連線 ✅
+- `attendance_db` alembic current = `008_wp_11_13 (head)` ✅
+- `attendance_test` alembic upgrade head 成功執行至 `008_wp_11_13` ✅
+- alembic heads 只顯示一個 head（`008_wp_11_13`）✅
+- `attendance_test` 建立 17 個 table（超過文件要求最少 15 個）✅
+- `test_model_constraints.py`：**20/20 PASS**（真實 PostgreSQL attendance_test 執行）✅
 
-每完成以下 WP，必須在本文件新增對應章節：
+**已建立的 Table 清單（attendance_test，共 17 個）：**
+- alembic_version, allowed_locations, attendance_out_checkpoints, attendance_policies
+- attendance_punches, attendance_sessions, audit_logs, audit_retention_policies
+- company_entitlements, notifications, permissions, role_permissions
+- roles, support_company_assignments, tenants, user_company_memberships, users
 
-- [ ] WP-C1-01：PostgreSQL 環境建立 + Migration 驗證
-- [ ] WP-C1-02：Attendance Auth JWT 轉換
-- [ ] WP-C1-03：Auth 轉換 Batch 2
-- [ ] WP-C1-04：8 個回歸測試
-- [ ] WP-C1-05：Tenant Isolation 真實 DB 測試
-- [ ] WP-C1-06：Feature Gate 套用
-- [ ] WP-C1-07：API 文件補齊
-- [ ] WP-C2-01：Location Policy 擴展
-- [ ] WP-C2-02：Reporting Backend
-- [ ] WP-11-13 Manual QA：執行後記錄
+**未驗證（NOT_VERIFIED）／阻塞記錄：**
 
----
+1. **test_business_invariant.py：6/12 PASS，6 FAIL**
+   - 失敗原因 A：`AttendanceSessionRepository.close_session()` 不接受 `company_id` keyword argument，但測試傳入此參數（API 簽名不符，為既有程式碼問題）
+   - 失敗原因 B：datetime timezone mismatch（DB 回傳含 timezone，測試比較 naive datetime）
+   - 此為既有程式碼缺陷，非環境問題，留待 WP-C1-02 修正
 
-## System Reality Verification v2（2026-03-11）
-
-**執行日期：** 2026-03-11  
-**性質：** 純驗證（Read-Only），未修改任何程式碼
-
-### 驗證範圍
-
-- A. Auth / Identity / Scope：逐 api.py grep Depends() 宣告
-- B. Attendance 核心：逐 endpoint 讀取實作細節
-- C. audit / backup / notifications：grep auth 機制
-- D. Migration Chain：grep down_revision 建立完整鏈
-- E. Test Coverage：grep def test_、DB 類型、Mock 使用
-- F. Frontend：router/index.js、stores/、殘留檔案
-- G. Docs 一致性：7 份文件交叉比對
-
-### CODE_CONFIRMED 關鍵發現
-
-| 發現 | 影響 |
-|------|------|
-| backup/api.py 使用 Header auth（非 JWT） | SYSTEM_DEVELOPMENT_STATUS_REPORT 此欄位有誤 |
-| admin_location 3 個寫入端點均為 # TODO RBAC | P0 安全漏洞，任何用戶可管理地點政策 |
-| Location Policy 只在 break-out 有效 | punch-in/out/break-in 無 location check |
-| Feature Gate 完全未套用任何生產 endpoint | SaaS 功能分級無效 |
-| test_regression.py 只有 1 個 test function | Test 1-7 完全不存在 |
-| test_tenant_isolation.py 用 DummySession | 非真實 DB 驗證 |
-| audit/backup/notifications 測試用 SQLite :memory: | 無法驗證 PostgreSQL 特有行為 |
-| customer_service 有 0 個 test functions | 完全無測試覆蓋 |
-| Header auth 端點實際為 24 個（非 18 個） | admin_location 5 個端點未被舊報告計入 |
-| migration chain 單一 head（008_wp_11_13） | CODE_CONFIRMED 正確 |
-
-### 仍 NOT_VERIFIED 項目
-
-- alembic upgrade head runtime 執行
-- 所有 pytest 在真實 PostgreSQL 執行結果
-- JWT login → attendance API 完整流程
-- GPS → break-out → location policy 端到端
-- Tenant Isolation 在真實 DB 查詢層
-
-### 文件更新
-
-- **新增**：`docs/SYSTEM_REALITY_REPORT_v2.md`（主報告）
-- **更新**：`docs/GATE_PROGRESS_TRACKER.md`（修正 Header auth 模組數、回歸測試狀態）
-- **更新**：`docs/NEXT_WP_TICKET.md`（複核確認 WP-C1-01 不變）
-- **更新**：`docs/SYSTEM_DEVELOPMENT_STATUS_REPORT.md`（加 SUPERSEDED 聲明）
-
-### 被標示為過期或需 refresh 的文件
-
-| 文件 | 問題 |
-|------|------|
-| SYSTEM_DEVELOPMENT_STATUS_REPORT.md | backup auth 欄位錯誤；Header 端點數錯誤 |
-| ATTENDANCE_LOCATION_POLICY_SPEC_v1.0.md | 聲稱 location policy 適用全部打卡流程，實際只有 break-out |
-| ATTENDANCE_DEVELOPMENT_MASTER_FLOW.md | WP-11-04B 仍標為 CURRENT（已完成） |
+2. **test_migration.py：0/9 PASS**
+   - 失敗原因：`alembic/env.py` L32 `config.set_main_option("sqlalchemy.url", settings.database_url)` 強制覆蓋，使測試 fixture 中設定的 `TEST_DATABASE_URL` 完全無效
+   - migration 永遠連到 `attendance_db`（.env 

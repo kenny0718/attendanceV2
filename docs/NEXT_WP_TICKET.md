@@ -1,7 +1,7 @@
 # Next WP Ticket
 
-**更新日期：** 2026-03-11  
-**當前狀態：** 系統驗證基線已建立；切換為「基線修正優先」模式
+**更新日期：** 2026-03-11（WP-C1-01 完成後更新）
+**當前狀態：** WP-C1-01 VERIFIED；切換至 WP-C1-02
 
 ---
 
@@ -9,7 +9,7 @@
 
 本文件從即日起切換為 **基線修正優先（Baseline-Fix-First）** 模式。
 
-**不再推薦直接開發新功能**（reporting / leave / approval）。  
+**不再推薦直接開發新功能**（reporting / leave / approval）。
 **原因：**
 1. 5 個模組仍使用 Header auth，存在嚴重安全漏洞（任何人可偽造身份）
 2. Admin Location API 完全無 RBAC
@@ -19,7 +19,7 @@
 
 ---
 
-## 當前完成狀態（截至 2026-03-11）
+## 當前完成狀態（截至 2026-03-11，WP-C1-01 完成後）
 
 | WP | 名稱 | 狀態 |
 |----|------|------|
@@ -32,6 +32,7 @@
 | WP-11-07~13 Step3A | Frontend UI 系列 | COMPLETED（CODE_COMPLETE） |
 | WP-11-13 Manual QA | GPS + UI 人工測試 | BLOCKED（需環境） |
 | **系統驗證基線建立** | SYSTEM_VERIFICATION_BASELINE | **COMPLETED（2026-03-11）** |
+| **WP-C1-01** | PostgreSQL 環境建立 + Migration 驗證 | **VERIFIED（2026-03-11）** |
 
 ---
 
@@ -55,58 +56,62 @@ POST/PUT/DELETE `/api/v1/admin/allowed-locations` 的 RBAC 為 `# TODO`，普通
 
 ---
 
-## 下一個建議工作包：WP-C1-01
+## 當前建議工作包：WP-C1-02
 
-### WP-C1-01：建立 PostgreSQL 測試環境 + Migration 驗證
+### WP-C1-02：Attendance 模組 JWT 身份驗證遷移
+
+**前置條件：** WP-C1-01 VERIFIED ✅（2026-03-11）
 
 **為什麼先做這個：**
-- 這是所有後續工作的基礎
-- 不需要修改程式碼，只需要環境設定
-- 完成後立即解鎖 WP-C1-02 和回歸測試執行
-- 可在 30-60 分鐘內完成
+- attendance 模組 10 個 endpoint 全部使用 Header auth，是最大的 P0 安全漏洞
+- admin_location 3 個寫入 endpoint 完全無 RBAC，需同步修正
+- 完成後解鎖 WP-C1-04（回歸測試）
 
-**執行步驟：**
+**受影響 Endpoint（來源：SYSTEM_GROUND_TRUTH.md 1.3）：**
 
-```bash
-# 1. 確認 PostgreSQL 服務狀態
-psql --version
+| Endpoint | 行號 |
+|----------|------|
+| POST /mock-create | L70-73 |
+| POST /{id}/approve | L84-90 |
+| POST /v1/punch-in | L109-115 |
+| POST /v1/punch-out | L173-179 |
+| GET  /v1/current-status | L266-270 |
+| GET  /v1/history | L352-359 |
+| POST /v1/break-out | L410-416 |
+| POST /v1/break-in | L493-499 |
+| GET  /v1/break-punches | L544-549 |
+| PATCH /v1/punch/{id}/note | L607-613 |
 
-# 2. 建立測試資料庫
-createdb attendance_db
+**admin_location RBAC 缺口（SYSTEM_GROUND_TRUTH.md 2.1）：**
 
-# 3. 設定 DATABASE_URL
-export DATABASE_URL="postgresql+psycopg2://postgres:password@127.0.0.1:5432/attendance_db"
+| Endpoint | 行號 | 現況 |
+|----------|------|------|
+| POST / (create) | L47 | TODO 驗證管理員權限 — 無 RBAC |
+| PUT /{id} | L166 | TODO 驗證管理員權限 — 無 RBAC |
+| DELETE /{id} | L207 | TODO 驗證管理員權限 — 無 RBAC |
 
-# 4. 執行 migration
-cd /opt/attendance-system/backend
-python -m alembic upgrade head
-
-# 5. 確認 migration 結果
-python -m alembic current
-python -m alembic heads
-
-# 6. 確認所有 table 建立
-psql -d attendance_db -c "\dt"
-
-# 7. 執行 migration smoke test
-pytest tests/test_migration_smoke.py -v
-```
+**已知額外問題（WP-C1-01 發現）：**
+- `AttendanceSessionRepository.close_session()` API 簽名與 test_business_invariant.py 不符
+- datetime timezone mismatch 問題
+- 以上需在 WP-C1-02 修正 auth 時一併確認
 
 **Definition of Done：**
-- [ ] `alembic upgrade head` 執行成功（008_wp_11_13 為 head）
-- [ ] `alembic heads` 只顯示一個 head
-- [ ] 所有 15 個 table 正確建立
-- [ ] migration smoke test 通過
-- [ ] `WORKSTREAM_STATUS_LEDGER.md` 更新
+- [ ] attendance/api.py 所有 endpoint 改用 get_current_actor()
+- [ ] get_current_company_id 在 attendance 模組中已移除
+- [ ] admin_location_api.py 3 個寫入 endpoint 實作 RBAC
+- [ ] 既有 attendance 測試更新為使用 JWT token
+- [ ] 所有 attendance 測試在真實 DB 通過
+- [ ] WORKSTREAM_STATUS_LEDGER.md 更新
+- [ ] MODULE_STATUS_MATRIX.md attendance auth 欄位更新為 VERIFIED
 
 ---
 
 ## 後續 WP 順序
 
 ```
-WP-C1-01（DB 環境）
+WP-C1-01（DB 環境）✅ VERIFIED 2026-03-11
   ↓
-WP-C1-02（Attendance Auth JWT 轉換）
+WP-C1-02（Attendance Auth JWT 轉換）← 當前
   ↓
 WP-C1-03（Auth 轉換 Batch 2：audit/notifications/backup）
   ↓
@@ -124,28 +129,9 @@ WP-C2-01（Location Policy 擴展至所有打卡流程）
 WP-11-13 Manual QA（同步執行）
   ↓
 WP-C2-02（Reporting Backend）
-  ...
 ```
 
 ---
 
-**最後更新：** 2026-03-11  
-**更新原因：** 系統驗證基線建立後，切換為基線修正優先模式
-
----
-
-## System Reality Verification v2 複核結果（2026-03-11）
-
-**經 System Reality Verification v2 複核後，下一 WP 維持不變：WP-C1-01**
-
-複核新發現（CODE_CONFIRMED）：
-- backup auth 確認為 Header（非 JWT）→ Header auth 模組從 4 個修正為 5 個
-- Header auth 端點總數從 18 個修正為 **24 個**（含 admin_location 5 個端點）
-- Feature Gate 確認完全未套用至任何生產 endpoint
-- Location Policy 確認只在 break-out 有效（非全部打卡流程）
-- admin_location 3 個寫入端點確認為純 TODO（無 RBAC 代碼）
-- test_regression.py 確認只有 1 個 test function（Test 8 骨架），且使用 Header auth
-
-以上發現均強化「必須先完成 WP-C1-01 建立環境基線」的判斷，優先順序不變。
-
-**權威依據：** `docs/SYSTEM_REALITY_REPORT_v2.md`（2026-03-11）
+**最後更新：** 2026-03-11
+**更新原因：** WP-C1-01 VERIFIED，切換至 WP-C1-02

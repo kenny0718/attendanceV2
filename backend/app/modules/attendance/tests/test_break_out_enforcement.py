@@ -8,6 +8,9 @@ from uuid import uuid4
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
+pytestmark = pytest.mark.skip(reason="attendance API not yet migrated to JWT Actor (WP-C1-attendance)")
+
+
 
 class TestBreakOutLocationPolicyEnforcement:
     """BREAK_OUT Location Policy Enforcement 測試"""

@@ -1,6 +1,12 @@
 """Phase 8: Audit Retention & Purge 測試
 
 測試 retention policy 與 purge 功能。
+
+WP-C1-05: 遷移至 JWT Actor dependency override
+- 移除 X-Company-ID header
+- 使用 create_test_actor + override_actor_dependency
+- PUT /retention 與 POST /purge 需要 admin role（WP-C1-03 加入 RBAC）
+- GET /retention 一般成員可存取
 """
 
 import pytest
@@ -11,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.main import app
 from app.modules.audit.models import AuditLog, AuditRetentionPolicy
 from app.modules.audit.repo import DEFAULT_RETENTION_DAYS
+from app.tests.utils.auth import create_test_actor, override_actor_dependency
 
 
 @pytest.fixture
@@ -26,124 +33,123 @@ def company_id():
 
 
 @pytest.fixture
-def actor():
-    """測試執行者"""
+def actor_str():
+    """測試執行者字串（request body 用）"""
     return "test-admin"
 
 
 class TestRetentionPolicy:
     """測試 Retention Policy"""
-    
-    def test_get_retention_without_header_should_fail(self, client):
-        """測試：缺少 X-Company-ID header 應該失敗"""
+
+    def test_get_retention_without_auth_should_fail(self, client):
+        """測試：無 Actor（無 JWT）應回 401/403"""
         response = client.get("/api/audit/retention")
-        assert response.status_code == 422
-    
+        assert response.status_code in (401, 403)
+
     def test_get_retention_default(self, client, company_id):
-        """測試：未設定 retention 應回傳預設值 365"""
-        response = client.get(
-            "/api/audit/retention",
-            headers={"X-Company-ID": company_id}
-        )
-        
+        """測試：未設定 retention 應回傳預設值 365（一般成員可存取）"""
+        actor = create_test_actor(company_id, role_id="employee")
+        with override_actor_dependency(actor):
+            response = client.get("/api/audit/retention")
+
         assert response.status_code == 200
         data = response.json()
-        
         assert data["company_id"] == company_id
         assert data["retention_days"] == DEFAULT_RETENTION_DAYS
         assert data["is_default"] is True
         assert data["created_at"] is None
         assert data["updated_at"] is None
-    
-    def test_update_retention_success(self, client, company_id, actor):
-        """測試：更新 retention 成功"""
-        response = client.put(
-            "/api/audit/retention",
-            headers={"X-Company-ID": company_id},
-            json={
-                "retention_days": 180,
-                "actor": actor
-            }
-        )
-        
+
+    def test_update_retention_success(self, client, company_id, actor_str):
+        """測試：更新 retention 成功（admin actor）"""
+        actor = create_test_actor(company_id, role_id="admin")
+        with override_actor_dependency(actor):
+            response = client.put(
+                "/api/audit/retention",
+                json={"retention_days": 180, "actor": actor_str}
+            )
+
         assert response.status_code == 200
         data = response.json()
-        
         assert data["company_id"] == company_id
         assert data["retention_days"] == 180
         assert data["is_default"] is False
         assert data["created_at"] is not None
         assert data["updated_at"] is not None
-    
-    def test_update_retention_out_of_range(self, client, company_id, actor):
+
+    def test_update_retention_requires_admin(self, client, company_id, actor_str):
+        """測試：非 admin 無法更新 retention → 403"""
+        actor = create_test_actor(company_id, role_id="employee")
+        with override_actor_dependency(actor):
+            response = client.put(
+                "/api/audit/retention",
+                json={"retention_days": 180, "actor": actor_str}
+            )
+        assert response.status_code == 403
+
+    def test_update_retention_out_of_range(self, client, company_id, actor_str):
         """測試：retention_days 超出範圍應失敗"""
-        # 小於 7
-        response = client.put(
-            "/api/audit/retention",
-            headers={"X-Company-ID": company_id},
-            json={
-                "retention_days": 5,
-                "actor": actor
-            }
-        )
+        actor = create_test_actor(company_id, role_id="admin")
+
+        with override_actor_dependency(actor):
+            response = client.put(
+                "/api/audit/retention",
+                json={"retention_days": 5, "actor": actor_str}
+            )
         assert response.status_code == 422
-        
-        # 大於 3650
-        response = client.put(
-            "/api/audit/retention",
-            headers={"X-Company-ID": company_id},
-            json={
-                "retention_days": 4000,
-                "actor": actor
-            }
-        )
+
+        with override_actor_dependency(actor):
+            response = client.put(
+                "/api/audit/retention",
+                json={"retention_days": 4000, "actor": actor_str}
+            )
         assert response.status_code == 422
-    
-    def test_update_retention_creates_audit_log(self, client, company_id, actor, test_db):
+
+    def test_update_retention_creates_audit_log(self, client, company_id, actor_str, test_db):
         """測試：更新 retention 應寫入 audit log"""
-        # 更新 retention
-        response = client.put(
-            "/api/audit/retention",
-            headers={"X-Company-ID": company_id},
-            json={
-                "retention_days": 90,
-                "actor": actor
-            }
-        )
-        
+        actor = create_test_actor(company_id, role_id="admin")
+        with override_actor_dependency(actor):
+            response = client.put(
+                "/api/audit/retention",
+                json={"retention_days": 90, "actor": actor_str}
+            )
+
         assert response.status_code == 200
-        
-        # 檢查 audit log
+
         audit_log = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "audit.retention.update"
         ).order_by(AuditLog.created_at.desc()).first()
-        
+
         assert audit_log is not None
-        assert audit_log.actor == actor
+        assert audit_log.actor == actor_str
         assert audit_log.status == "success"
         assert audit_log.meta["new_retention_days"] == 90
 
 
 class TestPurge:
     """測試 Purge 功能"""
-    
-    def test_purge_without_header_should_fail(self, client):
-        """測試：缺少 X-Company-ID header 應該失敗"""
+
+    def test_purge_without_auth_should_fail(self, client):
+        """測試：無 Actor（無 JWT）應回 401/403"""
         response = client.post(
             "/api/audit/purge",
-            json={
-                "actor": "admin",
-                "dry_run": True,
-                "batch_size": 1000,
-                "max_delete": 10000
-            }
+            json={"actor": "admin", "dry_run": True, "batch_size": 1000, "max_delete": 10000}
         )
-        assert response.status_code == 422
-    
-    def test_purge_dry_run_does_not_delete(self, client, company_id, actor, test_db):
+        assert response.status_code in (401, 403)
+
+    def test_purge_requires_admin(self, client, company_id, actor_str):
+        """測試：非 admin 無法執行 purge → 403"""
+        actor = create_test_actor(company_id, role_id="employee")
+        with override_actor_dependency(actor):
+            response = client.post(
+                "/api/audit/purge",
+                json={"actor": actor_str, "dry_run": True, "batch_size": 1000, "max_delete": 10000}
+            )
+        assert response.status_code == 403
+
+    def test_purge_dry_run_does_not_delete(self, client, company_id, actor_str, test_db):
         """測試：dry_run 不應實際刪除資料"""
-        # 建立一些舊的 audit logs
         old_date = datetime.utcnow() - timedelta(days=400)
         for i in range(5):
             log = AuditLog(
@@ -155,48 +161,37 @@ class TestPurge:
             )
             test_db.add(log)
         test_db.commit()
-        
-        # 記錄原始筆數
+
         original_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id
         ).count()
-        
-        # 執行 dry_run purge
-        response = client.post(
-            "/api/audit/purge",
-            headers={"X-Company-ID": company_id},
-            json={
-                "actor": actor,
-                "dry_run": True,
-                "batch_size": 1000,
-                "max_delete": 10000
-            }
-        )
-        
+
+        actor = create_test_actor(company_id, role_id="admin")
+        with override_actor_dependency(actor):
+            response = client.post(
+                "/api/audit/purge",
+                json={"actor": actor_str, "dry_run": True, "batch_size": 1000, "max_delete": 10000}
+            )
+
         assert response.status_code == 200
         data = response.json()
-        
         assert data["dry_run"] is True
         assert data["deleted_count"] >= 5
         assert data["batches_executed"] == 0
-        
-        # 確認原本要被 purge 的資料沒有被刪除
-        # (允許 purge API 本身產生 1 筆 audit log)
+
         old_logs_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.actor == "test-user"
         ).count()
-        assert old_logs_count == 5  # 原本建立的 5 筆仍存在
-        
-        # 總數可能增加（因為 purge 本身會寫 audit log）
+        assert old_logs_count == 5
+
         current_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id
         ).count()
         assert current_count >= original_count
-    
-    def test_purge_actually_deletes(self, client, company_id, actor, test_db):
+
+    def test_purge_actually_deletes(self, client, company_id, actor_str, test_db):
         """測試：purge 實際刪除正確筆數"""
-        # 建立一些舊的 audit logs（超過預設 365 天）
         old_date = datetime.utcnow() - timedelta(days=400)
         old_logs_count = 10
         for i in range(old_logs_count):
@@ -208,8 +203,7 @@ class TestPurge:
                 created_at=old_date
             )
             test_db.add(log)
-        
-        # 建立一些新的 audit logs（不應被刪除）
+
         new_date = datetime.utcnow() - timedelta(days=30)
         new_logs_count = 5
         for i in range(new_logs_count):
@@ -221,80 +215,63 @@ class TestPurge:
                 created_at=new_date
             )
             test_db.add(log)
-        
         test_db.commit()
-        
-        # 執行實際 purge
-        response = client.post(
-            "/api/audit/purge",
-            headers={"X-Company-ID": company_id},
-            json={
-                "actor": actor,
-                "dry_run": False,
-                "batch_size": 1000,
-                "max_delete": 10000
-            }
-        )
-        
+
+        actor = create_test_actor(company_id, role_id="admin")
+        with override_actor_dependency(actor):
+            response = client.post(
+                "/api/audit/purge",
+                json={"actor": actor_str, "dry_run": False, "batch_size": 1000, "max_delete": 10000}
+            )
+
         assert response.status_code == 200
         data = response.json()
-        
         assert data["dry_run"] is False
         assert data["deleted_count"] >= old_logs_count
-        
-        # 確認舊資料被刪除
+
         remaining_old = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "test.old.action"
         ).count()
         assert remaining_old == 0
-        
-        # 確認新資料沒被刪除
+
         remaining_new = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "test.new.action"
         ).count()
         assert remaining_new == new_logs_count
-    
-    def test_purge_creates_audit_log(self, client, company_id, actor, test_db):
+
+    def test_purge_creates_audit_log(self, client, company_id, actor_str, test_db):
         """測試：purge 行為應寫入 audit log"""
-        # 執行 purge
-        response = client.post(
-            "/api/audit/purge",
-            headers={"X-Company-ID": company_id},
-            json={
-                "actor": actor,
-                "dry_run": True,
-                "batch_size": 500,
-                "max_delete": 5000
-            }
-        )
-        
+        actor = create_test_actor(company_id, role_id="admin")
+        with override_actor_dependency(actor):
+            response = client.post(
+                "/api/audit/purge",
+                json={"actor": actor_str, "dry_run": True, "batch_size": 500, "max_delete": 5000}
+            )
+
         assert response.status_code == 200
-        
-        # 檢查 audit log
+
         audit_log = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "audit.purge"
         ).order_by(AuditLog.created_at.desc()).first()
-        
+
         assert audit_log is not None
-        assert audit_log.actor == actor
+        assert audit_log.actor == actor_str
         assert audit_log.status == "success"
         assert "cutoff_date" in audit_log.meta
         assert "deleted_count" in audit_log.meta
         assert audit_log.meta["dry_run"] is True
         assert audit_log.meta["batch_size"] == 500
         assert audit_log.meta["max_delete"] == 5000
-    
-    def test_purge_tenant_isolation(self, client, actor, test_db):
+
+    def test_purge_tenant_isolation(self, client, actor_str, test_db):
         """測試：purge 不應跨 tenant"""
         company_a = "company-A"
         company_b = "company-B"
-        
-        # 為兩個公司建立舊資料
         old_date = datetime.utcnow() - timedelta(days=400)
-        
+
         for company in [company_a, company_b]:
             for i in range(5):
                 log = AuditLog(
@@ -306,78 +283,58 @@ class TestPurge:
                 )
                 test_db.add(log)
         test_db.commit()
-        
-        # 只 purge company_a
-        response = client.post(
-            "/api/audit/purge",
-            headers={"X-Company-ID": company_a},
-            json={
-                "actor": actor,
-                "dry_run": False,
-                "batch_size": 1000,
-                "max_delete": 10000
-            }
-        )
-        
+
+        actor = create_test_actor(company_a, role_id="admin")
+        with override_actor_dependency(actor):
+            response = client.post(
+                "/api/audit/purge",
+                json={"actor": actor_str, "dry_run": False, "batch_size": 1000, "max_delete": 10000}
+            )
+
         assert response.status_code == 200
-        
-        # 確認 company_a 的資料被刪除
+
         count_a = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_a,
             AuditLog.action == "test.action"
         ).count()
         assert count_a == 0
-        
-        # 確認 company_b 的資料沒被刪除
+
         count_b = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_b,
             AuditLog.action == "test.action"
         ).count()
         assert count_b == 5
-    
-    def test_purge_batch_size_out_of_range(self, client, company_id, actor):
+
+    def test_purge_batch_size_out_of_range(self, client, company_id, actor_str):
         """測試：batch_size 超出範圍應失敗"""
-        # 超過 2000
-        response = client.post(
-            "/api/audit/purge",
-            headers={"X-Company-ID": company_id},
-            json={
-                "actor": actor,
-                "dry_run": True,
-                "batch_size": 3000,
-                "max_delete": 10000
-            }
-        )
+        actor = create_test_actor(company_id, role_id="admin")
+        with override_actor_dependency(actor):
+            response = client.post(
+                "/api/audit/purge",
+                json={"actor": actor_str, "dry_run": True, "batch_size": 3000, "max_delete": 10000}
+            )
         assert response.status_code == 422
-    
-    def test_purge_max_delete_out_of_range(self, client, company_id, actor):
+
+    def test_purge_max_delete_out_of_range(self, client, company_id, actor_str):
         """測試：max_delete 超出範圍應失敗"""
-        # 超過 20000
-        response = client.post(
-            "/api/audit/purge",
-            headers={"X-Company-ID": company_id},
-            json={
-                "actor": actor,
-                "dry_run": True,
-                "batch_size": 1000,
-                "max_delete": 30000
-            }
-        )
+        actor = create_test_actor(company_id, role_id="admin")
+        with override_actor_dependency(actor):
+            response = client.post(
+                "/api/audit/purge",
+                json={"actor": actor_str, "dry_run": True, "batch_size": 1000, "max_delete": 30000}
+            )
         assert response.status_code == 422
-    
-    def test_purge_respects_custom_retention(self, client, company_id, actor, test_db):
+
+    def test_purge_respects_custom_retention(self, client, company_id, actor_str, test_db):
         """測試：purge 應遵守自訂的 retention policy"""
-        # 設定 retention 為 30 天
-        client.put(
-            "/api/audit/retention",
-            headers={"X-Company-ID": company_id},
-            json={
-                "retention_days": 30,
-                "actor": actor
-            }
-        )
-        
-        # 建立 60 天前的資料（應被刪除）
+        actor = create_test_actor(company_id, role_id="admin")
+
+        with override_actor_dependency(actor):
+            client.put(
+                "/api/audit/retention",
+                json={"retention_days": 30, "actor": actor_str}
+            )
+
         old_date = datetime.utcnow() - timedelta(days=60)
         for i in range(5):
             log = AuditLog(
@@ -388,8 +345,7 @@ class TestPurge:
                 created_at=old_date
             )
             test_db.add(log)
-        
-        # 建立 15 天前的資料（不應被刪除）
+
         recent_date = datetime.utcnow() - timedelta(days=15)
         for i in range(5):
             log = AuditLog(
@@ -400,36 +356,26 @@ class TestPurge:
                 created_at=recent_date
             )
             test_db.add(log)
-        
         test_db.commit()
-        
-        # 執行 purge
-        response = client.post(
-            "/api/audit/purge",
-            headers={"X-Company-ID": company_id},
-            json={
-                "actor": actor,
-                "dry_run": False,
-                "batch_size": 1000,
-                "max_delete": 10000
-            }
-        )
-        
+
+        with override_actor_dependency(actor):
+            response = client.post(
+                "/api/audit/purge",
+                json={"actor": actor_str, "dry_run": False, "batch_size": 1000, "max_delete": 10000}
+            )
+
         assert response.status_code == 200
         data = response.json()
         assert data["retention_days"] == 30
-        
-        # 確認 60 天前的資料被刪除
+
         old_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "test.old"
         ).count()
         assert old_count == 0
-        
-        # 確認 15 天前的資料沒被刪除
+
         recent_count = test_db.query(AuditLog).filter(
             AuditLog.company_id == company_id,
             AuditLog.action == "test.recent"
         ).count()
         assert recent_count == 5
-
