@@ -1,273 +1,126 @@
 # Gate Progress Tracker
 
-**專案**: Attendance Location Module  
-**更新日期**: 2026-03-08
+**最後更新：** 2026-03-11
 
 ---
 
-## 總體進度
+## ⚠️ 重要狀態說明
 
-```
-Phase 1: Legacy Cleanup        ██████████ 100% (✅ CLOSED - QA Passed)
-Phase 2: Shared Module         ███░░░░░░░  30% (Design Complete, Implementation Not Started)
-Phase 3: Policy Migration      ░░░░░░░░░░   0% (未開始)
-Phase 4: UI Enhancement        ░░░░░░░░░░   0% (未開始)
-```
+本文件於 2026-03-11 更新，反映「系統驗證基線建立」後的真實狀態。
 
-**整體完成度**: 32%
-
-**WP-11-11.5 狀態**: ✅ CLOSED  
-**QA 狀態**: ✅ Passed  
-**Tag**: qa-passed/wp-11-11.5
+**狀態分類說明：**
+- `COMPLETED`：有明確的程式碼 + 文件記錄
+- `CODE_COMPLETE`：程式碼存在，但 runtime 未驗證（特別標注）
+- `NOT_VERIFIED`：測試存在但從未在真實 DB 通過
+- `BLOCKED`：有明確阻塞原因
+- `NOT_STARTED`：尚未開始
 
 ---
 
-## Phase 1: Legacy Cleanup（✅ CLOSED - QA Passed）
+## Gate 5 — Frontend UI Phase
 
-### 目標
-清理舊 GPS 流程，為 shared location module 做準備。
-
-### 最終狀態
-
-**狀態**: ✅ CLOSED  
-**完成日期**: 2026-03-08  
-**QA 日期**: 2026-03-08  
-**Tag**: qa-passed/wp-11-11.5
+**狀態：** IN_PROGRESS（Phase 1 基線修正未完成）
 
 ---
 
-### Gate 1.1: Inventory & Analysis ✅
+### Backend WP 完成狀態
 
-**狀態**: 已完成  
-**完成日期**: 2026-03-08
-
-**交付物**:
-- ✅ `docs/ATTENDANCE_GPS_LEGACY_INVENTORY.md`
-
----
-
-### Gate 1.2: Cleanup Plan ✅
-
-**狀態**: 已完成  
-**完成日期**: 2026-03-08
-
-**交付物**:
-- ✅ `docs/ATTENDANCE_GPS_LEGACY_CLEANUP_PLAN.md`
-
----
-
-### Gate 1.3: Dead Code Removal ✅
-
-**狀態**: 已完成  
-**完成日期**: 2026-03-08
-
-**交付物**:
-- ✅ 刪除備份檔案
+| WP | 名稱 | 狀態 | 備注 |
+|----|------|------|------|
+| WP-11-01 | Attendance Domain Model | COMPLETED | code scan 確認；runtime NOT_VERIFIED |
+| WP-11-02 | Punch In/Out API | CODE_COMPLETE | auth 使用 Header，需 WP-C1-02 修正 |
+| WP-11-03 | Policy Engine v1 | CODE_COMPLETE | runtime NOT_VERIFIED |
+| WP-11-04A | Company Entitlements + Feature Flags | CODE_COMPLETE | Feature Gate 套用 MISSING |
+| WP-11-04B | Gate Ready Audit | COMPLETED | 部分結論已被 SYSTEM_VERIFICATION_BASELINE 更新 |
+| WP-11-05 | Attendance Regression Tests | PARTIAL — 1/8 實作，0/8 在真實 DB 通過 | **P0 缺口** |
+| WP-11-05A | Attendance Models Sync | COMPLETED | |
+| WP-11-06 / WP-C1-02 | Auth 轉換 Batch 1（attendance） | NOT_STARTED | **P0** |
+| WP-C1-03 | Auth 轉換 Batch 2-4（audit/notifications/backup） | NOT_STARTED | **P0** |
+| WP-C1-04 | 回歸測試真實 DB 執行 | NOT_STARTED | 依賴 WP-C1-02 |
+| WP-C1-05 | Tenant Isolation 真實 DB 驗證 | NOT_STARTED | 依賴 WP-C1-04 |
+| WP-C1-06 | Feature Gate 套用至所有 API | NOT_STARTED | |
+| WP-C1-07 / WP-15 | API 文件補充 | NOT_STARTED | |
+| WP-C1-01 | PostgreSQL 環境建立 + Migration 驗證 | NOT_STARTED | **建議下一個執行** |
 
 ---
 
-### Gate 1.4: Location Adapter ✅
+### Frontend WP 完成狀態
 
-**狀態**: 已完成  
-**完成日期**: 2026-03-08
-
-**交付物**:
-- ✅ `frontend/src/utils/locationAdapter.js`
-
----
-
-### Gate 1.5: Store Refactoring ✅
-
-**狀態**: 已完成  
-**完成日期**: 2026-03-08
-
-**交付物**:
-- ✅ 更新 `frontend/src/stores/attendance.js`
+| WP | 名稱 | 狀態 | 備注 |
+|----|------|------|------|
+| WP-11-07 | UI MVP Kickoff | COMPLETED | |
+| WP-11-08 | JWT Auth Integration | COMPLETED | |
+| WP-11-10 | OUT Checkpoint Feature | COMPLETED+REMOVED | migration 007 殘留 table |
+| WP-11-11.5 | GPS Legacy Cleanup | CLOSED | |
+| WP-11-12 Ph1 | useLocation Composable | COMPLETED | |
+| WP-11-12 Ph2B | BREAK_OUT Integration | CLOSED | |
+| WP-11-13 Step2 | Backend Location Policy | CODE_COMPLETE | commit d8eb797 |
+| WP-11-13 Step3A | Frontend Integration | CODE_COMPLETE | |
+| WP-11-13 Manual QA | 瀏覽器 GPS + UI 人工測試 | BLOCKED | 需真實瀏覽器 + PostgreSQL 環境 |
 
 ---
 
-### Gate 1.6: View Refactoring ✅
+### 新建文件狀態（2026-03-11）
 
-**狀態**: 已完成  
-**完成日期**: 2026-03-08
-
-**交付物**:
-- ✅ 更新 `frontend/src/views/Home.vue`
-
----
-
-### Gate 1.7: Blocker Bug Fix ✅
-
-**狀態**: 已完成  
-**完成日期**: 2026-03-08
-
-**交付物**:
-- ✅ 修復上班打卡後狀態顯示錯誤
-- ✅ 修復 404 錯誤
-
-**Commit**: 15f7deb
+| 文件 | 狀態 |
+|------|------|
+| docs/SYSTEM_VERIFICATION_BASELINE.md | ✅ 新建（2026-03-11） |
+| docs/MODULE_STATUS_MATRIX.md | ✅ 新建（2026-03-11） |
+| docs/DEVELOPMENT_EXECUTION_PLAN.md | ✅ 新建（2026-03-11） |
+| docs/ACCEPTANCE_PLAN.md | ✅ 新建（2026-03-11） |
+| docs/TEST_STRATEGY_MASTER.md | ✅ 新建（2026-03-11） |
+| docs/WORKSTREAM_STATUS_LEDGER.md | ✅ 新建（2026-03-11） |
+| docs/NEXT_WP_TICKET.md | ✅ 更新（切換為基線修正優先模式） |
 
 ---
 
-### Gate 1.8: Manual QA ✅
+### Gate 5 完成條件
 
-**狀態**: ✅ 通過  
-**完成日期**: 2026-03-08
-
-**測試結果**:
-- ✅ 上班打卡：Pass
-- ✅ 下班打卡：Pass
-- ✅ 外出打卡：Pass
-- ✅ 返回打卡：Pass
-
-**通過率**: 4/4 (100%)
+- [ ] Phase 1 基線修正完成（WP-C1-01 ~ WP-C1-07）
+- [ ] WP-11-13 Manual QA 通過
+- [ ] SA 符合度 > 95%（目前約 65-70%）
+- [ ] 8 個回歸測試在真實 DB 通過（目前 0/8）
+- [ ] 5 個 Tenant Isolation 測試在真實 DB 通過（目前 0/5）
+- [ ] 所有模組使用 JWT auth（目前 2/7）
+- [ ] Feature Gate 套用至所有核心 API（目前 0%）
 
 ---
 
-### Phase 1 Exit Criteria
+### 當前位置
 
-**必須完成**:
-- [x] ✅ Legacy GPS inventory 完成
-- [x] ✅ Cleanup plan 建立
-- [x] ✅ 備份檔案清理
-- [x] ✅ Location adapter 建立
-- [x] ✅ Store 重構完成
-- [x] ✅ View 重構完成
-- [x] ✅ 程式碼已提交至 Git
-- [x] ✅ Blocker Bug 已修復
-- [x] ✅ Manual QA 通過
-- [x] ✅ QA Tag 已建立
-
-**Exit Gate 狀態**: ✅ CLOSED
+- **剛完成：** 系統驗證基線建立（2026-03-11）
+- **當前阻塞：** 4 個 P0 技術債（見 NEXT_WP_TICKET.md）
+- **建議下一步：** WP-C1-01（PostgreSQL 環境建立 + Migration 驗證）
+- **Gate 5 估計完成度：** 40%（基線修正工作包尚未開始）
 
 ---
 
-## Phase 2: Shared Location Module（Design Complete, Implementation Not Started）
+### 已知文件不一致（需後續修正）
 
-### 目標
-實作可重用的 shared location module，取代臨時 adapter。
-
-### 狀態
-
-**狀態**: 待開始  
-**前置條件**: ✅ WP-11-11.5 已完成  
-**下一票**: WP-11-12
+| 文件 | 問題 | 狀態 |
+|------|------|------|
+| SYSTEM_DEVELOPMENT_STATUS_REPORT.md | backup auth 方式誤標為 JWT | Superseded by MODULE_STATUS_MATRIX.md |
+| ATTENDANCE_DEVELOPMENT_MASTER_FLOW.md | WP-11-04B 狀態仍為 CURRENT | 需更新 |
+| REALITY_AUDIT_STATUS_INVENTORY.md | 未含 migration 006/007/008 | 已過期，Superseded |
+| SA_REALITY_GAP_REPORT.md | 未反映 WP-11-13 實作 | 已過期，Superseded |
 
 ---
 
-### Gate 2.1: Module Design ✅
+## System Reality Verification v2 修正（2026-03-11）
 
-**狀態**: 已完成  
-**完成日期**: 2026-03-08
+以下結論經 code scan 重新確認，修正舊有錯誤記載：
 
-**交付物**:
-- ✅ `docs/ATTENDANCE_LOCATION_MODULE_SPEC.md`
-- ✅ `docs/ATTENDANCE_LOCATION_FRONTEND_REFACTOR_PLAN.md`
-- ✅ `docs/ATTENDANCE_LOCATION_API_CONTRACT_DRAFT.md`
-- ✅ `docs/ATTENDANCE_LOCATION_TEST_PLAN.md`
+| 項目 | 舊記載 | 新確認（CODE_CONFIRMED） |
+|------|--------|-------------------------|
+| Header auth 模組數 | 未明確列出 admin_location | **5 個**：attendance / audit / notifications / backup / admin_location |
+| backup auth 方式 | JWT（SYSTEM_DEVELOPMENT_STATUS_REPORT 錯誤） | **Header（X-Company-ID）** |
+| 回歸測試狀態 | PARTIAL（測試檔建立） | **1/8 實作（只有 Test 8 骨架），使用 Header auth，0/8 在真實 DB 通過** |
+| Feature Gate | 基礎設施完整 | **完全未套用至任何生產 endpoint** |
+| Tenant Isolation 測試 | 存在 | **test_tenant_isolation.py 使用 DummySession（Mock），非真實 DB** |
+| Location Policy 整合 | BREAK_OUT 已完成 | **只有 break-out；punch-in/out/break-in 均無 location policy check** |
 
----
+### 下一步建議（經 v2 驗證後不變）
 
-### Gate 2.2: Core Implementation ⏳
+**WP-C1-01（PostgreSQL 環境建立 + Migration 驗證）** 仍為正確的下一步。
 
-**狀態**: 未開始  
-**預計開始**: WP-11-12
-
-**交付物**:
-- ⏳ `frontend/src/composables/useLocation.js`
-
----
-
-### Gate 2.3: Adapter Replacement ⏳
-
-**狀態**: 未開始
-
----
-
-### Gate 2.4: Testing ⏳
-
-**狀態**: 未開始
-
----
-
-## Phase 3: Location Policy（未開始）
-
-### 目標
-實作 location policy，支援範圍驗證、精度要求等。
-
-**狀態**: 未開始  
-**預計票號**: WP-11-13
-
----
-
-## Phase 4: UI Enhancement（未開始）
-
-### 目標
-增強 location UI，提供地圖顯示、歷史軌跡等功能。
-
-**狀態**: 未開始  
-**預計票號**: WP-11-14
-
----
-
-## 里程碑
-
-| 里程碑 | 預計日期 | 狀態 |
-|--------|---------|------|
-| WP-11-11.5 Code Complete | 2026-03-08 | ✅ 已完成 |
-| WP-11-11.5 Manual QA | 2026-03-08 | ✅ 已完成 |
-| WP-11-11.5 CLOSED | 2026-03-08 | ✅ 已完成 |
-| WP-11-12 Design Complete | 2026-03-08 | ✅ 已完成 |
-| WP-11-12 Implementation | TBD | ⏳ 未開始 |
-| Location Policy 完成 | TBD | ⏳ 未開始 |
-| UI Enhancement 完成 | TBD | ⏳ 未開始 |
-
----
-
-## Git Milestone Tags
-
-### qa-passed/wp-11-11.5 ✅
-
-**日期**: 2026-03-08  
-**Commit**: 15f7deb  
-**狀態**: ✅ 已建立
-
-**內容**:
-- ✅ 所有主打卡流程通過
-- ✅ Blocker Bug 已修復
-- ✅ Manual QA 通過
-- ✅ 可作為 WP-11-12 穩定基線
-
----
-
-## 下一步行動
-
-### 已完成
-
-- [x] ✅ WP-11-11.5 開發完成
-- [x] ✅ Blocker Bug 修復
-- [x] ✅ Manual QA 執行
-- [x] ✅ QA 報告更新
-- [x] ✅ qa-passed tag 建立
-- [x] ✅ 文件更新
-
-### 下一步（WP-11-12）
-
-- [ ] ⏳ 審查設計文件
-- [ ] ⏳ 準備開發環境
-- [ ] ⏳ 建立開發分支
-- [ ] ⏳ 實作 useLocation composable
-
----
-
-## 相關文件
-
-- `docs/WP-11-11.5_CLOSURE_SUMMARY.md` - 結案摘要
-- `docs/WP-11-11.5_MANUAL_QA_REPORT.md` - QA 報告
-- `docs/WP-11-11.5_QA_SUMMARY.md` - QA 摘要
-- `docs/NEXT_WP_TICKET.md` - 下一票規劃
-
----
-
-**最後更新**: 2026-03-08  
-**狀態**: WP-11-11.5 CLOSED, WP-11-12 待開始
+權威依據：`docs/SYSTEM_REALITY_REPORT_v2.md`（2026-03-11）

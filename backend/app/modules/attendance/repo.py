@@ -10,8 +10,8 @@ WP-11-07 Phase 3B: Added get_last_break_punch method
 """
 
 import logging
-from datetime import datetime
-from app.core.config import get_current_time
+from datetime import datetime, timezone
+from app.core.config import get_current_time, get_utc_now
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
@@ -119,7 +119,7 @@ class AttendanceSessionRepository:
         session.status = 'closed'
         session.duration_minutes = duration_minutes
         session.policy_id = policy_id
-        session.updated_at = get_current_time()
+        session.updated_at = get_utc_now()  # P1: DB write must be UTC
         
         self.db.commit()
         self.db.refresh(session)
@@ -142,7 +142,7 @@ class AttendanceSessionRepository:
         location_lat: Optional[float] = None,
         location_lng: Optional[float] = None,
         notes: Optional[str] = None,
-        location_id: Optional[UUID] = None  # WP-11-13: 允許地點 ID
+        location_id: Optional[UUID] = None
     ) -> AttendancePunch:
         """創建打卡記錄
         
@@ -156,6 +156,7 @@ class AttendanceSessionRepository:
             location_lat: 緯度
             location_lng: 經度
             notes: 備註
+            location_id: 匹配的允許地點 ID (WP-11-13)
         
         Returns:
             AttendancePunch
@@ -170,7 +171,7 @@ class AttendanceSessionRepository:
             location_lat=location_lat,
             location_lng=location_lng,
             notes=notes,
-            location_id=location_id  # WP-11-13: 記錄匹配的地點
+            location_id=location_id
         )
         
         self.db.add(punch)
@@ -396,7 +397,7 @@ class AttendanceRepository:
             return None
         
         record.approved_by = approved_by
-        record.approved_at = get_current_time()
+        record.approved_at = get_utc_now()  # P1: DB write must be UTC
         
         self.db.commit()
         self.db.refresh(record)
@@ -508,7 +509,7 @@ class OutCheckpointRepository:
         from app.modules.attendance.models import AttendanceOutCheckpoint
         from datetime import timedelta
         
-        cutoff_time = get_current_time() - timedelta(seconds=within_seconds)
+        cutoff_time = get_utc_now() - timedelta(seconds=within_seconds)  # P1: compare UTC vs UTC punch_time
         
         return (
             self.db.query(AttendanceOutCheckpoint)

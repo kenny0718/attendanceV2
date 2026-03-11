@@ -1,10 +1,18 @@
 /**
- * Location Adapter (臨時過渡層)
+ * Location Adapter (臨時過渡層 - Transitional Bridge)
  * 
  * 目的: 在 shared location module 完成前，提供統一的定位介面
  * 注意: 這是臨時方案，未來會被 useLocation composable 取代
  * 
- * @deprecated 將在 shared location module 完成後移除
+ * @deprecated WP-11-12: 請使用 useLocation composable
+ * @status Transitional Bridge - 保留供向後相容
+ * @removal 當所有流程都使用 useLocation 後將移除
+ * 
+ * 目前狀態:
+ * - BREAK_OUT: ✅ 已改用 useLocation (WP-11-12 Phase 2B)
+ * - BREAK_IN: ⏳ 尚未遷移
+ * - OUT Checkpoint: ⏸️ 已停用
+ * - Home.vue deviceType: ⏳ 仍在使用
  */
 
 /**

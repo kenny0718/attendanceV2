@@ -53,6 +53,19 @@ engine = create_engine(
     max_overflow=10
 )
 
+# P1 Time Policy: 強制每個 DB session 使用 UTC
+# 確保 NOW()、server_default、timestamptz 讀回全為 +00:00
+# 不依賴 PostgreSQL server timezone 設定（目前為 Asia/Taipei）
+from sqlalchemy import event as _sa_event
+from sqlalchemy.pool import Pool as _Pool
+
+@_sa_event.listens_for(engine, "connect")
+def _set_utc_timezone(dbapi_conn, connection_record):
+    """每個新連線強制 session timezone = UTC (P1 Time Policy)"""
+    cursor = dbapi_conn.cursor()
+    cursor.execute("SET timezone = 'UTC'")
+    cursor.close()
+
 # Session Factory
 SessionLocal = sessionmaker(
     autocommit=False,

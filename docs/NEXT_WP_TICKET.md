@@ -1,342 +1,151 @@
-# Next WP Ticket: WP-11-12
+# Next WP Ticket
 
-**票號**: WP-11-12  
-**標題**: Shared Location Module - useLocation Composable 實作  
-**優先級**: P1  
-**預計開始**: WP-11-11.5 QA Passed 後  
-**狀態**: 待開始
+**更新日期：** 2026-03-11  
+**當前狀態：** 系統驗證基線已建立；切換為「基線修正優先」模式
 
 ---
 
-## 前置條件
+## 重要：模式切換
 
-### 必須完成
+本文件從即日起切換為 **基線修正優先（Baseline-Fix-First）** 模式。
 
-- [x] ✅ WP-11-11.5 QA passed
-- [x] ✅ 基線 tag / restore point 確認完成
-  - 建議 tag: `qa-passed/wp-11-11.5` 或 `milestone/wp-11-11.5-qa-passed`
-- [x] ✅ 結案摘要已確認
-- [x] ✅ 主打卡流程穩定運行
-
-### 明確排除項目
-
-**重要聲明**: 以下功能**不屬於 WP-11-12 第一階段必做**（除非 spec 明定）
-
-- ❌ out-checkpoints API 實作（後端）
-- ❌ out-checkpoints 前端完整功能
-- ❌ Geofencing 功能
-- ❌ Location policy 實作
-- ❌ 地圖 UI 整合
-- ❌ Location analytics
+**不再推薦直接開發新功能**（reporting / leave / approval）。  
+**原因：**
+1. 5 個模組仍使用 Header auth，存在嚴重安全漏洞（任何人可偽造身份）
+2. Admin Location API 完全無 RBAC
+3. 8 個回歸測試只有 1 個，且從未在真實 DB 執行通過
+4. Tenant Isolation 測試使用 Mock DB，非真實驗證
+5. 在不安全基線上開發新功能，等同將技術債翻倍
 
 ---
 
-## WP-11-12 目標
+## 當前完成狀態（截至 2026-03-11）
 
-### 核心目標
-
-實作可重用的 shared location module，取代臨時 locationAdapter。
-
-### 具體交付物
-
-1. **useLocation Composable**
-   - `frontend/src/composables/useLocation.js`
-   - Reactive state management
-   - 統一錯誤處理
-   - Loading state 管理
-   - Retry 機制
-
-2. **替換 locationAdapter**
-   - 更新 `attendance.js` store
-   - 更新 `Home.vue`
-   - 刪除 `locationAdapter.js`
-
-3. **測試**
-   - 單元測試
-   - 整合測試
-   - E2E 測試（可選）
+| WP | 名稱 | 狀態 |
+|----|------|------|
+| WP-11-01 | Attendance Domain Model | COMPLETED（CODE_COMPLETE） |
+| WP-11-02 | Punch In/Out API | COMPLETED（CODE_COMPLETE，auth 需轉換） |
+| WP-11-03 | Policy Engine v1 | COMPLETED（CODE_COMPLETE） |
+| WP-11-04A | Company Entitlements + Feature Flags | COMPLETED（CODE_COMPLETE） |
+| WP-11-04B | Gate Ready Audit | COMPLETED |
+| WP-11-05A | Attendance Models Sync | COMPLETED |
+| WP-11-07~13 Step3A | Frontend UI 系列 | COMPLETED（CODE_COMPLETE） |
+| WP-11-13 Manual QA | GPS + UI 人工測試 | BLOCKED（需環境） |
+| **系統驗證基線建立** | SYSTEM_VERIFICATION_BASELINE | **COMPLETED（2026-03-11）** |
 
 ---
 
-## WP-11-12 範圍
+## 當前阻塞
 
-### Phase 1: Core Composable（第一階段）
+### BLOCKER-1：全系統 Auth 雙軌制（P0）
 
-**目標**: 實作基本的 useLocation composable
+5 個模組（attendance / audit / notifications / backup / admin_location）仍使用 X-Company-ID Header，無使用者身份驗證。
 
-**包含**:
-- ✅ 裝置類型判斷
-- ✅ GPS 位置取得
-- ✅ 錯誤處理
-- ✅ Loading 狀態
-- ✅ Retry 機制
+### BLOCKER-2：Admin Location API 無 RBAC（P0）
 
-**不包含**:
-- ❌ Geofencing
-- ❌ Location policy
-- ❌ 地圖顯示
-- ❌ 複雜的快取機制
+POST/PUT/DELETE `/api/v1/admin/allowed-locations` 的 RBAC 為 `# TODO`，普通員工可操作地點政策。
 
----
+### BLOCKER-3：回歸測試基線缺失（P0）
 
-### Phase 2: Adapter Replacement（第二階段）
+8 個回歸測試只有 1 個（Test 8 骨架），且從未在真實 DB 執行通過。
 
-**目標**: 替換所有 locationAdapter 引用
+### BLOCKER-4：Tenant Isolation 未在真實 DB 驗證（P0）
 
-**包含**:
-- ✅ 更新 attendance.js
-- ✅ 更新 Home.vue
-- ✅ 刪除 locationAdapter.js
-- ✅ 回歸測試
-
-**不包含**:
-- ❌ 新增功能
-- ❌ UI 改版
+現有 `test_tenant_isolation.py` 使用 DummySession，非真實 PostgreSQL 驗證。
 
 ---
 
-### Phase 3: Testing & Documentation（第三階段）
+## 下一個建議工作包：WP-C1-01
 
-**目標**: 完整測試和文件
+### WP-C1-01：建立 PostgreSQL 測試環境 + Migration 驗證
 
-**包含**:
-- ✅ 單元測試
-- ✅ 整合測試
-- ✅ 使用文件
-- ✅ API 文件
+**為什麼先做這個：**
+- 這是所有後續工作的基礎
+- 不需要修改程式碼，只需要環境設定
+- 完成後立即解鎖 WP-C1-02 和回歸測試執行
+- 可在 30-60 分鐘內完成
 
----
+**執行步驟：**
 
-## 設計文件
+```bash
+# 1. 確認 PostgreSQL 服務狀態
+psql --version
 
-### 已完成的設計文件
+# 2. 建立測試資料庫
+createdb attendance_db
 
-1. ✅ `docs/ATTENDANCE_LOCATION_MODULE_SPEC.md`
-   - useLocation composable API 設計
-   - State management 策略
-   - Error handling 統一方案
+# 3. 設定 DATABASE_URL
+export DATABASE_URL="postgresql+psycopg2://postgres:password@127.0.0.1:5432/attendance_db"
 
-2. ✅ `docs/ATTENDANCE_LOCATION_FRONTEND_REFACTOR_PLAN.md`
-   - 從 locationAdapter 遷移計劃
-   - Store/Composable/View 職責劃分
-   - 向後相容策略
+# 4. 執行 migration
+cd /opt/attendance-system/backend
+python -m alembic upgrade head
 
-3. ✅ `docs/ATTENDANCE_LOCATION_API_CONTRACT_DRAFT.md`
-   - 現有 API contract 文件化
-   - Payload 格式規範
-   - 錯誤碼規範
+# 5. 確認 migration 結果
+python -m alembic current
+python -m alembic heads
 
-4. ✅ `docs/ATTENDANCE_LOCATION_TEST_PLAN.md`
-   - 測試矩陣
-   - 單元測試計劃
-   - 整合測試計劃
+# 6. 確認所有 table 建立
+psql -d attendance_db -c "\dt"
 
----
+# 7. 執行 migration smoke test
+pytest tests/test_migration_smoke.py -v
+```
 
-## 實作計劃
-
-### Slice 1: Core Composable（3 天）
-
-**Day 1**: 基礎結構
-- 建立 `useLocation.js`
-- 實作 `detectDeviceType()`
-- 實作基本 state management
-
-**Day 2**: GPS 功能
-- 實作 `getCurrentLocation()`
-- 實作錯誤處理
-- 實作 loading state
-
-**Day 3**: 測試
-- 單元測試
-- 整合測試
-- 文件
+**Definition of Done：**
+- [ ] `alembic upgrade head` 執行成功（008_wp_11_13 為 head）
+- [ ] `alembic heads` 只顯示一個 head
+- [ ] 所有 15 個 table 正確建立
+- [ ] migration smoke test 通過
+- [ ] `WORKSTREAM_STATUS_LEDGER.md` 更新
 
 ---
 
-### Slice 2: Store Integration（2 天）
+## 後續 WP 順序
 
-**Day 1**: 替換 attendance.js
-- 更新 `outCheckpointSubmit()`
-- 移除 locationAdapter import
-- 測試驗證
-
-**Day 2**: 替換 Home.vue
-- 更新 `onMounted()`
-- 移除 locationAdapter import
-- 回歸測試
-
----
-
-### Slice 3: Cleanup & Documentation（1 天）
-
-**Day 1**: 清理和文件
-- 刪除 `locationAdapter.js`
-- 更新使用文件
-- 最終測試
-- Code review
-
----
-
-## 驗收標準
-
-### 功能驗收
-
-- [ ] useLocation composable 實作完成
-- [ ] 所有 locationAdapter 引用已替換
-- [ ] locationAdapter.js 已刪除
-- [ ] 主打卡流程正常運行
-
-### 測試驗收
-
-- [ ] 單元測試通過（覆蓋率 > 80%）
-- [ ] 整合測試通過
-- [ ] 回歸測試通過（主打卡流程）
-
-### 文件驗收
-
-- [ ] API 文件完整
-- [ ] 使用範例清晰
-- [ ] 遷移指南完整
+```
+WP-C1-01（DB 環境）
+  ↓
+WP-C1-02（Attendance Auth JWT 轉換）
+  ↓
+WP-C1-03（Auth 轉換 Batch 2：audit/notifications/backup）
+  ↓
+WP-C1-04（8 個回歸測試，真實 DB）
+  ↓
+WP-C1-05（Tenant Isolation 真實 DB 測試）
+  ↓
+WP-C1-06（Feature Gate 套用）
+  ↓
+WP-C1-07（API 文件補齊）
+  ↓
+[Phase 1 Complete — Gate 5 可宣告完成]
+  ↓
+WP-C2-01（Location Policy 擴展至所有打卡流程）
+WP-11-13 Manual QA（同步執行）
+  ↓
+WP-C2-02（Reporting Backend）
+  ...
+```
 
 ---
 
-## 風險評估
-
-### 高風險
-
-| 風險 | 影響 | 機率 | 緩解措施 |
-|------|------|------|----------|
-| 破壞現有打卡功能 | 高 | 中 | 完整回歸測試，保留 locationAdapter 作為備份 |
-| API 不相容 | 高 | 低 | 遵循現有 API contract |
-
-### 中風險
-
-| 風險 | 影響 | 機率 | 緩解措施 |
-|------|------|------|----------|
-| 效能問題 | 中 | 低 | 效能測試，優化 reactive state |
-| 測試覆蓋不足 | 中 | 中 | 補充單元測試和整合測試 |
+**最後更新：** 2026-03-11  
+**更新原因：** 系統驗證基線建立後，切換為基線修正優先模式
 
 ---
 
-## 不包含項目（重要）
+## System Reality Verification v2 複核結果（2026-03-11）
 
-### 明確排除
+**經 System Reality Verification v2 複核後，下一 WP 維持不變：WP-C1-01**
 
-以下功能**不在 WP-11-12 範圍內**：
+複核新發現（CODE_CONFIRMED）：
+- backup auth 確認為 Header（非 JWT）→ Header auth 模組從 4 個修正為 5 個
+- Header auth 端點總數從 18 個修正為 **24 個**（含 admin_location 5 個端點）
+- Feature Gate 確認完全未套用至任何生產 endpoint
+- Location Policy 確認只在 break-out 有效（非全部打卡流程）
+- admin_location 3 個寫入端點確認為純 TODO（無 RBAC 代碼）
+- test_regression.py 確認只有 1 個 test function（Test 8 骨架），且使用 Header auth
 
-1. **out-checkpoints 完整功能**
-   - 後端 API 實作
-   - 前端完整 UI
-   - 列表顯示和管理
-   - **理由**: 屬於獨立功能，需要獨立票次
+以上發現均強化「必須先完成 WP-C1-01 建立環境基線」的判斷，優先順序不變。
 
-2. **Geofencing**
-   - 範圍驗證
-   - 地理圍欄設定
-   - **理由**: 屬於 Phase 3: Policy Migration
-
-3. **Location Policy**
-   - 精度要求
-   - 位置驗證規則
-   - **理由**: 屬於 Phase 3: Policy Migration
-
-4. **地圖 UI**
-   - 地圖顯示
-   - 位置標記
-   - 歷史軌跡
-   - **理由**: 屬於 Phase 4: UI Enhancement
-
-5. **Analytics**
-   - 位置分析
-   - 異常偵測
-   - **理由**: 屬於 Phase 4: UI Enhancement
-
----
-
-## 後續票次規劃
-
-### WP-11-13: Location Policy（預計）
-
-**目標**: 實作 location policy 和 geofencing
-
-**前置條件**:
-- WP-11-12 完成
-- useLocation composable 穩定運行
-
-**包含**:
-- Geofencing 實作
-- 精度驗證
-- 範圍驗證
-- Policy engine
-
----
-
-### WP-11-14: UI Enhancement（預計）
-
-**目標**: 增強 location UI
-
-**前置條件**:
-- WP-11-13 完成
-- Location policy 穩定運行
-
-**包含**:
-- 地圖整合
-- 位置顯示
-- 歷史軌跡
-
----
-
-### WP-11-15: out-checkpoints 完整功能（預計）
-
-**目標**: 實作 out-checkpoints 完整功能
-
-**前置條件**:
-- WP-11-12 完成
-- 產品需求明確
-
-**包含**:
-- 後端 API 實作
-- 前端完整 UI
-- 列表管理
-- 編輯/刪除功能
-
----
-
-## 開始前檢查清單
-
-### 環境準備
-
-- [ ] WP-11-11.5 QA passed tag 已建立
-- [ ] 開發環境正常運行
-- [ ] 測試環境可用
-
-### 文件準備
-
-- [ ] 設計文件已審查
-- [ ] API contract 已確認
-- [ ] 測試計劃已確認
-
-### 團隊準備
-
-- [ ] 開發人員已分配
-- [ ] Code review 流程已確認
-- [ ] QA 資源已確認
-
----
-
-## 參考文件
-
-- `docs/WP-11-11.5_CLOSURE_SUMMARY.md` - WP-11-11.5 結案摘要
-- `docs/ATTENDANCE_LOCATION_MODULE_SPEC.md` - useLocation 規格
-- `docs/ATTENDANCE_LOCATION_FRONTEND_REFACTOR_PLAN.md` - 重構計劃
-- `docs/ATTENDANCE_LOCATION_API_CONTRACT_DRAFT.md` - API 規範
-- `docs/ATTENDANCE_LOCATION_TEST_PLAN.md` - 測試計劃
-- `docs/GATE_PROGRESS_TRACKER.md` - 進度追蹤
-
----
-
-**建立日期**: 2026-03-08  
-**最後更新**: 2026-03-08  
-**狀態**: 待開始  
-**前置票次**: WP-11-11.5
+**權威依據：** `docs/SYSTEM_REALITY_REPORT_v2.md`（2026-03-11）

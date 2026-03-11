@@ -24,14 +24,6 @@ export const attendanceApi = {
     params: { limit, offset: 0 } 
   }),
   
-  // WP-11-11: OUT Checkpoint API
-  // 創建 OUT checkpoint
-  createOutCheckpoint: (data) => apiClient.post('/v1/attendance/out-checkpoint', data),
-  
-  // 獲取 OUT checkpoints 列表
-  listOutCheckpoints: (params = {}) => apiClient.get('/v1/attendance/out-checkpoints', { params }),
-  
-  // 獲取今日外出打卡記錄
   getBreakPunches: (params = {}) => apiClient.get('/v1/attendance/break-punches', { params }),
   
   // 更新打卡備註

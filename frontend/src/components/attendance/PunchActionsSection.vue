@@ -1,0 +1,183 @@
+<template>
+  <div class="punch-actions-section">
+    <h3 class="subsection-title">打卡操作</h3>
+    <div class="punch-grid-main">
+      <!-- 上班打卡 -->
+      <div 
+        @click="$emit('punch-in')"
+        :class="[
+          'punch-card',
+          { 'disabled': !canPunchIn || isLoading },
+          { 'completed': hasPunchedIn }
+        ]"
+      >
+        <div class="card-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+          </svg>
+        </div>
+        <div class="card-label">上班打卡</div>
+        <div v-if="hasPunchedIn" class="status-badge completed">✓</div>
+      </div>
+
+      <!-- 下班打卡 -->
+      <div 
+        @click="$emit('punch-out')"
+        :class="[
+          'punch-card',
+          { 'disabled': !canPunchOut || isLoading },
+          { 'completed': hasPunchedOut }
+        ]"
+      >
+        <div class="card-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </div>
+        <div class="card-label">下班打卡</div>
+        <div v-if="hasPunchedOut" class="status-badge completed">✓</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+// Props - 只接收必要的狀態數據
+const props = defineProps({
+  canPunchIn: {
+    type: Boolean,
+    default: false
+  },
+  canPunchOut: {
+    type: Boolean,
+    default: false
+  },
+  hasPunchedIn: {
+    type: Boolean,
+    default: false
+  },
+  hasPunchedOut: {
+    type: Boolean,
+    default: false
+  },
+  isLoading: {
+    type: Boolean,
+    default: false
+  }
+})
+
+// Emits - 只發送事件，不處理邏輯
+defineEmits(['punch-in', 'punch-out'])
+</script>
+
+<style scoped>
+.punch-actions-section {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.subsection-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--heading);
+  margin-bottom: 12px;
+}
+
+.punch-grid-main {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+.punch-card {
+  background: var(--bg-card);
+  border-radius: 18px;
+  padding: 16px;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  border: 2px solid transparent;
+}
+
+.punch-card:active {
+  transform: scale(0.98);
+}
+
+.punch-card:hover:not(.disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.punch-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-main);
+}
+
+.punch-card.disabled:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.punch-card.completed {
+  background: var(--success-bg);
+  border-color: var(--success);
+}
+
+.card-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+
+.punch-card.disabled .card-icon {
+  color: #9CA3AF;
+}
+
+.punch-card.completed .card-icon {
+  color: var(--success);
+}
+
+.card-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.card-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.punch-card.disabled .card-label {
+  color: #9CA3AF;
+}
+
+.status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.status-badge.completed {
+  background: var(--success);
+  color: white;
+}
+</style>

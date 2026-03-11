@@ -6,7 +6,11 @@ WP-11-05C: Policy Engine Integration
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
+
+# P1 Time Policy: 業務日期邊界用 Asia/Taipei，DB 查詢轉 UTC
+_TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 from typing import Dict, Any, Optional
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -302,6 +306,42 @@ async def get_current_status(
             is_on_break=is_on_break
         )
     else:
+        # P1 Fix: 無 open session 時，查今日最新 closed session（以 Asia/Taipei 判斷今日）
+        # 讓前端能顯示今天的上下班時間
+        _now_taipei = datetime.now(_TZ_TAIPEI)
+        _today_taipei = _now_taipei.date()
+
+        recent_sessions = repo.get_sessions(
+            company_id=company_id,
+            user_id=user_uuid,
+            limit=1,
+            offset=0,
+            status='closed'
+        )
+
+        if recent_sessions:
+            latest = recent_sessions[0]
+            # punch_in_time 是 UTC aware，轉 Asia/Taipei 後比較日期
+            session_date_taipei = latest.punch_in_time.astimezone(_TZ_TAIPEI).date()
+
+            if session_date_taipei == _today_taipei:
+                session_response = SessionResponse(
+                    session_id=latest.id,
+                    user_id=latest.user_id,
+                    company_id=latest.company_id,
+                    punch_in_time=latest.punch_in_time,
+                    punch_out_time=latest.punch_out_time,
+                    duration_minutes=latest.duration_minutes,
+                    status=latest.status
+                )
+                return CurrentStatusResponse(
+                    has_open_session=False,
+                    session=session_response,
+                    elapsed_minutes=None,
+                    is_on_break=False
+                )
+
+        # 今日確實無任何 session
         return CurrentStatusResponse(
             has_open_session=False,
             session=None,
@@ -375,9 +415,11 @@ async def break_out(
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
-    """Break out (外出打卡) - WP-11-11.5 Blocker Fix
+    """Break out (外出打卡) - WP-11-11.5 Blocker Fix, WP-11-13 Location Policy
     
     允許連續外出打卡，不需要先返回
+    
+    WP-11-13: 加入 location policy 後端 authoritative enforcement
     """
     repo = get_attendance_session_repository(db)
     
@@ -397,6 +439,32 @@ async def break_out(
             }
         )
     
+    # WP-11-13: Location policy enforcement (後端 authoritative)
+    matched_location_id = None
+    if request.location:
+        from app.modules.attendance.location_policy_service import get_location_policy_service
+        
+        policy_service = get_location_policy_service(db)
+        policy_check = policy_service.check_location_policy(
+            company_id=company_id,
+            latitude=request.location.latitude,
+            longitude=request.location.longitude
+        )
+        
+        if not policy_check.allowed:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": policy_check.reason,
+                    "error_code": "LOCATION_POLICY_VIOLATION",
+                    "nearest_location": policy_check.nearest_location
+                }
+            )
+        
+        # 記錄匹配的 location_id
+        if policy_check.matched_location:
+            matched_location_id = UUID(policy_check.matched_location["id"])
+    
     # Create break_start punch
     punch_time = request.punch_time or datetime.now(timezone.utc)
     ip_address = http_request.client.host if http_request and http_request.client else None
@@ -410,7 +478,8 @@ async def break_out(
         ip_address=ip_address,
         location_lat=request.location.latitude if request.location else None,
         location_lng=request.location.longitude if request.location else None,
-        notes=request.notes
+        notes=request.notes,
+        location_id=matched_location_id  # WP-11-13: 記錄匹配的地點
     )
     
     return BreakOutResponse(
@@ -488,11 +557,13 @@ async def get_break_punches(
     
     user_uuid = UUID(user_id)
     
-    # Get today's date range (UTC+8)
-    from datetime import date, timedelta
-    today = date.today()
-    start_of_day = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
-    end_of_day = start_of_day + timedelta(days=1)
+    # P1 Fix: Asia/Taipei 今日邊界 → 轉 UTC → DB 查詢
+    # 台灣今日 00:00+08:00 → UTC 前日 16:00+00:00
+    _now_taipei = datetime.now(_TZ_TAIPEI)
+    _start_taipei = _now_taipei.replace(hour=0, minute=0, second=0, microsecond=0)
+    _end_taipei = _start_taipei + timedelta(days=1)
+    start_of_day = _start_taipei.astimezone(timezone.utc)
+    end_of_day = _end_taipei.astimezone(timezone.utc)
     
     # Query break punches
     from app.modules.attendance.models import AttendancePunch

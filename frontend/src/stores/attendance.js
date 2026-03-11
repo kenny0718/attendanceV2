@@ -1,7 +1,16 @@
 import { defineStore } from 'pinia'
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
 import { attendanceApi } from '@/api/attendance'
 import { useLocation } from '@/composables/useLocation'
+
+// 確保 timezone 插件已載入（main.js 已全域設定，此處作為保險）
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+// Asia/Taipei 時區常數，所有 today 判斷與顯示皆使用此值
+const TZ = 'Asia/Taipei'
 
 export const useAttendanceStore = defineStore('attendance', {
   state: () => ({
@@ -56,10 +65,10 @@ export const useAttendanceStore = defineStore('attendance', {
     allReasons: (state) => [...state.reasonPresets, ...state.reasonCustoms],
     
     formattedTodayStatus: (state) => ({
-      punch_in: state.todayStatus.punch_in ? dayjs(state.todayStatus.punch_in).format('HH:mm') : '-',
-      punch_out: state.todayStatus.punch_out ? dayjs(state.todayStatus.punch_out).format('HH:mm') : '-',
-      break_out: state.todayStatus.break_out ? dayjs(state.todayStatus.break_out).format('HH:mm') : '-',
-      break_in: state.todayStatus.break_in ? dayjs(state.todayStatus.break_in).format('HH:mm') : '-'
+      punch_in: state.todayStatus.punch_in ? dayjs(state.todayStatus.punch_in).tz(TZ).format('HH:mm') : '-',
+      punch_out: state.todayStatus.punch_out ? dayjs(state.todayStatus.punch_out).tz(TZ).format('HH:mm') : '-',
+      break_out: state.todayStatus.break_out ? dayjs(state.todayStatus.break_out).tz(TZ).format('HH:mm') : '-',
+      break_in: state.todayStatus.break_in ? dayjs(state.todayStatus.break_in).tz(TZ).format('HH:mm') : '-'
     })
   },
   
@@ -90,11 +99,8 @@ export const useAttendanceStore = defineStore('attendance', {
             break
             
           case 'OUT':
-            console.log('[PUNCH_OUT_START] 開始下班打卡')
             response = await attendanceApi.punchOut({ notes: notes || '' })
-            console.log('[PUNCH_OUT_RESPONSE]', JSON.stringify(response, null, 2))
             this.todayStatus.punch_out = response.punch_out_time
-            console.log('[PUNCH_OUT_WRITTEN] todayStatus.punch_out =', this.todayStatus.punch_out)
             this.todayStatus.is_punched_in = false
             this.todayStatus.is_on_break = false
             localStorage.removeItem('is_on_break')
@@ -133,6 +139,29 @@ export const useAttendanceStore = defineStore('attendance', {
         
         return { success: true, data: response }
       } catch (error) {
+        // 下班打卡 404 → 直接映射為業務規則結果
+        const _is404 = error.code === 404 || error.status === 404
+        if (type === 'OUT' && _is404) {
+          this.error = {
+            message: '今天已經打過下班卡',
+            code: 404,
+            originalError: error
+          }
+          throw this.error
+        }
+
+        // 上班打卡 409 ALREADY_OPEN_SESSION → 直接映射為業務規則結果
+        const _is409 = error.code === 409 || error.status === 409
+        const _errorCode = error.message?.error_code || error.data?.error_code || error.data?.detail?.error_code
+        if (type === 'IN' && _is409 && _errorCode === 'ALREADY_OPEN_SESSION') {
+          this.error = {
+            message: '今天已經打過上班卡',
+            code: 409,
+            originalError: error
+          }
+          throw this.error
+        }
+
         // 統一錯誤處理
         this.error = this.handleError(error)
         
@@ -285,14 +314,12 @@ export const useAttendanceStore = defineStore('attendance', {
       try {
         const data = await attendanceApi.listOutCheckpoints({ limit: 50, offset: 0 })
         
-        // 只顯示今天的記錄
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
+        // 只顯示今天的記錄 — 以 Asia/Taipei 時區判斷當日邊界
+        const todayTz = dayjs().tz(TZ).startOf('day')
         
         this.outCheckpointList = (data.checkpoints || []).filter(checkpoint => {
-          const checkpointDate = new Date(checkpoint.punch_time)
-          checkpointDate.setHours(0, 0, 0, 0)
-          return checkpointDate.getTime() === today.getTime()
+          const checkpointDayTz = dayjs(checkpoint.punch_time).tz(TZ).startOf('day')
+          return checkpointDayTz.isSame(todayTz)
         })
       } catch (error) {
         console.error('載入 OUT checkpoints 失敗:', error)
@@ -408,16 +435,14 @@ export const useAttendanceStore = defineStore('attendance', {
     
     // 獲取今日狀態（真實 API）- WP-11-07 Phase 3B: 從 localStorage 恢復狀態
     async fetchTodayStatus() {
-      console.log('[FETCH_TODAY_STATUS_START] ===== 開始 fetchTodayStatus =====')
-      console.log('[FETCH_TODAY_STATUS_START] 當前 todayStatus.punch_out =', this.todayStatus.punch_out)
       try {
         const data = await attendanceApi.getCurrentStatus()
-        console.log('[CURRENT_STATUS_RESPONSE]', JSON.stringify(data, null, 2))
         
-        if (data.has_open_session && data.session) {
-          console.log('[HAS_OPEN_SESSION] 有 open session，使用後端資料')
-          // 有 open session，使用後端返回的資料
-          const isOnBreak = data.is_on_break || false
+        if (data.session) {
+          // 有 session 資料（open 或今日 closed）→ 使用後端資料
+          const isOnBreak = data.has_open_session ? (data.is_on_break || false) : false
+          
+          // 同步到 localStorage
           localStorage.setItem('is_on_break', isOnBreak ? 'true' : 'false')
           
           this.todayStatus = {
@@ -425,54 +450,13 @@ export const useAttendanceStore = defineStore('attendance', {
             punch_out: data.session.punch_out_time,
             break_out: this.todayStatus.break_out,
             break_in: this.todayStatus.break_in,
-            is_punched_in: data.session.status === 'open',
+            is_punched_in: data.has_open_session && data.session.status === 'open',
             is_on_break: isOnBreak,
             session_id: data.session.session_id
           }
         } else {
-          console.log('[NO_OPEN_SESSION] 沒有 open session，查詢歷史記錄')
-          // 沒有 open session，嘗試從今日歷史記錄取得最新狀態
+          // 今日確實無任何 session → 清空狀態
           localStorage.removeItem('is_on_break')
-          
-          // 查詢今日記錄
-          const historyData = await attendanceApi.getHistory({ limit: 1, offset: 0 })
-          console.log('[HISTORY_RESPONSE]', JSON.stringify(historyData, null, 2))
-          
-          if (historyData.sessions && historyData.sessions.length > 0) {
-            const latestSession = historyData.sessions[0]
-            // 檢查是否為今日記錄：
-            // punch_in_time 是今天，或者 punch_out_time 是今天（跨日 session 也能正確顯示）
-            const today = dayjs().startOf('day')
-            const punchInDate = dayjs(latestSession.punch_in_time).startOf('day')
-            const punchOutDate = latestSession.punch_out_time 
-              ? dayjs(latestSession.punch_out_time).startOf('day')
-              : null
-            const isTodaySession = punchInDate.isSame(today) || (punchOutDate && punchOutDate.isSame(today))
-            console.log('[TODAY_MATCH_CHECK] today =', today.format('YYYY-MM-DD'))
-            console.log('[TODAY_MATCH_CHECK] punchInDate =', punchInDate.format('YYYY-MM-DD'))
-            console.log('[TODAY_MATCH_CHECK] punchOutDate =', punchOutDate ? punchOutDate.format('YYYY-MM-DD') : 'null')
-            console.log('[TODAY_MATCH_CHECK] isTodaySession =', isTodaySession)
-            console.log('[TODAY_MATCH_CHECK] latestSession.punch_out_time =', latestSession.punch_out_time)
-            
-            if (isTodaySession) {
-              console.log('[TODAY_MATCH] 是今日記錄，使用該記錄')
-              // 使用今日最新記錄
-              this.todayStatus = {
-                punch_in: latestSession.punch_in_time,
-                punch_out: latestSession.punch_out_time,
-                break_out: this.todayStatus.break_out,
-                break_in: this.todayStatus.break_in,
-                is_punched_in: false,
-                is_on_break: false,
-                session_id: latestSession.session_id
-              }
-              console.log('[FINAL_TODAY_STATUS_SET] 設定完成 todayStatus =', JSON.stringify(this.todayStatus, null, 2))
-              return
-            }
-          }
-          
-          // 真的沒有今日記錄，才清空
-          console.log('[NO_TODAY_RECORD] 沒有今日記錄，清空狀態')
           this.todayStatus = {
             punch_in: null,
             punch_out: null,
@@ -484,11 +468,9 @@ export const useAttendanceStore = defineStore('attendance', {
           }
         }
       } catch (error) {
-        console.error('[FETCH_TODAY_STATUS_ERROR]', error)
+        console.error('獲取狀態失敗:', error)
         // 不拋出錯誤，避免影響頁面載入
       }
-      console.log('[FETCH_TODAY_STATUS_END] ===== 結束 fetchTodayStatus =====')
-      console.log('[FETCH_TODAY_STATUS_END] 最終 todayStatus.punch_out =', this.todayStatus.punch_out)
     },
     
     // 獲取最近記錄（真實 API）

@@ -253,3 +253,69 @@ class DuplicateCheckpointError(ErrorResponse):
     """Error response for duplicate checkpoint (409)"""
     error_code: str = Field("DUPLICATE_CHECKPOINT", description="Error code")
     last_checkpoint_time: datetime = Field(..., description="上次打卡時間")
+
+
+# ============================================
+# WP-11-13: Location Policy Schemas
+# ============================================
+
+class AllowedLocationBase(BaseModel):
+    """Allowed location base schema"""
+    name: str = Field(..., max_length=255, description="地點名稱")
+    description: Optional[str] = Field(None, description="地點描述")
+    location_type: str = Field("office", pattern="^(office|construction_site|customer_site|temporary_site)$", description="地點類型")
+    latitude: float = Field(..., ge=-90, le=90, description="緯度")
+    longitude: float = Field(..., ge=-180, le=180, description="經度")
+    radius_meters: int = Field(..., gt=0, description="允許半徑（公尺）")
+    is_active: bool = Field(True, description="是否啟用")
+
+
+class AllowedLocationCreate(AllowedLocationBase):
+    """Create allowed location request"""
+    pass
+
+
+class AllowedLocationUpdate(BaseModel):
+    """Update allowed location request"""
+    name: Optional[str] = Field(None, max_length=255, description="地點名稱")
+    description: Optional[str] = Field(None, description="地點描述")
+    location_type: Optional[str] = Field(None, pattern="^(office|construction_site|customer_site|temporary_site)$", description="地點類型")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="緯度")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="經度")
+    radius_meters: Optional[int] = Field(None, gt=0, description="允許半徑（公尺）")
+    is_active: Optional[bool] = Field(None, description="是否啟用")
+
+
+class AllowedLocationResponse(AllowedLocationBase):
+    """Allowed location response"""
+    id: UUID = Field(..., description="Location ID")
+    company_id: str = Field(..., description="公司 ID")
+    created_at: datetime = Field(..., description="建立時間")
+    updated_at: datetime = Field(..., description="更新時間")
+    created_by: Optional[str] = Field(None, description="建立者")
+    updated_by: Optional[str] = Field(None, description="更新者")
+    
+    class Config:
+        from_attributes = True
+
+
+class AllowedLocationListResponse(BaseModel):
+    """Allowed location list response"""
+    locations: list[AllowedLocationResponse] = Field(..., description="地點列表")
+    total: int = Field(..., description="總數")
+    limit: int = Field(..., description="每頁筆數")
+    offset: int = Field(..., description="偏移量")
+
+
+class LocationPolicyCheckResult(BaseModel):
+    """Location policy check result"""
+    allowed: bool = Field(..., description="是否允許打卡")
+    reason: str = Field(..., description="原因說明")
+    matched_location: Optional[dict] = Field(None, description="匹配的地點")
+    nearest_location: Optional[dict] = Field(None, description="最近的地點")
+
+
+class LocationPolicyViolationError(ErrorResponse):
+    """Location policy violation error (403)"""
+    error_code: str = Field("LOCATION_POLICY_VIOLATION", description="錯誤碼")
+    nearest_location: Optional[dict] = Field(None, description="最近的地點")

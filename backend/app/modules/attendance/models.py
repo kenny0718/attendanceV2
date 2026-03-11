@@ -8,7 +8,7 @@ WP-11-01: 定義 AttendancePolicy, AttendanceSession, AttendancePunch models
 """
 
 from datetime import datetime
-from app.core.config import get_current_time
+from app.core.config import get_utc_now
 from uuid import UUID, uuid4
 from sqlalchemy import Column, String, DateTime, Integer, Boolean, Text, Time, Index, CheckConstraint, ForeignKeyConstraint, Numeric
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -51,8 +51,8 @@ class AttendancePolicy(Base):
     is_default = Column(Boolean, nullable=False, server_default='false', comment='是否為預設政策')
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC+8)')
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='更新時間 (UTC+8)')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC)')
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='更新時間 (UTC)')
     
     # Indexes and constraints
     __table_args__ = (
@@ -98,8 +98,8 @@ class AttendanceSession(Base):
     notes = Column(Text, nullable=True, comment='備註')
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC+8)')
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='更新時間 (UTC+8)')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC)')
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='更新時間 (UTC)')
     
     # Indexes and constraints
     __table_args__ = (
@@ -142,7 +142,7 @@ class AttendancePunch(Base):
     
     # Punch fields
     punch_type = Column(String(20), nullable=False, comment='打卡類型 (in/out/break_start/break_end)')
-    punch_time = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='打卡時間 (UTC+8)')
+    punch_time = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='打卡時間 (UTC)')
     
     # Context fields
     ip_address = Column(String(45), nullable=True, comment='IP 地址 (IPv4/IPv6)')
@@ -153,8 +153,11 @@ class AttendancePunch(Base):
     photo_url = Column(Text, nullable=True, comment='打卡照片 URL')
     notes = Column(Text, nullable=True, comment='備註')
     
+    # WP-11-13: Location Policy
+    location_id = Column(PGUUID(as_uuid=True), nullable=True, comment='WP-11-13: 匹配的允許地點 ID')
+    
     # Timestamp
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC+8)')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC)')
     
     # Indexes and constraints
     __table_args__ = (
@@ -167,6 +170,7 @@ class AttendancePunch(Base):
         ForeignKeyConstraint(['session_id'], ['attendance_sessions.id'], ondelete='CASCADE'),
         ForeignKeyConstraint(['company_id'], ['tenants.id'], ondelete='CASCADE'),
         ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        ForeignKeyConstraint(['location_id'], ['allowed_locations.id'], ondelete='SET NULL'),  # WP-11-13
     )
     
     def __repr__(self):
@@ -224,7 +228,7 @@ class AttendanceOutCheckpoint(Base):
     notes = Column(Text, nullable=True, comment='備註')
     
     # Audit
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC+8)')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text('NOW()'), comment='建立時間 (UTC)')
     
     # Indexes and constraints
     __table_args__ = (
@@ -272,8 +276,8 @@ class AttendanceRecord(Base):
     # 業務欄位
     employee_id = Column(String(255), nullable=False, comment="員工 ID")
     approved_by = Column(String(255), nullable=True, comment="核准人 ID")
-    approved_at = Column(DateTime, nullable=True, comment="核准時間（UTC+8）")
-    created_at = Column(DateTime, nullable=False, default=get_current_time, comment="建立時間（UTC+8）")
+    approved_at = Column(DateTime(timezone=True), nullable=True, comment="核准時間（UTC）")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment="建立時間（UTC）")
     
     # 索引（支援單一租戶全量抽取與高效查詢）
     __table_args__ = (
@@ -283,3 +287,78 @@ class AttendanceRecord(Base):
     
     def __repr__(self):
         return f"<AttendanceRecord(id={self.id}, company_id={self.company_id}, employee_id={self.employee_id})>"
+
+
+# ============================================
+# WP-11-13: Location Policy Models
+# ============================================
+
+class AllowedLocation(Base):
+    """允許打卡地點模型 (WP-11-13)
+    
+    設計原則：
+    1. 支援多筆地點（不要做死成只能一筆）
+    2. Tenant isolation (company_id)
+    3. 支援啟用/停用
+    4. 預留擴充欄位
+    """
+    
+    __tablename__ = "allowed_locations"
+    
+    # Primary key
+    id = Column(PGUUID(as_uuid=True), primary_key=True, 
+                server_default=text('gen_random_uuid()'),
+                comment='Location ID (PK)')
+    
+    # Tenant Isolation
+    company_id = Column(String(255), nullable=False, 
+                       comment='公司 ID (Tenant Isolation)')
+    
+    # 基本資訊
+    name = Column(String(255), nullable=False, 
+                 comment='地點名稱，例如：台北101工地')
+    description = Column(Text, nullable=True, 
+                        comment='地點描述')
+    
+    # 地點類型（預留擴充）
+    location_type = Column(String(50), nullable=False, 
+                          server_default='office',
+                          comment='地點類型: office, construction_site, customer_site, temporary_site')
+    
+    # 位置資訊
+    latitude = Column(Numeric(10, 7), nullable=False, 
+                     comment='緯度 (Decimal for precision)')
+    longitude = Column(Numeric(10, 7), nullable=False, 
+                      comment='經度 (Decimal for precision)')
+    radius_meters = Column(Integer, nullable=False, 
+                          comment='允許半徑（公尺）')
+    
+    # 狀態
+    is_active = Column(Boolean, nullable=False, 
+                      server_default='true',
+                      comment='是否啟用')
+    
+    # 審計欄位
+    created_at = Column(DateTime(timezone=True), nullable=False, 
+                       server_default=text('CURRENT_TIMESTAMP'),
+                       comment='建立時間')
+    updated_at = Column(DateTime(timezone=True), nullable=False, 
+                       server_default=text('CURRENT_TIMESTAMP'),
+                       comment='更新時間')
+    created_by = Column(String(255), nullable=True, 
+                       comment='建立者 user_id')
+    updated_by = Column(String(255), nullable=True, 
+                       comment='更新者 user_id')
+    
+    # Indexes and constraints
+    __table_args__ = (
+        Index('idx_allowed_locations_company', 'company_id'),
+        Index('idx_allowed_locations_active', 'company_id', 'is_active'),
+        CheckConstraint('radius_meters > 0', name='chk_allowed_locations_radius_positive'),
+        CheckConstraint('latitude >= -90 AND latitude <= 90', name='chk_allowed_locations_latitude_range'),
+        CheckConstraint('longitude >= -180 AND longitude <= 180', name='chk_allowed_locations_longitude_range'),
+        ForeignKeyConstraint(['company_id'], ['tenants.id'], ondelete='CASCADE'),
+    )
+    
+    def __repr__(self):
+        return f"<AllowedLocation(id={self.id}, company_id={self.company_id}, name={self.name})>"
