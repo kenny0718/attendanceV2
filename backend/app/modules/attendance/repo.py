@@ -6,12 +6,10 @@ Tenant Isolation (P0)：
 
 WP-11-02: Added AttendanceSessionRepository for new attendance domain
 WP-11-05C: Added policy retrieval methods
-WP-11-07 Phase 3B: Added get_last_break_punch method
 """
 
 import logging
-from datetime import datetime, timezone
-from app.core.config import get_current_time, get_utc_now
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
@@ -119,7 +117,7 @@ class AttendanceSessionRepository:
         session.status = 'closed'
         session.duration_minutes = duration_minutes
         session.policy_id = policy_id
-        session.updated_at = get_utc_now()  # P1: DB write must be UTC
+        session.updated_at = datetime.utcnow()
         
         self.db.commit()
         self.db.refresh(session)
@@ -156,7 +154,6 @@ class AttendanceSessionRepository:
             location_lat: 緯度
             location_lng: 經度
             notes: 備註
-            location_id: 匹配的允許地點 ID (WP-11-13)
         
         Returns:
             AttendancePunch
@@ -289,50 +286,6 @@ class AttendanceSessionRepository:
             )
             .first()
         )
-    
-    def get_last_break_punch(
-        self,
-        session_id: UUID
-    ) -> Optional[AttendancePunch]:
-        """獲取 session 的最後一筆 break punch (WP-11-07 Phase 3B)
-        
-        Args:
-            session_id: Session ID
-        
-        Returns:
-            AttendancePunch or None
-        """
-        return (
-            self.db.query(AttendancePunch)
-            .filter(
-                and_(
-                    AttendancePunch.session_id == session_id,
-                    AttendancePunch.punch_type.in_(['break_start', 'break_end'])
-                )
-            )
-            .order_by(AttendancePunch.punch_time.desc())
-            .first()
-        )
-
-    
-    def get_session_punches(
-        self,
-        session_id: UUID
-    ) -> list:
-        """獲取 session 的所有 punch 記錄
-        
-        Args:
-            session_id: Session ID
-        
-        Returns:
-            List of AttendancePunch
-        """
-        return (
-            self.db.query(AttendancePunch)
-            .filter(AttendancePunch.session_id == session_id)
-            .order_by(AttendancePunch.punch_time.asc())
-            .all()
-        )
 
 
 def get_attendance_session_repository(db: Session) -> AttendanceSessionRepository:
@@ -397,7 +350,7 @@ class AttendanceRepository:
             return None
         
         record.approved_by = approved_by
-        record.approved_at = get_utc_now()  # P1: DB write must be UTC
+        record.approved_at = datetime.utcnow()
         
         self.db.commit()
         self.db.refresh(record)
@@ -408,222 +361,3 @@ class AttendanceRepository:
 def get_attendance_repository(db: Session) -> AttendanceRepository:
     """Factory function for old repository (Phase 4 compatibility)"""
     return AttendanceRepository(db)
-
-
-# ============================================
-# WP-11-10: OUT Checkpoint Repository
-# ============================================
-
-class OutCheckpointRepository:
-    """OUT checkpoint 資料存取層 (WP-11-10)"""
-    
-    def __init__(self, db: Session):
-        self.db = db
-    
-    def create_checkpoint(
-        self,
-        company_id: str,
-        user_id: UUID,
-        device_type: str,
-        punch_time: datetime,
-        session_id: Optional[UUID] = None,
-        gps_lat: Optional[float] = None,
-        gps_lng: Optional[float] = None,
-        gps_accuracy_m: Optional[float] = None,
-        gps_captured_at: Optional[datetime] = None,
-        gps_provider: Optional[str] = None,
-        client_timezone: Optional[str] = None,
-        client_user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        notes: Optional[str] = None
-    ):
-        """創建 OUT checkpoint
-        
-        Args:
-            company_id: 公司 ID (tenant isolation)
-            user_id: 用戶 ID
-            device_type: 裝置類型 (mobile|pc)
-            punch_time: 打卡時間 (server-set)
-            session_id: Session ID (optional)
-            gps_lat: 緯度
-            gps_lng: 經度
-            gps_accuracy_m: GPS 精度 (公尺)
-            gps_captured_at: GPS 擷取時間
-            gps_provider: GPS 提供者
-            client_timezone: 客戶端時區
-            client_user_agent: User Agent
-            ip_address: IP 地址
-            notes: 備註
-        
-        Returns:
-            AttendanceOutCheckpoint
-        """
-        from app.modules.attendance.models import AttendanceOutCheckpoint
-        
-        checkpoint = AttendanceOutCheckpoint(
-            company_id=company_id,
-            user_id=user_id,
-            session_id=session_id,
-            punch_time=punch_time,
-            device_type=device_type,
-            gps_lat=gps_lat,
-            gps_lng=gps_lng,
-            gps_accuracy_m=gps_accuracy_m,
-            gps_captured_at=gps_captured_at,
-            gps_provider=gps_provider,
-            client_timezone=client_timezone,
-            client_user_agent=client_user_agent,
-            ip_address=ip_address,
-            notes=notes
-        )
-        
-        self.db.add(checkpoint)
-        self.db.commit()
-        self.db.refresh(checkpoint)
-        
-        logger.info(
-            f"Created OUT checkpoint: id={checkpoint.id}, "
-            f"company_id={company_id}, user_id={user_id}, device_type={device_type}"
-        )
-        
-        return checkpoint
-    
-    def get_recent_checkpoint(
-        self,
-        company_id: str,
-        user_id: UUID,
-        within_seconds: int
-    ):
-        """獲取最近的 checkpoint (用於 de-dup 檢查)
-        
-        Tenant Isolation: 強制 WHERE company_id = ?
-        
-        Args:
-            company_id: 公司 ID
-            user_id: 用戶 ID
-            within_seconds: 時間範圍 (秒)
-        
-        Returns:
-            AttendanceOutCheckpoint or None
-        """
-        from app.modules.attendance.models import AttendanceOutCheckpoint
-        from datetime import timedelta
-        
-        cutoff_time = get_utc_now() - timedelta(seconds=within_seconds)  # P1: compare UTC vs UTC punch_time
-        
-        return (
-            self.db.query(AttendanceOutCheckpoint)
-            .filter(
-                and_(
-                    AttendanceOutCheckpoint.company_id == company_id,
-                    AttendanceOutCheckpoint.user_id == user_id,
-                    AttendanceOutCheckpoint.punch_time >= cutoff_time
-                )
-            )
-            .order_by(AttendanceOutCheckpoint.punch_time.desc())
-            .first()
-        )
-    
-    def get_checkpoints(
-        self,
-        company_id: str,
-        user_id: UUID,
-        limit: int = 50,
-        offset: int = 0,
-        session_id: Optional[UUID] = None
-    ):
-        """獲取用戶的 checkpoints (分頁)
-        
-        Tenant Isolation: 強制 WHERE company_id = ?
-        
-        Args:
-            company_id: 公司 ID
-            user_id: 用戶 ID
-            limit: 每頁筆數
-            offset: 偏移量
-            session_id: Session ID 過濾 (optional)
-        
-        Returns:
-            List[AttendanceOutCheckpoint]
-        """
-        from app.modules.attendance.models import AttendanceOutCheckpoint
-        
-        query = (
-            self.db.query(AttendanceOutCheckpoint)
-            .filter(
-                and_(
-                    AttendanceOutCheckpoint.company_id == company_id,
-                    AttendanceOutCheckpoint.user_id == user_id
-                )
-            )
-        )
-        
-        if session_id:
-            query = query.filter(AttendanceOutCheckpoint.session_id == session_id)
-        
-        return (
-            query
-            .order_by(AttendanceOutCheckpoint.punch_time.desc())
-            .limit(limit)
-            .offset(offset)
-            .all()
-        )
-    
-    def count_checkpoints(
-        self,
-        company_id: str,
-        user_id: UUID,
-        session_id: Optional[UUID] = None
-    ) -> int:
-        """計算用戶的 checkpoints 總數
-        
-        Args:
-            company_id: 公司 ID
-            user_id: 用戶 ID
-            session_id: Session ID 過濾 (optional)
-        
-        Returns:
-            int: 總數
-        """
-        from app.modules.attendance.models import AttendanceOutCheckpoint
-        
-        query = (
-            self.db.query(AttendanceOutCheckpoint)
-            .filter(
-                and_(
-                    AttendanceOutCheckpoint.company_id == company_id,
-                    AttendanceOutCheckpoint.user_id == user_id
-                )
-            )
-        )
-        
-        if session_id:
-            query = query.filter(AttendanceOutCheckpoint.session_id == session_id)
-        
-        return query.count()
-    
-    def get_checkpoints_by_session(
-        self,
-        session_id: UUID
-    ):
-        """獲取 session 的所有 checkpoints
-        
-        Args:
-            session_id: Session ID
-        
-        Returns:
-            List[AttendanceOutCheckpoint]
-        """
-        from app.modules.attendance.models import AttendanceOutCheckpoint
-        
-        return (
-            self.db.query(AttendanceOutCheckpoint)
-            .filter(AttendanceOutCheckpoint.session_id == session_id)
-            .order_by(AttendanceOutCheckpoint.punch_time.asc())
-            .all()
-        )
-
-
-def get_out_checkpoint_repository(db: Session) -> OutCheckpointRepository:
-    """Factory function for dependency injection"""
-    return OutCheckpointRepository(db)
