@@ -3,14 +3,11 @@
 Phase 4: 注入 db Session
 WP-11-02: Punch In/Out API
 WP-11-05C: Policy Engine Integration
+WP-C1-07: JWT Actor Migration
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
-from zoneinfo import ZoneInfo
-
-# P1 Time Policy: 業務日期邊界用 Asia/Taipei，DB 查詢轉 UTC
-_TZ_TAIPEI = ZoneInfo("Asia/Taipei")
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -18,7 +15,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.modules.attendance.service import get_attendance_service
-from app.core.tenant_context import get_current_company_id, get_current_user_id
+from app.core.dependencies import get_actor_with_company
+from app.core.scope import Actor
+from zoneinfo import ZoneInfo
+_TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 from app.core.database import get_db
 from app.modules.attendance.repo import get_attendance_session_repository
 from app.modules.attendance.schemas import (
@@ -69,13 +69,13 @@ class ApproveResponse(BaseModel):
 
 @router.post("/mock-create", response_model=MockCreateResponse)
 async def mock_create_attendance(
-    current_company_id: str = Depends(get_current_company_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
     """建立考勤記錄（Phase 4: 真正寫 DB）"""
     service = get_attendance_service(db)
     attendance_record_id = service.mock_create_attendance(
-        company_id=current_company_id
+        company_id=actor.active_company_id
     )
     
     return MockCreateResponse(attendance_record_id=attendance_record_id)
@@ -85,8 +85,7 @@ async def mock_create_attendance(
 async def approve_attendance(
     attendance_record_id: str,
     request: ApproveRequest,
-    current_company_id: str = Depends(get_current_company_id),
-    current_user_id: str | None = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
     """核准考勤記錄（Phase 4: 真正寫 DB）"""
@@ -94,9 +93,9 @@ async def approve_attendance(
     
     result = service.approve_attendance(
         attendance_record_id=attendance_record_id,
-        company_id=current_company_id,
+        company_id=actor.active_company_id,
         employee_id=request.employee_id,
-        approved_by=request.approved_by or current_user_id
+        approved_by=request.approved_by or str(actor.user_id)
     )
     
     return ApproveResponse(**result)
@@ -109,8 +108,7 @@ async def approve_attendance(
 @router_v1.post("/punch-in", response_model=PunchInResponse, status_code=201)
 async def punch_in(
     request: PunchInRequest,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
@@ -118,11 +116,12 @@ async def punch_in(
     repo = get_attendance_session_repository(db)
     
     # Validate user_id
-    if not user_id:
+    if not actor.user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
-    user_uuid = UUID(user_id)
-    
+    company_id = actor.active_company_id
+    user_uuid = actor.user_id
+
     # Check for existing open session
     existing_session = repo.get_open_session(company_id, user_uuid)
     if existing_session:
@@ -137,7 +136,15 @@ async def punch_in(
         )
     
     # Create new session
-    punch_in_time = datetime.now(timezone.utc)
+    # WP-C1-11: use request.punch_time if provided (cross-midnight fix)
+    # Naive datetime is treated as Asia/Taipei local time, then converted to UTC
+    if request.punch_time:
+        if request.punch_time.tzinfo:
+            punch_in_time = request.punch_time.astimezone(timezone.utc)
+        else:
+            punch_in_time = request.punch_time.replace(tzinfo=_TZ_TAIPEI).astimezone(timezone.utc)
+    else:
+        punch_in_time = datetime.now(timezone.utc)
     session = repo.create_session(
         company_id=company_id,
         user_id=user_uuid,
@@ -173,8 +180,7 @@ async def punch_in(
 @router_v1.post("/punch-out", response_model=PunchOutResponse)
 async def punch_out(
     request: PunchOutRequest,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
@@ -182,11 +188,12 @@ async def punch_out(
     repo = get_attendance_session_repository(db)
     
     # Validate user_id
-    if not user_id:
+    if not actor.user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
-    user_uuid = UUID(user_id)
-    
+    user_uuid = actor.user_id
+    company_id = actor.active_company_id
+
     # Get open session
     session = repo.get_open_session(company_id, user_uuid)
     if not session:
@@ -199,7 +206,15 @@ async def punch_out(
         )
     
     # Punch out
-    punch_out_time = datetime.now(timezone.utc)
+    # WP-C1-11: use request.punch_time if provided (cross-midnight fix)
+    # Naive datetime is treated as Asia/Taipei local time, then converted to UTC
+    if request.punch_time:
+        if request.punch_time.tzinfo:
+            punch_out_time = request.punch_time.astimezone(timezone.utc)
+        else:
+            punch_out_time = request.punch_time.replace(tzinfo=_TZ_TAIPEI).astimezone(timezone.utc)
+    else:
+        punch_out_time = datetime.now(timezone.utc)
     
     # Create punch record
     ip_address = http_request.client.host if http_request and http_request.client else None
@@ -265,17 +280,17 @@ async def punch_out(
 
 @router_v1.get("/current-status", response_model=CurrentStatusResponse)
 async def get_current_status(
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
     """Get current attendance status - WP-11-02"""
     repo = get_attendance_session_repository(db)
     
-    if not user_id:
+    if not actor.user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
-    user_uuid = UUID(user_id)
+    user_uuid = actor.user_id
+    company_id = actor.active_company_id
     session = repo.get_open_session(company_id, user_uuid)
     
     if session:
@@ -306,42 +321,6 @@ async def get_current_status(
             is_on_break=is_on_break
         )
     else:
-        # P1 Fix: 無 open session 時，查今日最新 closed session（以 Asia/Taipei 判斷今日）
-        # 讓前端能顯示今天的上下班時間
-        _now_taipei = datetime.now(_TZ_TAIPEI)
-        _today_taipei = _now_taipei.date()
-
-        recent_sessions = repo.get_sessions(
-            company_id=company_id,
-            user_id=user_uuid,
-            limit=1,
-            offset=0,
-            status='closed'
-        )
-
-        if recent_sessions:
-            latest = recent_sessions[0]
-            # punch_in_time 是 UTC aware，轉 Asia/Taipei 後比較日期
-            session_date_taipei = latest.punch_in_time.astimezone(_TZ_TAIPEI).date()
-
-            if session_date_taipei == _today_taipei:
-                session_response = SessionResponse(
-                    session_id=latest.id,
-                    user_id=latest.user_id,
-                    company_id=latest.company_id,
-                    punch_in_time=latest.punch_in_time,
-                    punch_out_time=latest.punch_out_time,
-                    duration_minutes=latest.duration_minutes,
-                    status=latest.status
-                )
-                return CurrentStatusResponse(
-                    has_open_session=False,
-                    session=session_response,
-                    elapsed_minutes=None,
-                    is_on_break=False
-                )
-
-        # 今日確實無任何 session
         return CurrentStatusResponse(
             has_open_session=False,
             session=None,
@@ -354,19 +333,19 @@ async def get_attendance_history(
     limit: int = 50,
     offset: int = 0,
     status: Optional[str] = None,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
     """Get attendance history - WP-11-02"""
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
     
-    if not user_id:
+    if not actor.user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
     repo = get_attendance_session_repository(db)
-    user_uuid = UUID(user_id)
+    user_uuid = actor.user_id
+    company_id = actor.active_company_id
     
     sessions = repo.get_sessions(
         company_id=company_id,
@@ -410,8 +389,7 @@ async def get_attendance_history(
 @router_v1.post("/break-out", response_model=BreakOutResponse, status_code=201)
 async def break_out(
     request: BreakOutRequest,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
@@ -423,11 +401,12 @@ async def break_out(
     """
     repo = get_attendance_session_repository(db)
     
-    if not user_id:
+    if not actor.user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
-    user_uuid = UUID(user_id)
-    
+    user_uuid = actor.user_id
+    company_id = actor.active_company_id
+
     # Get open session
     session = repo.get_open_session(company_id, user_uuid)
     if not session:
@@ -493,19 +472,19 @@ async def break_out(
 @router_v1.post("/break-in", response_model=BreakInResponse, status_code=201)
 async def break_in(
     request: BreakInRequest,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
     """Break in (返回打卡) - WP-11-11.5 Blocker Fix"""
     repo = get_attendance_session_repository(db)
     
-    if not user_id:
+    if not actor.user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
-    user_uuid = UUID(user_id)
-    
+    user_uuid = actor.user_id
+    company_id = actor.active_company_id
+
     # Get open session
     session = repo.get_open_session(company_id, user_uuid)
     if not session:
@@ -544,26 +523,24 @@ async def break_in(
 @router_v1.get("/break-punches")
 async def get_break_punches(
     limit: int = 50,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
     """Get today's break punches (今日外出/返回記錄) - WP-11-11.5 Blocker Fix
     
     Returns all break_start and break_end punches for today
     """
-    if not user_id:
+    if not actor.user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
-    user_uuid = UUID(user_id)
-    
-    # P1 Fix: Asia/Taipei 今日邊界 → 轉 UTC → DB 查詢
-    # 台灣今日 00:00+08:00 → UTC 前日 16:00+00:00
-    _now_taipei = datetime.now(_TZ_TAIPEI)
-    _start_taipei = _now_taipei.replace(hour=0, minute=0, second=0, microsecond=0)
-    _end_taipei = _start_taipei + timedelta(days=1)
-    start_of_day = _start_taipei.astimezone(timezone.utc)
-    end_of_day = _end_taipei.astimezone(timezone.utc)
+    user_uuid = actor.user_id
+    company_id = actor.active_company_id
+
+    # Get today's date range (UTC+8)
+    from datetime import date, timedelta
+    today = date.today()
+    start_of_day = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
+    end_of_day = start_of_day + timedelta(days=1)
     
     # Query break punches
     from app.modules.attendance.models import AttendancePunch
@@ -608,15 +585,15 @@ async def get_break_punches(
 async def update_punch_note(
     punch_id: str,
     request: dict,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
     """Update punch note (更新打卡備註) - WP-11-11.5"""
-    if not user_id:
+    if not actor.user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
-    user_uuid = UUID(user_id)
+    user_uuid = actor.user_id
+    company_id = actor.active_company_id
     punch_uuid = UUID(punch_id)
     
     # Get punch record
