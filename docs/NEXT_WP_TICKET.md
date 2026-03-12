@@ -1,7 +1,7 @@
 # Next WP Ticket
 
-**更新日期：** 2026-03-11（WP-C1-01 完成後更新）
-**當前狀態：** WP-C1-01 VERIFIED；切換至 WP-C1-02
+**更新日期：** 2026-03-12（WP-C1-08 Phase 2 Fixture Layer 完成後更新）  
+**當前狀態：** WP-C1-08 Phase 2 FIXTURE_COMPLETE；準備 Phase 3 實作修復
 
 ---
 
@@ -19,90 +19,120 @@
 
 ---
 
-## 當前完成狀態（截至 2026-03-11，WP-C1-01 完成後）
+## 當前完成狀態（截至 2026-03-12，WP-C1-08 Phase 2 完成後）
 
 | WP | 名稱 | 狀態 |
 |----|------|------|
-| WP-11-01 | Attendance Domain Model | COMPLETED（CODE_COMPLETE） |
-| WP-11-02 | Punch In/Out API | COMPLETED（CODE_COMPLETE，auth 需轉換） |
-| WP-11-03 | Policy Engine v1 | COMPLETED（CODE_COMPLETE） |
-| WP-11-04A | Company Entitlements + Feature Flags | COMPLETED（CODE_COMPLETE） |
+| WP-11-01 | Attendance Domain Model | COMPLETED |
+| WP-11-02 | Punch In/Out API | COMPLETED |
+| WP-11-03 | Policy Engine v1 | COMPLETED |
+| WP-11-04A | Company Entitlements + Feature Flags | COMPLETED |
 | WP-11-04B | Gate Ready Audit | COMPLETED |
 | WP-11-05A | Attendance Models Sync | COMPLETED |
-| WP-11-07~13 Step3A | Frontend UI 系列 | COMPLETED（CODE_COMPLETE） |
+| WP-11-07~13 Step3A | Frontend UI 系列 | COMPLETED |
 | WP-11-13 Manual QA | GPS + UI 人工測試 | BLOCKED（需環境） |
 | **系統驗證基線建立** | SYSTEM_VERIFICATION_BASELINE | **COMPLETED（2026-03-11）** |
 | **WP-C1-01** | PostgreSQL 環境建立 + Migration 驗證 | **VERIFIED（2026-03-11）** |
+| **WP-C1-07** | Attendance API JWT 遷移 | **COMPLETED（2026-03-12）** |
+| **WP-C1-08 Phase 1** | Attendance Test Re-Enable 基線驗證 | **VERIFIED（2026-03-12）** |
+| **WP-C1-08 Phase 2** | Fixture Layer 修復 | **FIXTURE_COMPLETE（2026-03-12）** |
+| **WP-C1-09** | OUT Checkpoint API | **DONE（2026-03-12）** |
 
 ---
 
 ## 當前阻塞
 
 ### BLOCKER-1：全系統 Auth 雙軌制（P0）
-
-5 個模組（attendance / audit / notifications / backup / admin_location）仍使用 X-Company-ID Header，無使用者身份驗證。
+5 個模組（attendance / audit / notifications / backup / admin_location）中，attendance 已完成 JWT 遷移（WP-C1-07），其餘 4 個模組待處理。
 
 ### BLOCKER-2：Admin Location API 無 RBAC（P0）
+POST/PUT/DELETE `/api/v1/admin/allowed-locations` 的 RBAC 為 `# TODO`。
 
-POST/PUT/DELETE `/api/v1/admin/allowed-locations` 的 RBAC 為 `# TODO`，普通員工可操作地點政策。
-
-### BLOCKER-3：回歸測試基線缺失（P0）
-
-8 個回歸測試只有 1 個（Test 8 骨架），且從未在真實 DB 執行通過。
-
-### BLOCKER-4：Tenant Isolation 未在真實 DB 驗證（P0）
-
-現有 `test_tenant_isolation.py` 使用 DummySession，非真實 PostgreSQL 驗證。
+### BLOCKER-3：3 個已識別的產品層缺失（Phase 3 目標）
+詳見 `WP-C1-08_REMAINING_FAILURE_RECLASSIFICATION.md`。
 
 ---
 
-## 當前建議工作包：WP-C1-02
+## 當前建議工作包：WP-C1-08 Phase 3
 
-### WP-C1-02：Attendance 模組 JWT 身份驗證遷移
+### WP-C1-08 Phase 3：產品層缺失修復（3 個 defect 群組）
 
-**前置條件：** WP-C1-01 VERIFIED ✅（2026-03-11）
+**前置條件：** WP-C1-08 Phase 2 FIXTURE_COMPLETE ✅（2026-03-12）
 
-**為什麼先做這個：**
-- attendance 模組 10 個 endpoint 全部使用 Header auth，是最大的 P0 安全漏洞
-- admin_location 3 個寫入 endpoint 完全無 RBAC，需同步修正
-- 完成後解鎖 WP-C1-04（回歸測試）
+**為什麼現在做這個：**
+- Fixture 層已完整建立，可直接進入產品修復
+- 3 個修復項目邊界清晰，風險可控
+- 完成後可解鎖 18 個測試全部通過
 
-**受影響 Endpoint（來源：SYSTEM_GROUND_TRUTH.md 1.3）：**
+**實作順序（依風險由低至高）：**
 
-| Endpoint | 行號 |
-|----------|------|
-| POST /mock-create | L70-73 |
-| POST /{id}/approve | L84-90 |
-| POST /v1/punch-in | L109-115 |
-| POST /v1/punch-out | L173-179 |
-| GET  /v1/current-status | L266-270 |
-| GET  /v1/history | L352-359 |
-| POST /v1/break-out | L410-416 |
-| POST /v1/break-in | L493-499 |
-| GET  /v1/break-punches | L544-549 |
-| PATCH /v1/punch/{id}/note | L607-613 |
+### Priority 1：WP-C1-10 — location_id support in create_punch()
 
-**admin_location RBAC 缺口（SYSTEM_GROUND_TRUTH.md 2.1）：**
+**範圍：** `backend/app/modules/attendance/repo.py` only  
+**目標測試：** `test_break_out_enforcement.py` 5 個失敗測試  
+**預計工時：** 30 分鐘  
+**風險：** 🟢 LOW
 
-| Endpoint | 行號 | 現況 |
-|----------|------|------|
-| POST / (create) | L47 | TODO 驗證管理員權限 — 無 RBAC |
-| PUT /{id} | L166 | TODO 驗證管理員權限 — 無 RBAC |
-| DELETE /{id} | L207 | TODO 驗證管理員權限 — 無 RBAC |
-
-**已知額外問題（WP-C1-01 發現）：**
-- `AttendanceSessionRepository.close_session()` API 簽名與 test_business_invariant.py 不符
-- datetime timezone mismatch 問題
-- 以上需在 WP-C1-02 修正 auth 時一併確認
+```
+修復項目：
+- 加入 location_id 參數至 create_punch() 方法簽名
+- 確認 AttendancePunch model 有 location_id 欄位
+- 如無欄位則加入 migration
+```
 
 **Definition of Done：**
-- [ ] attendance/api.py 所有 endpoint 改用 get_current_actor()
-- [ ] get_current_company_id 在 attendance 模組中已移除
-- [ ] admin_location_api.py 3 個寫入 endpoint 實作 RBAC
-- [ ] 既有 attendance 測試更新為使用 JWT token
-- [ ] 所有 attendance 測試在真實 DB 通過
-- [ ] WORKSTREAM_STATUS_LEDGER.md 更新
-- [ ] MODULE_STATUS_MATRIX.md attendance auth 欄位更新為 VERIFIED
+- [ ] test_break_out_enforcement.py：6/6 PASS
+
+---
+
+### Priority 2：WP-C1-11 — cross-midnight duration_minutes fix
+
+**範圍：** `backend/app/modules/attendance/repo.py` close_session()  
+**目標測試：** `test_regression.py` 1 個失敗測試  
+**預計工時：** 1 小時  
+**風險：** 🟡 LOW-MEDIUM
+
+```
+修復項目：
+- 調查 close_session() duration 計算邏輯
+- 修正跨午夜 datetime 差值計算（timezone-aware）
+- duration = (punch_out_time - punch_in_time).total_seconds() / 60
+```
+
+**Definition of Done：**
+- [ ] test_regression.py：1/1 PASS
+- [ ] duration_minutes == 180 for cross-midnight scenario
+
+---
+
+### Priority 3：WP-C1-09 — out-checkpoint endpoint implementation
+
+**範圍：** `backend/app/modules/attendance/api.py` + repo  
+**目標測試：** `test_out_checkpoint.py` 7 個失敗測試  
+**預計工時：** 2-3 小時  
+**風險：** 🟡 MEDIUM
+
+```
+修復項目：
+- 新增 POST /api/v1/attendance/out-checkpoint
+- 新增 GET /api/v1/attendance/out-checkpoints
+- 實作 GPS 驗證邏輯（mobile 需要 GPS）
+- 實作 dedup 邏輯（30s + 50m window）
+- 從 repo.py.backup 恢復 OutCheckpointRepository
+```
+
+**Definition of Done：**
+- [ ] test_out_checkpoint.py：7/7 PASS
+
+---
+
+## Phase 3 完成後總體目標
+
+```
+當前通過：183 passed（全套件）
+當前 Phase 2 target 通過：1/14（test_break_out_outside_allowed_location_fails）
+Phase 3 完成後目標：183 + 13 = ~196 passed
+```
 
 ---
 
@@ -111,7 +141,17 @@ POST/PUT/DELETE `/api/v1/admin/allowed-locations` 的 RBAC 為 `# TODO`，普通
 ```
 WP-C1-01（DB 環境）✅ VERIFIED 2026-03-11
   ↓
-WP-C1-02（Attendance Auth JWT 轉換）← 當前
+WP-C1-07（Attendance Auth JWT 轉換）✅ COMPLETED 2026-03-12
+  ↓
+WP-C1-08 Phase 1（基線驗證）✅ VERIFIED 2026-03-12
+  ↓
+WP-C1-08 Phase 2（Fixture Layer）✅ FIXTURE_COMPLETE 2026-03-12
+  ↓
+WP-C1-10（location_id support）← Priority 1
+WP-C1-11（cross-midnight duration fix）← Priority 2
+WP-C1-09（out-checkpoint endpoint）✅ DONE 2026-03-12
+  ↓
+WP-C1-08 Phase 3 VERIFIED（全 18 個 Phase 2/3 測試通過）
   ↓
 WP-C1-03（Auth 轉換 Batch 2：audit/notifications/backup）
   ↓
@@ -120,8 +160,6 @@ WP-C1-04（8 個回歸測試，真實 DB）
 WP-C1-05（Tenant Isolation 真實 DB 測試）
   ↓
 WP-C1-06（Feature Gate 套用）
-  ↓
-WP-C1-07（API 文件補齊）
   ↓
 [Phase 1 Complete — Gate 5 可宣告完成]
   ↓
@@ -133,5 +171,32 @@ WP-C2-02（Reporting Backend）
 
 ---
 
-**最後更新：** 2026-03-11
-**更新原因：** WP-C1-01 VERIFIED，切換至 WP-C1-02
+**最後更新：** 2026-03-12  
+**更新原因：** WP-C1-09 OUT Checkpoint API DONE；下一張建議票：WP-C1-03
+
+---
+
+## 下一張建議票：WP-C1-03
+
+### WP-C1-03：Auth 轉換 Batch 2（audit / notifications / backup 模組）
+
+**Priority：** P0（安全性）  
+**前置條件：** WP-C1-07（attendance JWT 遷移）✅、WP-C1-09 ✅  
+**預估複雜度：** Medium（3 個模組，pattern 已由 WP-C1-07 確立）
+
+**背景：**  
+WP-C1-07 完成了 attendance 模組的 Header auth → JWT Actor 遷移，建立了可重用的遷移 pattern。
+auit、notifications、backup 三個模組仍使用 `X-Company-ID` Header auth，存在身份偽造漏洞（P0）。
+
+**目標：**
+1. `audit/api.py`：`get_current_company_id` → `get_actor_with_company`
+2. `notifications/api.py`：同上
+3. `backup/api.py`：同上
+4. 每個模組補充對應測試（沿用 WP-C1-07 的測試 pattern）
+
+**驗收條件：**
+- 三個模組所有 endpoint 均使用 JWT Actor
+- 現有測試不退步
+- `X-Company-ID` Header 在三個模組中完全移除
+
+**下一步之後：** WP-C1-04（8 個回歸測試，真實 DB）

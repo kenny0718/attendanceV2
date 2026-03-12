@@ -13,6 +13,11 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base, get_db
 from app.main import app
+# Ensure all models are registered in Base.metadata for create_all()
+from app.modules.attendance.models import (  # noqa: F401
+    AttendanceOutCheckpoint, AttendanceSession, AttendancePunch,
+    AttendancePolicy, AllowedLocation
+)
 
 
 def get_test_database_url() -> str:
@@ -72,8 +77,8 @@ def test_db():
     - 清除 app.dependency_overrides
     """
     # 每個測試前：清空並重建所有表
-    Base.metadata.drop_all(bind=test_engine)
-    Base.metadata.create_all(bind=test_engine)
+    Base.metadata.drop_all(bind=test_engine, checkfirst=True)
+    Base.metadata.create_all(bind=test_engine, checkfirst=True)
     
     # 建立測試 session
     db = TestingSessionLocal()
@@ -101,8 +106,8 @@ def test_db():
 def test_db_session():
     """測試資料庫 session fixture（別名，相容不同命名習慣）"""
     # 每個測試前：清空並重建所有表
-    Base.metadata.drop_all(bind=test_engine)
-    Base.metadata.create_all(bind=test_engine)
+    Base.metadata.drop_all(bind=test_engine, checkfirst=True)
+    Base.metadata.create_all(bind=test_engine, checkfirst=True)
     
     # 建立測試 session
     db = TestingSessionLocal()
@@ -130,8 +135,8 @@ def db():
     直接返回 test_db_session 的實例，確保命名一致性。
     """
     # 每個測試前：清空並重建所有表
-    Base.metadata.drop_all(bind=test_engine)
-    Base.metadata.create_all(bind=test_engine)
+    Base.metadata.drop_all(bind=test_engine, checkfirst=True)
+    Base.metadata.create_all(bind=test_engine, checkfirst=True)
     
     # 建立測試 session
     session = TestingSessionLocal()
