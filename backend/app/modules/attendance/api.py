@@ -31,7 +31,8 @@ from app.modules.attendance.schemas import (
     SessionResponse,
     PolicyEvaluationResponse,
     SessionsListResponse,
-    UserSummaryResponse
+    UserSummaryResponse,
+    CompanySummaryResponse
 )
 from app.modules.attendance.policy_engine import AttendancePolicyEngine
 
@@ -827,6 +828,101 @@ async def get_user_summary(
         open_sessions=open_sessions,
         total_work_minutes=total_work_minutes,
         average_session_minutes=average_session_minutes,
+        first_session_time=first_session_time,
+        last_session_time=last_session_time,
+    )
+
+
+# ============================================
+# WP-11-06 Step 3: Company Summary Reporting Endpoint
+# ============================================
+
+@router_v1.get("/reports/company-summary", response_model=CompanySummaryResponse)
+async def get_company_summary(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    company_id: str = Depends(get_current_company_id),
+    db: Session = Depends(get_db)
+):
+    """GET /api/v1/attendance/reports/company-summary — Company-level summary (WP-11-06 Step 3)
+
+    Returns attendance summary statistics for the entire company (all users).
+
+    Query rules:
+    - 過濾僅使用 punch_in_time（禁止 punch_out_time）
+    - start_date / end_date 必須為 timezone-aware datetime（naive 回傳 422）
+    - total_work_minutes 讀取 canonical 欄位 duration_minutes
+    - 聚合在 Python 應用層執行（非 SQL 端）
+    - total_users_with_sessions 使用 Python set() 去重（非 SQL COUNT DISTINCT）
+
+    Tenant isolation:
+    - 所有查詢強制 WHERE company_id = ?（從 Header 取得）
+    - 查詢全公司所有用戶，不過濾 user_id
+    """
+    # --- 驗證 datetime 為 timezone-aware ---
+    if start_date is not None and start_date.tzinfo is None:
+        raise HTTPException(
+            status_code=422,
+            detail="start_date must be timezone-aware (naive datetime rejected)"
+        )
+    if end_date is not None and end_date.tzinfo is None:
+        raise HTTPException(
+            status_code=422,
+            detail="end_date must be timezone-aware (naive datetime rejected)"
+        )
+
+    # --- 正規化 datetime 至 UTC ---
+    start_utc = _normalize_to_utc(start_date)
+    end_utc = _normalize_to_utc(end_date)
+
+    # --- 查詢原始 sessions（全公司，不過濾 user_id）---
+    repo = get_reporting_repository(db)
+    sessions = repo.get_company_summary_sessions(
+        company_id=company_id,
+        start_utc=start_utc,
+        end_utc=end_utc,
+    )
+
+    # --- 應用層聚合 ---
+    total_sessions = len(sessions)
+    closed_sessions = sum(1 for s in sessions if s.status == "closed")
+    open_sessions = sum(1 for s in sessions if s.status == "open")
+
+    # 用戶去重（Python set，禁止 SQL COUNT DISTINCT）
+    total_users_with_sessions = len(set(s.user_id for s in sessions))
+
+    # canonical duration — duration_minutes IS NULL for open sessions
+    total_work_minutes = sum(s.duration_minutes or 0 for s in sessions)
+
+    # average per session: None when no closed sessions
+    average_minutes_per_session = (
+        total_work_minutes / closed_sessions
+        if closed_sessions > 0 else None
+    )
+
+    # average per user: None when no users with sessions
+    average_minutes_per_user = (
+        total_work_minutes / total_users_with_sessions
+        if total_users_with_sessions > 0 else None
+    )
+
+    # first / last: application-layer min/max over punch_in_time
+    first_session_time = (
+        min(s.punch_in_time for s in sessions) if sessions else None
+    )
+    last_session_time = (
+        max(s.punch_in_time for s in sessions) if sessions else None
+    )
+
+    return CompanySummaryResponse(
+        company_id=company_id,
+        total_users_with_sessions=total_users_with_sessions,
+        total_sessions=total_sessions,
+        open_sessions=open_sessions,
+        closed_sessions=closed_sessions,
+        total_work_minutes=total_work_minutes,
+        average_minutes_per_session=average_minutes_per_session,
+        average_minutes_per_user=average_minutes_per_user,
         first_session_time=first_session_time,
         last_session_time=last_session_time,
     )

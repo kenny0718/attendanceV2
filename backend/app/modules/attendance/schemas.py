@@ -347,3 +347,21 @@ class UserSummaryResponse(BaseModel):
     average_session_minutes: Optional[float] = Field(None, description="平均每次 session 工時（分鐘），無 closed session 時為 null")
     first_session_time: Optional[datetime] = Field(None, description="最早 punch_in_time，無 session 時為 null")
     last_session_time: Optional[datetime] = Field(None, description="最近 punch_in_time，無 session 時為 null")
+
+
+# ============================================
+# WP-11-06 Step 3: Company Summary Reporting Schema
+# ============================================
+
+class CompanySummaryResponse(BaseModel):
+    """Company-level attendance summary response (WP-11-06 Step 3)"""
+    company_id: str = Field(..., description="查詢的公司 ID")
+    total_users_with_sessions: int = Field(..., description="有出勤記錄的用戶數（Python set 去重）")
+    total_sessions: int = Field(..., description="符合條件的 session 總數（含 open + closed）")
+    open_sessions: int = Field(..., description="進行中的 session 數")
+    closed_sessions: int = Field(..., description="已完成的 session 數")
+    total_work_minutes: int = Field(..., description="總工時（分鐘），讀取 canonical duration_minutes，NULL 計為 0")
+    average_minutes_per_session: Optional[float] = Field(None, description="平均每次 session 工時，無 closed session 時為 null")
+    average_minutes_per_user: Optional[float] = Field(None, description="平均每位用戶工時，無用戶時為 null")
+    first_session_time: Optional[datetime] = Field(None, description="最早 punch_in_time，無 session 時為 null")
+    last_session_time: Optional[datetime] = Field(None, description="最近 punch_in_time，無 session 時為 null")

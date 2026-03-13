@@ -609,6 +609,32 @@ class ReportingRepository:
 
         return query.order_by(AttendanceSession.punch_in_time.asc()).all()
 
+
+    def get_company_summary_sessions(
+        self,
+        company_id: str,
+        start_utc: Optional[datetime] = None,
+        end_utc: Optional[datetime] = None,
+    ) -> List[AttendanceSession]:
+        """查詢公司所有 sessions（company-summary 用途，WP-11-06 Step 3）
+
+        不過濾 user_id（查全公司所有用戶）。
+        不分頁（全量拉取），在應用層聚合。
+        過濾僅使用 punch_in_time（禁止 punch_out_time）。
+        索引命中: idx_sessions_company_punch_in (company_id, punch_in_time)
+        """
+        query = self.db.query(AttendanceSession).filter(
+            AttendanceSession.company_id == company_id
+        )
+
+        if start_utc is not None:
+            query = query.filter(AttendanceSession.punch_in_time >= start_utc)
+
+        if end_utc is not None:
+            query = query.filter(AttendanceSession.punch_in_time < end_utc)
+
+        return query.order_by(AttendanceSession.punch_in_time.asc()).all()
+
 def get_reporting_repository(db: Session) -> ReportingRepository:
     """Factory function for ReportingRepository (WP-11-06)"""
     return ReportingRepository(db)
