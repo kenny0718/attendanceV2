@@ -8,7 +8,7 @@ WP-11-01 Phase B: Test Category 1 - Model Constraints
 """
 
 import pytest
-from datetime import datetime, time
+from datetime import datetime, timezone, time
 from uuid import uuid4
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -64,7 +64,7 @@ class TestAttendanceSessionConstraints:
         with pytest.raises(IntegrityError):
             session = AttendanceSession(
                 user_id=user_id,
-                punch_in_time=datetime.utcnow(),
+                punch_in_time=datetime.now(timezone.utc),
                 status='open'
             )
             db.add(session)
@@ -75,7 +75,7 @@ class TestAttendanceSessionConstraints:
         with pytest.raises(IntegrityError):
             session = AttendanceSession(
                 company_id="test-company",
-                punch_in_time=datetime.utcnow(),
+                punch_in_time=datetime.now(timezone.utc),
                 status='open'
             )
             db.add(session)
@@ -102,7 +102,7 @@ class TestAttendanceSessionConstraints:
             session = AttendanceSession(
                 company_id="test-company",
                 user_id=user_id,
-                punch_in_time=datetime.utcnow(),
+                punch_in_time=datetime.now(timezone.utc),
                 status='invalid'
             )
             db.add(session)
@@ -118,7 +118,7 @@ class TestAttendanceSessionConstraints:
             session = AttendanceSession(
                 company_id="non-existent-company",
                 user_id=user_id,
-                punch_in_time=datetime.utcnow(),
+                punch_in_time=datetime.now(timezone.utc),
                 status='open'
             )
             db.add(session)
@@ -130,7 +130,7 @@ class TestAttendanceSessionConstraints:
             session = AttendanceSession(
                 company_id="test-company",
                 user_id=uuid4(),  # Non-existent user
-                punch_in_time=datetime.utcnow(),
+                punch_in_time=datetime.now(timezone.utc),
                 status='open'
             )
             db.add(session)
@@ -143,7 +143,7 @@ class TestAttendanceSessionConstraints:
         session = AttendanceSession(
             company_id="test-company",
             user_id=user_id,
-            punch_in_time=datetime.utcnow()
+            punch_in_time=datetime.now(timezone.utc)
         )
         db.add(session)
         db.commit()
@@ -158,7 +158,7 @@ class TestAttendanceSessionConstraints:
         session = AttendanceSession(
             company_id="test-company",
             user_id=user_id,
-            punch_in_time=datetime.utcnow(),
+            punch_in_time=datetime.now(timezone.utc),
             status='open'
         )
         db.add(session)
@@ -180,7 +180,7 @@ class TestAttendancePunchConstraints:
                 company_id="test-company",
                 user_id=user_id,
                 punch_type='in',
-                punch_time=datetime.utcnow()
+                punch_time=datetime.now(timezone.utc)
             )
             db.add(punch)
             db.commit()
@@ -193,7 +193,7 @@ class TestAttendancePunchConstraints:
         session = AttendanceSession(
             company_id="test-company",
             user_id=user_id,
-            punch_in_time=datetime.utcnow()
+            punch_in_time=datetime.now(timezone.utc)
         )
         db.add(session)
         db.commit()
@@ -203,7 +203,7 @@ class TestAttendancePunchConstraints:
                 session_id=session.id,
                 user_id=user_id,
                 punch_type='in',
-                punch_time=datetime.utcnow()
+                punch_time=datetime.now(timezone.utc)
             )
             db.add(punch)
             db.commit()
@@ -216,7 +216,7 @@ class TestAttendancePunchConstraints:
         session = AttendanceSession(
             company_id="test-company",
             user_id=user_id,
-            punch_in_time=datetime.utcnow()
+            punch_in_time=datetime.now(timezone.utc)
         )
         db.add(session)
         db.commit()
@@ -227,7 +227,7 @@ class TestAttendancePunchConstraints:
                 company_id="test-company",
                 user_id=user_id,
                 punch_type='invalid',
-                punch_time=datetime.utcnow()
+                punch_time=datetime.now(timezone.utc)
             )
             db.add(punch)
             db.commit()
@@ -244,7 +244,7 @@ class TestAttendancePunchConstraints:
                 company_id="test-company",
                 user_id=user_id,
                 punch_type='in',
-                punch_time=datetime.utcnow()
+                punch_time=datetime.now(timezone.utc)
             )
             db.add(punch)
             db.commit()
@@ -257,7 +257,7 @@ class TestAttendancePunchConstraints:
         session = AttendanceSession(
             company_id="test-company",
             user_id=user_id,
-            punch_in_time=datetime.utcnow()
+            punch_in_time=datetime.now(timezone.utc)
         )
         db.add(session)
         db.commit()
@@ -267,7 +267,7 @@ class TestAttendancePunchConstraints:
             company_id="test-company",
             user_id=user_id,
             punch_type='in',
-            punch_time=datetime.utcnow()
+            punch_time=datetime.now(timezone.utc)
         )
         db.add(punch)
         db.commit()

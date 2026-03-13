@@ -8,7 +8,7 @@ WP-11-01 Phase B: Test Category 3 - Business Invariant
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -68,7 +68,7 @@ class TestOneOpenSessionInvariant:
     def test_one_open_session_per_user_database_level(self, db):
         """測試：database 層級防止同一 user 有兩個 open session"""
         user_id = db.query(User).first().id
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Create first open session
         session1 = AttendanceSession(
@@ -98,7 +98,7 @@ class TestOneOpenSessionInvariant:
         """測試：application 層級防止同一 user 有兩個 open session"""
         user_id = db.query(User).first().id
         repo = AttendanceSessionRepository(db)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Create first open session
         session1 = repo.create_session(
@@ -123,7 +123,7 @@ class TestOneOpenSessionInvariant:
     def test_different_companies_can_have_open_sessions(self, db):
         """測試：同一 user 在不同 company 可以有 open session"""
         user_id = db.query(User).first().id
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # User has open session in company A
         session_a = AttendanceSession(
@@ -154,7 +154,7 @@ class TestOneOpenSessionInvariant:
         users = db.query(User).all()
         user1_id = users[0].id
         user2_id = users[1].id
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # User 1 has open session
         session1 = AttendanceSession(
@@ -183,7 +183,7 @@ class TestOneOpenSessionInvariant:
     def test_closed_session_allows_new_open_session(self, db):
         """測試：closed session 後可以建立新的 open session"""
         user_id = db.query(User).first().id
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Create and close first session
         session1 = AttendanceSession(
@@ -217,7 +217,7 @@ class TestOneOpenSessionInvariant:
     def test_multiple_closed_sessions_allowed(self, db):
         """測試：同一 user 可以有多個 closed session"""
         user_id = db.query(User).first().id
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Create multiple closed sessions
         for i in range(3):
@@ -249,7 +249,7 @@ class TestSessionLifecycle:
         """測試：punch in 建立 open session"""
         user_id = db.query(User).first().id
         repo = AttendanceSessionRepository(db)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         session = repo.create_session(
             company_id="company-a",
@@ -267,7 +267,7 @@ class TestSessionLifecycle:
         """測試：punch out 關閉 session 並計算 duration"""
         user_id = db.query(User).first().id
         repo = AttendanceSessionRepository(db)
-        punch_in = datetime.utcnow()
+        punch_in = datetime.now(timezone.utc)
         punch_out = punch_in + timedelta(hours=8, minutes=30)
         
         # Punch in
@@ -292,7 +292,7 @@ class TestSessionLifecycle:
         """測試：無法關閉已經 closed 的 session"""
         user_id = db.query(User).first().id
         repo = AttendanceSessionRepository(db)
-        punch_in = datetime.utcnow()
+        punch_in = datetime.now(timezone.utc)
         punch_out = punch_in + timedelta(hours=8)
         
         # Punch in and out
@@ -320,7 +320,7 @@ class TestSessionLifecycle:
         """測試：punch out 後可以再次 punch in"""
         user_id = db.query(User).first().id
         repo = AttendanceSessionRepository(db)
-        day1 = datetime.utcnow()
+        day1 = datetime.now(timezone.utc)
         day2 = day1 + timedelta(days=1)
         
         # Day 1: Punch in and out
@@ -353,7 +353,7 @@ class TestTenantIsolation:
         """測試：無法關閉其他公司的 session"""
         user_id = db.query(User).first().id
         repo = AttendanceSessionRepository(db)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Company A creates session
         session = repo.create_session(
@@ -379,7 +379,7 @@ class TestTenantIsolation:
         """測試：get_open_session 遵守 company scope"""
         user_id = db.query(User).first().id
         repo = AttendanceSessionRepository(db)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Company A creates session
         session_a = repo.create_session(

@@ -6,7 +6,7 @@ Uses HS256 algorithm with 900 seconds expiry.
 
 import jwt
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 
 from app.core.config import settings
@@ -34,7 +34,7 @@ def create_access_token(claims: Dict[str, Any], expires_in: int = 900) -> str:
             raise ValueError(f"Missing required claim: {claim}")
     
     # Add timestamps
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     payload = {
         **claims,
         "iat": int(now.timestamp()),

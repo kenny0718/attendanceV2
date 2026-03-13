@@ -276,11 +276,11 @@ const toggleBreakLogs = () => {
 }
 
 const formatDateTime = (timestamp) => {
-  return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
+  return dayjs(timestamp).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm:ss')
 }
 
 const formatTime = (timestamp) => {
-  return dayjs(timestamp).format('HH:mm')
+  return dayjs(timestamp).tz('Asia/Taipei').format('HH:mm')
 }
 
 const getTypeLabel = (type) => {

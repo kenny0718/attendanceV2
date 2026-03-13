@@ -13,9 +13,12 @@ Design Principles:
 """
 
 import logging
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Optional, Dict, Any, List
 from uuid import UUID
+from zoneinfo import ZoneInfo
+
+TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 
 from app.modules.attendance.models import AttendanceSession, AttendancePolicy
 
@@ -54,8 +57,8 @@ class WorkWindow:
     
     def duration_minutes(self) -> int:
         """Calculate window duration in minutes"""
-        start_dt = datetime.combine(datetime.today(), self.start_time)
-        end_dt = datetime.combine(datetime.today(), self.end_time)
+        start_dt = datetime.combine(date.min, self.start_time)
+        end_dt = datetime.combine(date.min, self.end_time)
         delta = end_dt - start_dt
         return int(delta.total_seconds() / 60)
     
@@ -419,15 +422,13 @@ class AttendancePolicyEngine:
         Returns:
             (is_late, late_minutes)
         """
-        # Combine work_start_time with punch_in_time's date
-        expected_start = datetime.combine(
-            punch_in_time.date(),
-            work_start_time
-        )
-        
-        # Make timezone-aware if punch_in_time is timezone-aware
+        # Derive business date in Asia/Taipei, then combine with work_start_time
+        # P1-01/P1-02 fix: use Taipei local date (not UTC date) and mark with TZ_TAIPEI
         if punch_in_time.tzinfo is not None:
-            expected_start = expected_start.replace(tzinfo=punch_in_time.tzinfo)
+            taipei_date = punch_in_time.astimezone(TZ_TAIPEI).date()
+        else:
+            taipei_date = punch_in_time.date()
+        expected_start = datetime.combine(taipei_date, work_start_time).replace(tzinfo=TZ_TAIPEI)
         
         # Add grace period
         expected_start_with_grace = expected_start + timedelta(minutes=grace_period_minutes)
@@ -454,15 +455,13 @@ class AttendancePolicyEngine:
         Returns:
             (is_early_leave, early_leave_minutes)
         """
-        # Combine work_end_time with punch_out_time's date
-        expected_end = datetime.combine(
-            punch_out_time.date(),
-            work_end_time
-        )
-        
-        # Make timezone-aware if punch_out_time is timezone-aware
+        # Derive business date in Asia/Taipei, then combine with work_end_time
+        # P1-01/P1-02 fix: use Taipei local date (not UTC date) and mark with TZ_TAIPEI
         if punch_out_time.tzinfo is not None:
-            expected_end = expected_end.replace(tzinfo=punch_out_time.tzinfo)
+            taipei_date = punch_out_time.astimezone(TZ_TAIPEI).date()
+        else:
+            taipei_date = punch_out_time.date()
+        expected_end = datetime.combine(taipei_date, work_end_time).replace(tzinfo=TZ_TAIPEI)
         
         # Calculate early leave minutes
         if punch_out_time < expected_end:
@@ -622,20 +621,14 @@ class AttendancePolicyEngine:
         total_minutes = 0
         
         for window in windows:
-            # Convert window times to datetime on the same date as punches
-            window_start_dt = datetime.combine(
-                punch_in_time.date(),
-                window.start_time
-            )
-            window_end_dt = datetime.combine(
-                punch_in_time.date(),
-                window.end_time
-            )
-            
-            # Make timezone-aware if needed
+            # Derive business date in Asia/Taipei for window boundaries
+            # P1-01/P1-02 fix: use Taipei local date and mark with TZ_TAIPEI
             if punch_in_time.tzinfo is not None:
-                window_start_dt = window_start_dt.replace(tzinfo=punch_in_time.tzinfo)
-                window_end_dt = window_end_dt.replace(tzinfo=punch_in_time.tzinfo)
+                taipei_date = punch_in_time.astimezone(TZ_TAIPEI).date()
+            else:
+                taipei_date = punch_in_time.date()
+            window_start_dt = datetime.combine(taipei_date, window.start_time).replace(tzinfo=TZ_TAIPEI)
+            window_end_dt = datetime.combine(taipei_date, window.end_time).replace(tzinfo=TZ_TAIPEI)
             
             # Calculate overlap between punch times and this window
             effective_start = max(punch_in_time, window_start_dt)

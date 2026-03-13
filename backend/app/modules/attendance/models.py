@@ -92,7 +92,7 @@ class AttendanceSession(Base):
     # Session fields
     punch_in_time = Column(DateTime(timezone=True), nullable=False, comment='打卡上班時間 (UTC+8)')
     punch_out_time = Column(DateTime(timezone=True), nullable=True, comment='打卡下班時間 (UTC+8, NULL = open session)')
-    status = Column(String(20), nullable=False, server_default='open', comment='Session 狀態 (open/closed/pending/approved/rejected/missing_punch_out)')
+    status = Column(String(20), nullable=False, server_default='open', comment='Session 狀態 (open/closed)。擴充狀態須先執行 migration 更新 CHECK constraint ck_sessions_status')
     duration_minutes = Column(Integer, nullable=True, comment='工作時長 (分鐘, computed on close)')
     policy_id = Column(PGUUID(as_uuid=True), nullable=True, comment='適用的考勤政策')
     notes = Column(Text, nullable=True, comment='備註')
