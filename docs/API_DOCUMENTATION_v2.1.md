@@ -1,4 +1,4 @@
-# API Documentation v2.0
+# API Documentation v2.1
 
 **版本**: 2.0  
 **日期**: 2026-03-09  
@@ -7,7 +7,7 @@
 
 ---
 
-## 變更摘要 (v1.0 → v2.0)
+## 變更摘要 (v1.0 → v2.1)
 
 ### 新增功能
 - ✅ Location Policy / Geofence API (WP-11-13)
@@ -77,7 +77,7 @@ Content-Type: application/json
     "latitude": 25.0335,
     "longitude": 121.5660,
     "accuracy": 10,
-    "captured_at": "2026-03-09T14:30:00Z",
+    "captured_at": "2026-03-09T22:30:00+08:00",
     "provider": "gps"
   }
 }
@@ -98,7 +98,7 @@ Content-Type: application/json
 | latitude     | float  | ✅   | 緯度 (-90 ~ 90)                     |
 | longitude    | float  | ✅   | 經度 (-180 ~ 180)                   |
 | accuracy     | float  | ✅   | 精度 (公尺)                         |
-| captured_at  | string | ✅   | 定位時間 (ISO 8601)                 |
+| captured_at  | string | ✅   | 定位時間 (ISO 8601 with timezone offset，如 2026-03-09T14:30:00Z 或 +08:00)（SA v2.1 §31.5） |
 | provider     | string | ✅   | 定位來源: `gps`, `network`, `fused` |
 
 #### Response 200 (成功)
@@ -216,17 +216,7 @@ Content-Type: application/json
     }
   ]
 }
-```
-      "field": "latitude",
-      "message": "緯度必須在 -90 到 90 之間"
-    },
-    {
-      "field": "radius_meters",
-      "message": "半徑必須大於 0"
-    }
-  ]
-}
-```
+
 
 ---
 
@@ -472,13 +462,26 @@ Authorization: Bearer {access_token}
 - 建立：自動設定 `company_id`
 - 更新/刪除：只能操作自己公司的資料
 
-### 時間格式
+### 時間格式與時區合約（SA v2.1 §31）
 
-所有時間欄位使用 ISO 8601 格式：
+所有時間欄位使用 ISO 8601 格式，並必須含 timezone offset：
+```
+2026-03-09T14:30:00Z          # UTC, Z suffix
+2026-03-09T22:30:00+08:00     # Asia/Taipei, 含 timezone offset
+```
 
-```
-2026-03-09T14:30:00Z
-```
+
+**時區規則（SA v2.1 §31）：**
+
+| 規則 | 說明 |
+|------|------|
+| UTC 儲存 | 所有 datetime 欄位在 DB 內儲存 UTC-aware datetime |
+| Asia/Taipei 業務邊界 | 今天/本週/本月均以 Asia/Taipei 午夜（00:00）為邊界 |
+| API request | 時間欄位必須含 timezone offset（ISO 8601），拒絕 naive datetime |
+| API response | 時間欄位以 UTC 回傳，標註 Z suffix |
+| datetime.utcnow() | **禁止**使用於任何業務邏輯，會產生 naive datetime |
+
+> 正確做法：`datetime.now(timezone.utc)` 或 `datetime.now(pytz.timezone("Asia/Taipei"))`
 
 ### 分頁
 
@@ -585,7 +588,7 @@ curl -X POST https://api.example.com/api/v1/attendance/break-out \
       "latitude": 25.0335,
       "longitude": 121.5660,
       "accuracy": 10,
-      "captured_at": "2026-03-09T14:30:00Z",
+      "captured_at": "2026-03-09T22:30:00+08:00",
       "provider": "gps"
     }
   }'
@@ -611,23 +614,38 @@ curl -X PUT https://api.example.com/api/v1/admin/allowed-locations/{location_id}
 
 ---
 
+## 工時與報表欄位治理說明（SA v2.1 §26–30）
+
+依據 SA_MODULE_SPEC_v2.1 的 Attendance Calculation Architecture，所有工時與報表相關欄位遵守以下規則：
+
+| 規則 | 內容 |
+|------|------|
+| 工時 canonical 來源 | 報表顯示的工時必須讀取 （Work Hour Engine 計算，§26.4） |
+| 禁止獨立計算 | Report Layer 不得執行獨立工時計算（禁止 ）（§30） |
+| 前端一致性 | 前端報表元件不得用 JS 重算工時，必須讀取後端 canonical 欄位（§30.2） |
+| 跨午夜 session | 所屬日期以 punch_in_time 的 Asia/Taipei 日期為準（§29.2） |
+| 缺失 punch_out | session 標記為 INCOMPLETE，前端顯示未完成，不得填入估算値（§28.4） |
+
+---
+
 ## 版本歷史
 
 | 版本 | 日期       | 變更內容                                  |
 | ---- | ---------- | ----------------------------------------- |
 | 1.0  | 2026-03-01 | 初版，包含基本考勤 API                    |
 | 2.0  | 2026-03-09 | 新增 Location Policy API (WP-11-13)       |
+| 2.1  | 2026-03-12 | 新增 Timezone Contract 與 Report Consistency 治理說明（SA v2.1 §29、31、30 alignment） |
 
 ---
 
 ## 相關文件
 
-- `SA_MODULE_SPEC_v2.0.md` - 系統架構規格
+- `SA_MODULE_SPEC_v2.1.md` - 系統架構規格
 - `ATTENDANCE_LOCATION_POLICY_SPEC_v1.0.md` - Location Policy 詳細規格
 - `WP-11-13_LOCATION_POLICY_DESIGN.md` - WP-11-13 設計文件
 
 ---
 
 **文件狀態**: ⚠️ Draft (Partially Implemented)  
-**最後更新**: 2026-03-09  
+**最後更新**: 2026-03-12  
 **維護者**: Backend Team

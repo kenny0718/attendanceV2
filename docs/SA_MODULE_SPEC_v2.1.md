@@ -2,7 +2,8 @@
 
 # Attendance System
 
-Version: 2.0 Status: Platform‑First Architecture + Location Policy
+Version: 2.1
+Status: Platform-First Architecture + Location Policy + Attendance Calculation Architecture
 
 ------------------------------------------------------------------------
 
@@ -482,7 +483,8 @@ Scope → Tenant Isolation → Feature Gate → **Location Policy**
 v1.7 --- Tenant baseline\
 v1.8 --- Platform‑first identity\
 v1.9 --- Scope / Feature / Backup architecture finalized\
-**v2.0 --- Location Policy / Geofence (WP-11-13)**
+**v2.0 --- Location Policy / Geofence (WP-11-13)
+v2.1 --- Attendance Calculation Architecture / Work Hour Engine / Cross-midnight and Reporting Consistency**
 
 ------------------------------------------------------------------------
 
@@ -608,6 +610,238 @@ class PolicyCheckResult:
 
 ------------------------------------------------------------------------
 
-**文件版本**: v2.0\
-**最後更新**: 2026-03-09\
-**更新原因**: 新增 WP-11-13 Location Policy / Geofence 功能
+**文件版本**: v2.1\
+**最後更新**: 2026-03-12\
+**更新原因**: v2.1 新增 Attendance Calculation Architecture（Section 25-32）
+
+---
+
+# ===============================================
+# SECTION GROUP: ATTENDANCE CALCULATION ARCHITECTURE (v2.1)
+# ===============================================
+
+# 25. Attendance Calculation Architecture - Overview
+
+v2.1 正式定義出勤計算引擎的分層架構、責任邊界、計算規則與一致性要求。
+本 section（25-32）是未來所有工時計算、跨午夜處理、報表一致性工作的規範來源。
+
+---
+
+# 26. Attendance Engine Layering
+
+出勤系統分為五個明確的層次，責任不可混用：
+
+## 26.1 Punch Layer
+
+職責：記錄原始打卡事件，僅此而已。
+
+- 只儲存原始打卡時間、裝置資訊、GPS 座標、location_id
+- 不計算任何工時；不推斷業務語意
+- 輸出：AttendancePunch 記錄
+
+## 26.2 Session Engine
+
+職責：將打卡事件組合成出勤 Session。
+
+- 識別 punch_in / punch_out 配對
+- 建立 AttendanceSession（含 punch_in_time、punch_out_time）
+- 計算 raw_duration（見第 28 節）
+- 不執行 Policy 評估；不計算最終工時
+
+## 26.3 Policy Engine
+
+職責：評估出勤合規性。
+
+- 評估遲到 / 早退 / 加班 / 違規
+- 參照公司 AttendancePolicy
+- 輸出：評估結果標記（late / early_leave / overtime 等）
+- 不直接修改工時數字；不寫入 Report Layer
+
+## 26.4 Work Hour Engine
+
+職責：計算最終工時相關數值（canonical 計算）。
+
+- 讀取 Session Engine 的 raw_duration
+- 套用核准的休息扣除（break_duration）
+- 輸出：work_duration、paid_hours、overtime_minutes
+- 此引擎為唯一合法的工時計算來源
+- 任何需要重算的場景必須重用此引擎，不得另建計算路徑
+
+## 26.5 Report Layer
+
+職責：讀取已計算的 Session / Policy / Work Hour 結果並呈現。
+
+- 只讀（Read-Only）
+- 必須讀取 canonical session 欄位，不得重新推導
+- 禁止在 Report Layer 實作獨立的工時計算邏輯
+- 前後端報表必須使用同一組 canonical 欄位
+
+---
+
+# 27. Responsibility Boundaries
+
+禁止 1：在 API handler 中直接實作工時計算邏輯
+
+    WRONG: 在 punch_out endpoint inline 計算 overtime_minutes
+    RIGHT: 呼叫 Work Hour Engine 服務方法
+
+禁止 2：前端與後端分別實作工時計算
+
+    WRONG: 前端用 JS 計算工時，與後端 session.work_duration 不同
+    RIGHT: 前端只顯示後端 canonical 欄位
+
+禁止 3：Report Layer 重新從原始打卡推導工時
+
+    WRONG: SELECT punch_out_time - punch_in_time AS work_hours
+    RIGHT: SELECT duration_minutes FROM attendance_sessions
+
+禁止 4：Report Layer 的計算結果與 Session 欄位合法不同
+
+    WRONG: 報表有自己的計算方式
+    RIGHT: 報表與 Session 必須使用同一 canonical 值
+
+---
+
+# 28. Work Hour Calculation Rules
+
+## 28.1 術語定義
+
+| 術語 | 定義 | 儲存欄位 |
+|------|------|----------|
+| raw_duration | punch_out_time - punch_in_time | 衍生，不直接儲存 |
+| break_duration | 當次 session 中所有核准有效的休息累計時間 | 衍生自 break punches |
+| work_duration | raw_duration - break_duration | session.duration_minutes |
+| paid_hours | 依 Policy 規則計算的應付工時 | 依 Policy 輸出 |
+| overtime_minutes | work_duration 超過標準工時的部分（需 Policy 認定） | 依 Policy 輸出 |
+
+## 28.2 raw_duration 計算規則
+
+    raw_duration = punch_out_time - punch_in_time
+
+- 兩個時間均必須為 timezone-aware UTC datetime
+- 結果必須為正數（見 cross-midnight 規則，第 29 節）
+- 若 punch_out_time 早於 punch_in_time（資料錯誤），session 標記為 INVALID
+
+## 28.3 break_duration 規則
+
+- break_duration = 後端計算並核准的休息時間
+- Out Checkpoint（attendance_out_checkpoints）不等於 break_duration，
+  除非 Policy 明確定義此換算
+- 未歸返的 break（無對應 return punch）視為 incomplete break，
+  不自動扣除，除非有獨立 adjustment rule
+- 前端不得自行計算 break_duration
+
+## 28.4 Missing Punch 處理規則
+
+- 缺少 punch_out: session 標記為 OPEN / INCOMPLETE，不計入已完成工時
+- 缺少 punch_in: 資料異常，session 標記為 INVALID
+- 不得以合理推測靜默填入遺失打卡，除非有明確的 adjustment workflow
+---
+
+# 29. Cross-Midnight Rule
+
+## 29.1 Duration 計算
+
+跨午夜 session 的 raw_duration 必須仍產生正確正數結果：
+
+    範例：punch_in  = 2026-03-11 23:00 UTC
+          punch_out = 2026-03-12 02:00 UTC
+          raw_duration = 3 小時 = 180 分鐘  [CORRECT]
+
+實作要求：punch_in_time 與 punch_out_time 均儲存為 UTC-aware datetime。
+計算公式 (punch_out_time - punch_in_time).total_seconds() / 60 天然支援跨午夜。
+
+禁止：使用 datetime.utcnow()（naive datetime）混合 aware datetime 計算，
+      會導致 duration = 0 或錯誤值。
+
+## 29.2 Session Ownership Date
+
+規則：session 的所屬日期 = punch_in_time 的業務時區（Asia/Taipei）日期。
+
+    範例：punch_in UTC = 2026-03-11 16:00 = Asia/Taipei 2026-03-12 00:00
+          session 所屬日期 = 2026-03-12（Taipei 日期）
+
+## 29.3 Monthly Reporting Ownership
+
+- 月報所屬月份 = session 的 Asia/Taipei punch_in_time 所在月份
+- 若 session 跨月，整體歸屬於 punch_in_time 所在月份
+- 未來若有其他規則，必須在此 spec 明確修訂，不得各模組自行解讀
+
+---
+
+# 30. Report Consistency Rule
+
+## 30.1 核心原則
+
+報表層必須讀取 canonical attendance session 欄位，不得發明第二條獨立計算路徑。
+
+強制規則：
+1. 報表顯示的工時 = attendance_sessions.duration_minutes
+2. 報表顯示的日期歸屬 = session ownership date（見 29.2）
+3. 若未來需要重新計算，必須重用 Work Hour Engine
+
+## 30.2 Frontend / Backend 一致性
+
+- 前端報表元件讀取後端 API 回傳的 canonical 欄位
+- 前端不得用 JS 重新計算工時（即使顯示結果相同，也禁止）
+- 若後端欄位為 null（incomplete session），前端顯示未完成，不得填入估算值
+
+---
+
+# 31. Timezone Rule
+
+## 31.1 Project 時區設定
+
+本系統為台灣優先（Taiwan-first）部署：
+
+    業務時區：Asia/Taipei (UTC+8)
+    儲存時區：UTC（所有 datetime 欄位均儲存 UTC）
+    顯示時區：Asia/Taipei（除非用戶設定）
+
+## 31.2 儲存規則
+
+- 所有 datetime 欄位儲存 UTC-aware datetime
+- 禁止儲存 naive datetime（無時區資訊）
+- 禁止儲存 local time 作為 UTC
+
+## 31.3 業務日期邊界
+
+- 所有業務日邊界以 Asia/Taipei 計算
+- 今天、本週、本月均以 Asia/Taipei 時區的午夜（00:00）為邊界
+- 跨日判斷使用 Asia/Taipei 轉換後的日期，不使用 UTC 日期
+
+## 31.4 禁止行為
+
+    WRONG: datetime.utcnow()  -- 產生 naive datetime，禁止用於任何業務計算
+    RIGHT: datetime.now(timezone.utc)  -- UTC-aware，正確
+
+    WRONG: 在業務規則中混用 UTC now 與 Taipei local time 比較
+    RIGHT: 統一轉換為同一時區後再比較
+
+    WRONG: 假設前端傳來的時間為 UTC
+    RIGHT: API 明確要求 ISO 8601 with timezone offset
+
+## 31.5 API Timezone Contract
+
+- API request 中的時間欄位必須帶有 timezone offset（ISO 8601）
+- API response 中的時間欄位以 UTC 回傳，標註 Z suffix
+- 前端負責將 UTC 轉換為顯示時區（Asia/Taipei）
+
+---
+
+# 32. Future Extensibility
+
+本 Attendance Calculation Architecture 設計支援未來擴充：
+
+- Shift Templates：Policy Engine 讀取班表定義標準工時
+- Flex Time：Work Hour Engine 支援可變起迄時間計算
+- Split Shifts：Session Engine 支援同一日多個 session 合併計算
+- Holiday / Calendar Rules：Policy Engine 整合假日行事曆評估加班費
+- Adjustment Workflows：獨立 adjustment layer，
+  調整後重新觸發 Work Hour Engine，不得繞過
+
+---
+
+**文件版本**: v2.1
+**最後更新**: 2026-03-12
+**更新原因**: v2.1 新增 Attendance Calculation Architecture（Section 25-32）

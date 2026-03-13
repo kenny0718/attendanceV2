@@ -10,7 +10,7 @@
 
 ### 🔴 P0 - 必讀文件（架構與規範）
 
-#### 1. SA_MODULE_SPEC_v1.9.md
+#### 1. SA_MODULE_SPEC_v2.1.md
 **唯一架構權威規範**
 
 - Platform-First Identity 架構定義
@@ -266,7 +266,7 @@
 ### 當你需要...
 
 #### 了解架構規範
-→ 讀取 `SA_MODULE_SPEC_v1.9.md`
+→ 讀取 `SA_MODULE_SPEC_v2.1.md`
 
 #### 規劃開發順序
 → 讀取 `MASTER_DEVELOPMENT_ROADMAP_v2.md`
@@ -284,13 +284,13 @@
 → 讀取 `SA_REALITY_GAP_REPORT.md`
 
 #### 實作新功能
-→ 先讀取 `SA_MODULE_SPEC_v1.9.md`，確認符合規範
+→ 先讀取 `SA_MODULE_SPEC_v2.1.md`，確認符合規範
 
 #### 修改現有模組
 → 先讀取 `REALITY_AUDIT_STATUS_INVENTORY.md`，確認模組狀態
 
 #### 架構決策
-→ 讀取 `SA_MODULE_SPEC_v1.9.md` + `ARCHITECTURE_FIX_DECISION.md`
+→ 讀取 `SA_MODULE_SPEC_v2.1.md` + `ARCHITECTURE_FIX_DECISION.md`
 
 ---
 
@@ -318,7 +318,7 @@
 ### ✅ 應該做的事
 
 1. **優先讀取 P0 文件**
-   - SA_MODULE_SPEC_v1.9.md
+   - SA_MODULE_SPEC_v2.1.md
    - MASTER_DEVELOPMENT_ROADMAP_v2.md
 
 2. **確認系統現況**
@@ -326,7 +326,7 @@
    - SA_REALITY_GAP_REPORT.md
 
 3. **遵循架構規範**
-   - 所有開發必須符合 SA v1.9
+   - 所有開發必須符合 SA v2.1
    - 不可妥協的 P0 要求必須滿足
 
 4. **按照 Roadmap 執行**
@@ -343,7 +343,7 @@
 
 | 文件 | 當前版本 | 狀態 | 備註 |
 |------|---------|------|------|
-| SA_MODULE_SPEC | v1.9 | ✅ ACTIVE | 唯一權威 |
+| SA_MODULE_SPEC | v2.1 | ✅ ACTIVE | 唯一權威 |
 | MASTER_DEVELOPMENT_ROADMAP | v2 | ✅ ACTIVE | 使用 v2 |
 | REALITY_AUDIT_* | 2026-03-04 | ✅ ACTIVE | 最新盤點 |
 | SA_REALITY_GAP_REPORT | 2026-03-04 | ✅ ACTIVE | 最新分析 |
@@ -378,13 +378,13 @@
 ## 📝 總結
 
 **核心原則：**
-1. SA_MODULE_SPEC_v1.9.md 是唯一架構權威
+1. SA_MODULE_SPEC_v2.1.md 是唯一架構權威
 2. MASTER_DEVELOPMENT_ROADMAP_v2.md 是開發順序權威
 3. REALITY_AUDIT_* 是系統現況權威
 4. archive 目錄僅供歷史參考，不作為開發依據
 
 **AI 工作流程：**
-1. 讀取 SA_MODULE_SPEC_v1.9.md 了解架構
+1. 讀取 SA_MODULE_SPEC_v2.1.md 了解架構
 2. 讀取 MASTER_DEVELOPMENT_ROADMAP_v2.md 了解開發順序
 3. 讀取 REALITY_AUDIT_STATUS_INVENTORY.md 了解現況
 4. 讀取相關 P1/P2 文件了解細節

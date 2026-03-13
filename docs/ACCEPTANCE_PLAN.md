@@ -12,11 +12,11 @@
 
 - `MODULE_STATUS_MATRIX.md`（模組狀態）
 - `SA_MODULE_SPEC_v2.0.md`（架構規範）
-- `API_DOCUMENTATION_v2.0.md`（API 合約）
+- `API_DOCUMENTATION_v2.1.md`（API 合約）
 
 ## Last Updated
 
-2026-03-11
+2026-03-12 (SA v2.1 alignment patch)
 
 ---
 
@@ -106,7 +106,7 @@
 |----|------|------|----------|
 | ATT-01 | punch-in 成功 | API-LEVEL | 201 + session_id + punch_in_time |
 | ATT-02 | 重複 punch-in 被拒 | API-LEVEL | 400 + BUSINESS_RULE_VIOLATION |
-| ATT-03 | punch-out 成功 | API-LEVEL | 200 + punch_out_time + policy 評估結果 |
+| ATT-03 | punch-out 成功 | API-LEVEL | 200 + punch_out_time + policy 評估結果；session.duration_minutes 為 canonical 工時（SA v2.1 §28）；跨午夾情境 duration_minutes 應為正數（§29.1） |
 | ATT-04 | 無 punch-in 直接 punch-out 被拒 | API-LEVEL | 400 |
 | ATT-05 | current-status 回傳正確狀態 | API-LEVEL | 200 + is_punched_in/is_on_break 正確 |
 | ATT-06 | break-out 成功（無 location policy） | API-LEVEL | 200 + punch_time |
@@ -213,6 +213,10 @@
 - Tenant Isolation（只能查自己公司）
 - 日期範圍過濾正確
 - Scope 驗證（employee 只能查自己）
+- **報表層一致性（SA v2.1 §30 Report Consistency Rule）：**
+  - 報表顯示的工時 = attendance_sessions.duration_minutes（canonical 欄位）
+  - 報表 API 不得執行獨立工時計算（禁止 SELECT punch_out - punch_in）
+  - 前端報表元件僅讀取後端 canonical 欄位，不得以 JS 重算
 
 ---
 

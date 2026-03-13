@@ -13,11 +13,11 @@
 
 - `SYSTEM_VERIFICATION_BASELINE.md`（CODE SCAN 結果）
 - `MODULE_STATUS_MATRIX.md`（模組狀態）
-- `SA_MODULE_SPEC_v2.0.md`（架構規範）
+- `SA_MODULE_SPEC_v2.1.md`（架構規範）
 
 ## Last Updated
 
-2026-03-11
+2026-03-12 (SA v2.1 alignment patch)
 
 ---
 
@@ -62,6 +62,8 @@ C3. Phase 2 擴展層
 - Feature Gate 套用至核心 endpoint
 - 8 個回歸測試在真實 DB 通過
 - Tenant Isolation 測試在真實 DB 通過
+- cross-midnight 場景回歸測試通過（工時計算遵守 SA v2.1 §29，使用 UTC-aware datetime）
+- 時區相關行為符合 SA v2.1 §31（禁用 datetime.utcnow()，業務邊界以 Asia/Taipei 計算）
 
 ---
 
@@ -142,4 +144,10 @@ C3. Phase 2 擴展層
 
 **目標：** 實作所有 8 個 attendance 核心回歸測試，並在真實 PostgreSQL DB 執行通過。
 
-**不可跳過原因：** 這是 Gate 5 
+**不可跳過原因：** 這是 Gate 5 完成的核心檢驗條件。
+
+> **SA v2.1 §28、29、31 alignment note：**
+> - 回歸測試 Test 8（cross-midnight）必須對應 SA v2.1 §29.2 Session Ownership Date 規則：
+>   session 所屬日期 = punch_in_time 的 Asia/Taipei 日期。
+> - duration_minutes 計算必須使用 UTC-aware datetime，禁止 naive datetime（§31.4）。
+> - 回歸測試中的 canonical 工時欄位為 session.duration_minutes（§28）。

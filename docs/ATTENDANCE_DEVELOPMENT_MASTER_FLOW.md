@@ -10,7 +10,7 @@
 ## Authority & Rules（權威來源）
 
 ### 架構權威
-- **SA_MODULE_SPEC_v1.9.md** — 唯一架構權威規範
+- **SA_MODULE_SPEC_v2.1.md** — 唯一架構權威規範
   - Platform-First Identity 架構定義
   - Tenant Isolation 規則
   - Feature Flags 機制
@@ -67,7 +67,7 @@ Gate 5 下的 Work Packages 必須按以下順序執行：
 建立 Attendance 模組的 Domain Model（models + repo + migration + tests）
 
 **Inputs:**
-- `@Files docs/SA_MODULE_SPEC_v1.9.md`
+- `@Files docs/SA_MODULE_SPEC_v2.1.md`
 - `@Files docs/MASTER_DEVELOPMENT_ROADMAP_v2.md`
 
 **Touch Points:**
@@ -115,7 +115,7 @@ Gate 5 下的 Work Packages 必須按以下順序執行：
 實作打卡核心 API（Punch In/Out/Current Status/History）
 
 **Inputs:**
-- `@Files docs/SA_MODULE_SPEC_v1.9.md`
+- `@Files docs/SA_MODULE_SPEC_v2.1.md`
 - `@Files docs/MASTER_DEVELOPMENT_ROADMAP_v2.md`
 - `@Files docs/WP-11-01_PHASE_B_REPORT.md`（WP-11-01 交付物）
 
@@ -160,7 +160,7 @@ Gate 5 下的 Work Packages 必須按以下順序執行：
 實作 Policy Engine（遲到/早退/加班計算）
 
 **Inputs:**
-- `@Files docs/SA_MODULE_SPEC_v1.9.md`
+- `@Files docs/SA_MODULE_SPEC_v2.1.md`
 - `@Files docs/MASTER_DEVELOPMENT_ROADMAP_v2.md`
 - `@Files docs/WP-11-02_REPORT.md`（WP-11-02 交付物）
 
@@ -203,7 +203,7 @@ Gate 5 下的 Work Packages 必須按以下順序執行：
 實作 Company Entitlements 與 Feature Flags 系統
 
 **Inputs:**
-- `@Files docs/SA_MODULE_SPEC_v1.9.md`
+- `@Files docs/SA_MODULE_SPEC_v2.1.md`
 - `@Files docs/MASTER_DEVELOPMENT_ROADMAP_v2.md`
 
 **Touch Points:**
@@ -246,7 +246,7 @@ Gate 5 下的 Work Packages 必須按以下順序執行：
 執行 Gate Ready Audit（只做審查 + 產出報告，不做新功能）
 
 **Inputs:**
-- `@Files docs/SA_MODULE_SPEC_v1.9.md`
+- `@Files docs/SA_MODULE_SPEC_v2.1.md`
 - `@Files docs/MASTER_DEVELOPMENT_ROADMAP_v2.md`
 - `@Files docs/REALITY_AUDIT_STATUS_INVENTORY.md`
 - `@Files docs/WP-11-04B_KICKOFF_PLAN.md`
@@ -292,7 +292,7 @@ Gate 5 下的 Work Packages 必須按以下順序執行：
 實作並通過 8 個 Attendance 核心回歸測試
 
 **Inputs:**
-- `@Files docs/SA_MODULE_SPEC_v1.9.md`
+- `@Files docs/SA_MODULE_SPEC_v2.1.md`
 - `@Files docs/MASTER_DEVELOPMENT_ROADMAP_v2.md`
 - `@Files docs/ATTENDANCE_REGRESSION_SPEC.md`（WP-11-04B 交付物）
 
@@ -315,7 +315,10 @@ Gate 5 下的 Work Packages 必須按以下順序執行：
 5. 21:00 日結缺卡正確
 6. approve pending → 該日重算
 7. customer_service 未指派公司 → 403
-8. cross-midnight（例如 3/31 上班到隔天，工時歸屬規則）
+8. cross-midnight（例如 3/31 23:00 上班到 4/1 02:00）
+   - raw_duration 應為正數（punch_out - punch_in，UTC-aware datetime）
+   - session 所屬日期 = punch_in_time 的 Asia/Taipei 日期（SA v2.1 §29.2 Session Ownership Date）
+   - 月報歸屬 = punch_in_time 所在月份（SA v2.1 §29.3）
 
 **Additional Scenarios (Optional):**
 - double punch prevention（重複打卡）
@@ -348,7 +351,7 @@ Gate 5 下的 Work Packages 必須按以下順序執行：
 實作 Attendance Reporting v1（報表模組）
 
 **Inputs:**
-- `@Files docs/SA_MODULE_SPEC_v1.9.md`
+- `@Files docs/SA_MODULE_SPEC_v2.1.md`
 - `@Files docs/MASTER_DEVELOPMENT_ROADMAP_v2.md`
 - `@Files docs/WP-11-04B_KICKOFF_PLAN.md`（報表需求）
 

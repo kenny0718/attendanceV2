@@ -40,7 +40,7 @@
 | 面向 | 狀態 | 缺口說明 |
 |------|------|----------|
 | **目標定位** | Platform-First Identity，JWT 登入，User/Role/Permission 管理 | - |
-| **spec 狀態** | `CODE_COMPLETE` | SA_MODULE_SPEC v2.0 有定義；無獨立 docs.md |
+| **spec 狀態** | `CODE_COMPLETE` | SA_MODULE_SPEC v2.1 有定義；無獨立 docs.md |
 | **backend 結構** | `CODE_COMPLETE` | api.py / service.py / repo.py / models.py / schemas.py 齊全 |
 | **migration** | `CODE_COMPLETE` | 3532deda024c_create_auth_tables_v2_platform_first |
 | **tests** | `CODE_COMPLETE` | test_login_api.py, test_repo.py（共 2 files）；未在真實 DB 驗證 |
@@ -61,7 +61,7 @@
 | 面向 | 狀態 | 缺口說明 |
 |------|------|----------|
 | **目標定位** | Tenant 管理、Entitlements CRUD、Feature Flag 控制 | - |
-| **spec 狀態** | `CODE_COMPLETE` | SA_MODULE_SPEC v2.0 有定義；無獨立 docs.md |
+| **spec 狀態** | `CODE_COMPLETE` | SA_MODULE_SPEC v2.1 有定義；無獨立 docs.md |
 | **backend 結構** | `CODE_COMPLETE` | api.py / service.py / repo.py / models.py / schemas.py 齊全 |
 | **migration** | `CODE_COMPLETE` | 004_create_tenants + wp_11_04a_entitlements |
 | **tests** | `CODE_COMPLETE` | test_entitlements_api.py, test_repo.py, test_service.py（3 files） |
@@ -82,5 +82,5 @@
 | 面向 | 狀態 | 缺口說明 |
 |------|------|----------|
 | **目標定位** | 打卡核心（punch-in/out）、break-out/in、Session 管理、Policy Engine、Location Policy | - |
-| **spec 狀態** | `DOC_COMPLETE` | SA_MODULE_SPEC v2.0 + ATTENDANCE_LOCATION_POLICY_SPEC_v1.0.md |
+| **spec 狀態** | `DOC_COMPLETE` | SA_MODULE_SPEC v2.1 + ATTENDANCE_LOCATION_POLICY_SPEC_v1.0.md |
 | **backend 結構** | `CODE_COMPLETE` | api.py / service.py / repo.py / models.py / schemas.py / policy_engine.py / 
