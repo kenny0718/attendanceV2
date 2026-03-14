@@ -43,6 +43,38 @@
 
 ---
 
+
+### 🟠 P0.5 - Current Project Control Files
+
+#### ATTENDANCE_SYSTEM_ARCHITECTURE_MAP.md
+Attendance System 的實際系統架構地圖
+
+- Layered Architecture
+- Reporting Module Map
+- GPS / Location Module
+- Protected Core Areas
+
+**使用時機：**
+- 分析模組位置
+- 修改系統架構
+- 新功能模組掛載位置
+
+---
+
+#### ATTENDANCE_DEVELOPMENT_ROADMAP.md
+Attendance 系統實際開發順序
+
+- 當前 WP
+- 下一步 WP
+- 各模組 roadmap
+- WP completion definition
+
+**使用時機：**
+- 開始任何 Attendance 開發前
+- 確認當前 WP
+- 確認下一步功能
+
+
 ### 🟡 P1 - 重要文件（現況與決策）
 
 #### 3. REALITY_AUDIT_STATUS_INVENTORY.md
@@ -391,5 +423,18 @@
 5. 開始開發工作
 
 ---
+Before implementing any feature,
+Cursor MUST read:
+
+docs/ATTENDANCE_SYSTEM_ARCHITECTURE_MAP.md
+docs/ATTENDANCE_DEVELOPMENT_ROADMAP.md
+
+Cursor must NOT jump to another WP
+until current WP is marked COMPLETE.
+
+Cursor MUST read:
+docs/ATTENDANCE_SYSTEM_ARCHITECTURE_MAP.md
+docs/ATTENDANCE_DEVELOPMENT_ROADMAP.md
+before implementing any feature.
 
 **END OF AI_CONTEXT.md**

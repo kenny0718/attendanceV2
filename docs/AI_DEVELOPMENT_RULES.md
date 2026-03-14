@@ -1,5 +1,19 @@
 Goal
 
+# AI_DEVELOPMENT_RULES.md
+
+Scope
+
+This document defines file safety rules when AI tools modify project source code.
+
+It focuses on:
+
+- file overwrite prevention
+- backup management
+- source integrity protection
+
+---
+
 Create a permanent development rule document to prevent file overwrite, backup chaos, and accidental source corruption when using AI tools (Cursor) to modify the project.
 
 Create file:
