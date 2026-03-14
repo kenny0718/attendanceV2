@@ -1,17 +1,17 @@
 """Attendance API 測試
 
 Phase 9 (WP-09-05): 加入 tenant setup fixture
+WP-C1-07: JWT Actor Migration - 使用 override_actor_dependency
 """
 
 import pytest
 from fastapi.testclient import TestClient
+from uuid import UUID
 
 from app.main import app
 from app.core.database import get_db
 from app.modules.tenants.repo import TenantRepository
-
-pytestmark = pytest.mark.skip(reason="attendance API not yet migrated to JWT Actor (WP-C1-attendance)")
-
+from app.tests.utils.auth import create_test_actor, override_actor_dependency
 
 client = TestClient(app)
 
@@ -36,12 +36,10 @@ class TestAttendanceAPI:
     
     def test_mock_create_attendance(self):
         """測試：建立假考勤記錄"""
-        headers = {"X-Company-ID": "company-test"}
+        actor = create_test_actor("company-test")
         
-        response = client.post(
-            "/api/attendance/mock-create",
-            headers=headers
-        )
+        with override_actor_dependency(actor):
+            response = client.post("/api/attendance/mock-create")
         
         assert response.status_code == 200
         data = response.json()
@@ -54,25 +52,22 @@ class TestAttendanceAPI:
     
     def test_approve_attendance_success(self):
         """測試：成功核准考勤記錄"""
-        headers = {"X-Company-ID": "company-test"}
+        actor = create_test_actor("company-test")
         
-        # Step 1: Create a real attendance record first
-        create_response = client.post(
-            "/api/attendance/mock-create",
-            headers=headers
-        )
-        assert create_response.status_code == 200
-        record_id = create_response.json()["attendance_record_id"]
-        
-        # Step 2: Approve the record
-        response = client.post(
-            f"/api/attendance/{record_id}/approve",
-            headers=headers,
-            json={
-                "employee_id": "emp-001",
-                "approved_by": "manager-001"
-            }
-        )
+        with override_actor_dependency(actor):
+            # Step 1: Create a real attendance record first
+            create_response = client.post("/api/attendance/mock-create")
+            assert create_response.status_code == 200
+            record_id = create_response.json()["attendance_record_id"]
+            
+            # Step 2: Approve the record
+            response = client.post(
+                f"/api/attendance/{record_id}/approve",
+                json={
+                    "employee_id": "emp-001",
+                    "approved_by": "manager-001"
+                }
+            )
         
         assert response.status_code == 200
         data = response.json()
@@ -95,56 +90,47 @@ class TestAttendanceAPI:
     
     def test_approve_attendance_without_approved_by(self):
         """測試：核准考勤記錄（不提供 approved_by）"""
-        headers = {
-            "X-Company-ID": "company-test",
-            "X-User-ID": "user-001"  # 提供 user_id，應該自動填入 approved_by
-        }
+        actor = create_test_actor("company-test")
         
-        # Step 1: Create a real attendance record first
-        create_response = client.post(
-            "/api/attendance/mock-create",
-            headers=headers
-        )
-        assert create_response.status_code == 200
-        record_id = create_response.json()["attendance_record_id"]
-        
-        # Step 2: Approve without approved_by
-        response = client.post(
-            f"/api/attendance/{record_id}/approve",
-            headers=headers,
-            json={
-                "employee_id": "emp-002"
-                # 不提供 approved_by
-            }
-        )
+        with override_actor_dependency(actor):
+            # Step 1: Create a real attendance record first
+            create_response = client.post("/api/attendance/mock-create")
+            assert create_response.status_code == 200
+            record_id = create_response.json()["attendance_record_id"]
+            
+            # Step 2: Approve without approved_by
+            response = client.post(
+                f"/api/attendance/{record_id}/approve",
+                json={
+                    "employee_id": "emp-002"
+                    # 不提供 approved_by
+                }
+            )
         
         assert response.status_code == 200
         data = response.json()
         payload = data["payload"]
         
-        # 應該自動使用 X-User-ID 作為 approved_by
-        assert payload["approved_by"] == "user-001"
+        # 應該自動使用 actor.user_id 作為 approved_by
+        assert payload["approved_by"] == str(actor.user_id)
     
     def test_approve_attendance_missing_employee_id(self):
         """測試：缺少必填欄位 employee_id 應回 422"""
-        headers = {"X-Company-ID": "company-test"}
+        actor = create_test_actor("company-test")
         
-        # Create a real record first
-        create_response = client.post(
-            "/api/attendance/mock-create",
-            headers=headers
-        )
-        assert create_response.status_code == 200
-        record_id = create_response.json()["attendance_record_id"]
-        
-        response = client.post(
-            f"/api/attendance/{record_id}/approve",
-            headers=headers,
-            json={
-                "approved_by": "manager-001"
-                # 缺少 employee_id
-            }
-        )
+        with override_actor_dependency(actor):
+            # Create a real record first
+            create_response = client.post("/api/attendance/mock-create")
+            assert create_response.status_code == 200
+            record_id = create_response.json()["attendance_record_id"]
+            
+            response = client.post(
+                f"/api/attendance/{record_id}/approve",
+                json={
+                    "approved_by": "manager-001"
+                    # 缺少 employee_id
+                }
+            )
         
         assert response.status_code == 422  # Validation error
 
@@ -154,26 +140,23 @@ class TestEventEmission:
     
     def test_approve_emits_event(self, caplog):
         """測試：核准考勤時應發出 attendance.approved 事件"""
-        headers = {"X-Company-ID": "company-test"}
+        actor = create_test_actor("company-test")
         
-        # Step 1: Create a real attendance record first
-        create_response = client.post(
-            "/api/attendance/mock-create",
-            headers=headers
-        )
-        assert create_response.status_code == 200
-        record_id = create_response.json()["attendance_record_id"]
-        
-        # Step 2: Approve and check event emission
-        with caplog.at_level("INFO"):
-            response = client.post(
-                f"/api/attendance/{record_id}/approve",
-                headers=headers,
-                json={
-                    "employee_id": "emp-004",
-                    "approved_by": "manager-004"
-                }
-            )
+        with override_actor_dependency(actor):
+            # Step 1: Create a real attendance record first
+            create_response = client.post("/api/attendance/mock-create")
+            assert create_response.status_code == 200
+            record_id = create_response.json()["attendance_record_id"]
+            
+            # Step 2: Approve and check event emission
+            with caplog.at_level("INFO"):
+                response = client.post(
+                    f"/api/attendance/{record_id}/approve",
+                    json={
+                        "employee_id": "emp-004",
+                        "approved_by": "manager-004"
+                    }
+                )
         
         assert response.status_code == 200
         

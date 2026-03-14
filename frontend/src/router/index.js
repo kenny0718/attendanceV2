@@ -13,6 +13,25 @@ const routes = [
     name: 'Login',
     component: () => import('@/views/Login.vue'),
     meta: { requiresAuth: false }
+  },
+  // ── Reporting UI (WP-REPORTING-UI) ────────────────────────────────
+  {
+    path: '/attendance/reports/sessions',
+    name: 'AttendanceSessions',
+    component: () => import('@/views/reports/AttendanceSessionsPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/attendance/reports/company-summary',
+    name: 'CompanySummary',
+    component: () => import('@/views/reports/CompanySummaryPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/attendance/reports/user-summary',
+    name: 'UserSummary',
+    component: () => import('@/views/reports/UserSummaryPage.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
@@ -23,21 +42,21 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
-  
+
   if (!authStore.isAuthenticated && localStorage.getItem('token')) {
     authStore.restoreSession()
   }
-  
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
     return
   }
-  
+
   if (to.path === '/login' && authStore.isAuthenticated) {
     next('/')
     return
   }
-  
+
   next()
 })
 

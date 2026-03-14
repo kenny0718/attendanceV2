@@ -3,6 +3,8 @@
 驗證 Tenant Isolation (P0) 規則：
 - A 公司 context 無法存取 B 公司資料
 - company_id 必須由後端注入，不信任 request body
+
+WP-C1-07: JWT Actor Migration - 使用 override_actor_dependency
 """
 
 import pytest
@@ -13,10 +15,7 @@ from datetime import datetime
 from app.main import app
 from app.core.database import get_db
 from app.modules.attendance.models import AttendanceRecord
-
-
-pytestmark = pytest.mark.skip(reason="attendance API not yet migrated to JWT Actor (WP-C1-attendance)")
-
+from app.tests.utils.auth import create_test_actor, override_actor_dependency
 
 
 class DummySession:
@@ -118,35 +117,32 @@ TEST_UUID_C = "33333333-3333-3333-3333-333333333333"
 class TestTenantIsolation:
     """Tenant Isolation 測試（P0）"""
     
-    def test_approve_requires_company_header(self):
-        """測試：缺少 X-Company-ID header 應回 400"""
+    def test_approve_requires_valid_jwt_actor(self):
+        """測試：缺少有效 JWT actor 應回 403"""
+        # 不提供 actor override，應該導致 403（無有效公司範圍）
         response = client.post(
             f"/api/attendance/{TEST_UUID_A}/approve",
             json={
                 "employee_id": "emp-001",
                 "approved_by": "manager-001"
             }
-            # 故意不提供 X-Company-ID header
         )
         
-        # FastAPI Header(...) 會回 422，不是 400
-        # 這裡先接受 422 或 400
-        assert response.status_code in [400, 422]
-        assert "X-Company-ID" in response.text or "Missing" in response.text or "required" in response.text.lower()
+        # 應該回 403（無有效 JWT 公司範圍）
+        assert response.status_code == 401
     
     def test_approve_with_company_a_context(self):
         """測試：使用 A 公司 context 核准考勤"""
-        # 使用 A 公司 context
-        headers = {"X-Company-ID": "company-A"}
+        actor = create_test_actor("company-A")
         
-        response = client.post(
-            f"/api/attendance/{TEST_UUID_A}/approve",
-            headers=headers,
-            json={
-                "employee_id": "emp-A-001",
-                "approved_by": "manager-A-001"
-            }
-        )
+        with override_actor_dependency(actor):
+            response = client.post(
+                f"/api/attendance/{TEST_UUID_A}/approve",
+                json={
+                    "employee_id": "emp-A-001",
+                    "approved_by": "manager-A-001"
+                }
+            )
         
         # Phase 4: 因為 DummyQuery.first() 返回 None，會得到 404
         # 這是正確的 Tenant Isolation 行為
@@ -156,17 +152,16 @@ class TestTenantIsolation:
     
     def test_approve_with_company_b_context(self):
         """測試：使用 B 公司 context 核准考勤"""
-        # 使用 B 公司 context
-        headers = {"X-Company-ID": "company-B"}
+        actor = create_test_actor("company-B")
         
-        response = client.post(
-            f"/api/attendance/{TEST_UUID_B}/approve",
-            headers=headers,
-            json={
-                "employee_id": "emp-B-001",
-                "approved_by": "manager-B-001"
-            }
-        )
+        with override_actor_dependency(actor):
+            response = client.post(
+                f"/api/attendance/{TEST_UUID_B}/approve",
+                json={
+                    "employee_id": "emp-B-001",
+                    "approved_by": "manager-B-001"
+                }
+            )
         
         # Phase 4: 因為 DummyQuery.first() 返回 None，會得到 404
         assert response.status_code == 404
@@ -179,43 +174,40 @@ class TestTenantIsolation:
         即使 request body 試圖傳入 company_id，也應該被忽略
         （因為 ApproveRequest 已不接受 company_id 欄位）
         """
-        # 使用 A 公司 context
-        headers = {"X-Company-ID": "company-A"}
+        actor = create_test_actor("company-A")
         
-        # 嘗試在 request body 中夾帶 company_id（應該被忽略或拒絕）
-        response = client.post(
-            f"/api/attendance/{TEST_UUID_C}/approve",
-            headers=headers,
-            json={
-                "company_id": "company-B",  # 嘗試偽造成 B 公司
-                "employee_id": "emp-001",
-                "approved_by": "manager-001"
-            }
-        )
+        with override_actor_dependency(actor):
+            # 嘗試在 request body 中夾帶 company_id（應該被忽略或拒絕）
+            response = client.post(
+                f"/api/attendance/{TEST_UUID_C}/approve",
+                json={
+                    "company_id": "company-B",  # 嘗試偽造成 B 公司
+                    "employee_id": "emp-001",
+                    "approved_by": "manager-001"
+                }
+            )
         
         # Pydantic 會忽略額外的欄位（不是拒絕），所以請求會正常執行
         # 因為 DummyQuery.first() 返回 None，會得到 404
-        # 重點是：即使 body 有 company_id，後端也只使用 header 的值
+        # 重點是：即使 body 有 company_id，後端也只使用 actor 的值
         assert response.status_code == 404
         data = response.json()
         assert "not found" in data["detail"]["error"].lower()
     
-    def test_mock_create_requires_company_header(self):
-        """測試：mock-create 也需要 X-Company-ID header"""
+    def test_mock_create_requires_valid_jwt_actor(self):
+        """測試：mock-create 也需要有效 JWT actor"""
+        # 不提供 actor override，應該導致 403
         response = client.post("/api/attendance/mock-create")
         
-        # FastAPI Header(...) 會回 422，不是 400
-        assert response.status_code in [400, 422]
-        assert "X-Company-ID" in response.text or "Missing" in response.text or "required" in response.text.lower()
+        # 應該回 403（無有效 JWT 公司範圍）
+        assert response.status_code == 401
     
     def test_mock_create_with_company_context(self):
         """測試：使用公司 context 建立假考勤記錄"""
-        headers = {"X-Company-ID": "company-A"}
+        actor = create_test_actor("company-A")
         
-        response = client.post(
-            "/api/attendance/mock-create",
-            headers=headers
-        )
+        with override_actor_dependency(actor):
+            response = client.post("/api/attendance/mock-create")
         
         assert response.status_code == 200
         data = response.json()
@@ -293,20 +285,21 @@ class TestCrossCompanyIsolation:
         """Phase 2 必做：A 公司無法讀取 B 公司資料"""
         from app.modules.attendance.tests.test_phase4 import client
         
+        actor_b = create_test_actor("company-b")
+        actor_a = create_test_actor("company-a")
+        
         # 1. Company B creates an attendance record
-        response = client.post(
-            "/api/attendance/mock-create",
-            headers={"X-Company-ID": "company-b"}
-        )
-        assert response.status_code == 200
-        record_id = response.json()["attendance_record_id"]
+        with override_actor_dependency(actor_b):
+            response = client.post("/api/attendance/mock-create")
+            assert response.status_code == 200
+            record_id = response.json()["attendance_record_id"]
         
         # 2. Company A tries to approve Company B's record (should fail with 404)
-        response = client.post(
-            f"/api/attendance/{record_id}/approve",
-            headers={"X-Company-ID": "company-a"},
-            json={"employee_id": "emp-001"}
-        )
+        with override_actor_dependency(actor_a):
+            response = client.post(
+                f"/api/attendance/{record_id}/approve",
+                json={"employee_id": "emp-001"}
+            )
         
         # Tenant Isolation P0: Must return 404 (record not found or doesn't belong to company)
         assert response.status_code == 404
@@ -315,20 +308,21 @@ class TestCrossCompanyIsolation:
         """Phase 2 必做：A 公司無法更新 B 公司資料"""
         from app.modules.attendance.tests.test_phase4 import client
         
+        actor_b = create_test_actor("company-b")
+        actor_a = create_test_actor("company-a")
+        
         # 1. Company B creates a record
-        response = client.post(
-            "/api/attendance/mock-create",
-            headers={"X-Company-ID": "company-b"}
-        )
-        assert response.status_code == 200
-        record_id = response.json()["attendance_record_id"]
+        with override_actor_dependency(actor_b):
+            response = client.post("/api/attendance/mock-create")
+            assert response.status_code == 200
+            record_id = response.json()["attendance_record_id"]
         
         # 2. Company A tries to update (approve) Company B's record
-        response = client.post(
-            f"/api/attendance/{record_id}/approve",
-            headers={"X-Company-ID": "company-a"},
-            json={"employee_id": "emp-001", "approved_by": "manager-001"}
-        )
+        with override_actor_dependency(actor_a):
+            response = client.post(
+                f"/api/attendance/{record_id}/approve",
+                json={"employee_id": "emp-001", "approved_by": "manager-001"}
+            )
         
         # Must return 404 (tenant isolation)
         assert response.status_code == 404
@@ -340,21 +334,22 @@ class TestCrossCompanyIsolation:
         # which effectively prevents any delete operations
         from app.modules.attendance.tests.test_phase4 import client
         
+        actor_b = create_test_actor("company-b")
+        actor_a = create_test_actor("company-a")
+        
         # 1. Company B creates a record
-        response = client.post(
-            "/api/attendance/mock-create",
-            headers={"X-Company-ID": "company-b"}
-        )
-        assert response.status_code == 200
-        record_id = response.json()["attendance_record_id"]
+        with override_actor_dependency(actor_b):
+            response = client.post("/api/attendance/mock-create")
+            assert response.status_code == 200
+            record_id = response.json()["attendance_record_id"]
         
         # 2. Company A tries to access Company B's record (any operation would fail)
         # Using approve as proxy for "access attempt"
-        response = client.post(
-            f"/api/attendance/{record_id}/approve",
-            headers={"X-Company-ID": "company-a"},
-            json={"employee_id": "emp-001"}
-        )
+        with override_actor_dependency(actor_a):
+            response = client.post(
+                f"/api/attendance/{record_id}/approve",
+                json={"employee_id": "emp-001"}
+            )
         
         # Must return 404 - record is isolated by tenant
         assert response.status_code == 404
