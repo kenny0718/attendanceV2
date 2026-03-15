@@ -23,6 +23,12 @@ from app.core.config import settings
 # 匯入所有 models（確保註冊到 Base.metadata）
 from app.modules.notifications.models import Notification
 from app.modules.attendance.models import AttendanceRecord
+from app.modules.leave.models import (
+    LeaveType,
+    LeaveApprovalPolicy,
+    LeaveRequest,
+    LeaveApprovalLog,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
