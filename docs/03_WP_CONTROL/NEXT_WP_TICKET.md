@@ -1,7 +1,7 @@
 # Next WP Ticket
 
-**更新日期：** 2026-03-15（WP-11-07 COMPLETE；WP-11-08 成為當前 WP）  
-**當前狀態：** WP-11-07 COMPLETE；當前 WP：WP-11-08 Leave Request System (PLANNED)
+**更新日期：** 2026-03-15（WP-11-08 Leave Request System COMPLETE）  
+**當前狀態：** WP-11-08 COMPLETE；當前 WP：WP-C1-03
 
 ---
 
@@ -44,6 +44,7 @@
 | WP-11-05A | Attendance Models Sync | COMPLETED |
 | **WP-11-06** | **Reporting Backend API** | **COMPLETE（2026-03-14）** |
 | **WP-11-07** | **Reporting UI Polish / QA** | **COMPLETE（2026-03-15）** |
+| **WP-11-08** | **Leave Request System** | **COMPLETE（2026-03-15）** |
 | WP-11-07~13 Step3A | Frontend UI 系列 | COMPLETED |
 | WP-11-13 Manual QA | GPS + UI 人工測試 | BLOCKED（需環境） |
 | **系統驗證基線建立** | SYSTEM_VERIFICATION_BASELINE | **COMPLETED（2026-03-11）** |
@@ -71,14 +72,37 @@
 
 ---
 
-## 當前 WP：WP-11-08 — Leave Request System（PLANNED）
+## 已完成 WP：WP-11-08 — Leave Request System ✅ COMPLETE
 
-**Status：** PLANNED  
-**前置條件：** WP-11-07 COMPLETE ✅  
-**內容：** 員工請假申請、主管審核流程、請假記錄查詢  
-**範圍：** Backend API + Frontend UI + Tenant Isolation
+**完成日期：** 2026-03-15  
+**Status：** COMPLETE
 
-> 本 WP 開始前需建立完整 Spec 文件並更新 NEXT_WP_TICKET.md。
+### WP-11-08 Completion Summary
+
+- ✅ Phase 1：Leave schema design（leave_types / leave_approval_policies / leave_requests / leave_approval_logs）
+- ✅ Phase 2A：Schema + Repo + Service foundation（schemas.py / repo.py / service.py）
+- ✅ Phase 2B：Leave API layer（api.py，5 endpoints）
+- ✅ Phase 2C：Manual smoke test — 全部 5 endpoints PASS
+- ✅ Migration 009_wp_11_08 執行完成（leave tables 建立）
+- ✅ auth/models.py startup blocker 修復（從備份還原）
+- ✅ Tenant isolation：所有 API 強制帶 company_id
+- ✅ Status transition guard：duplicate approve/reject 回傳 HTTP 409
+- ✅ cancel endpoint 未對外暴露
+
+### Known Limitation
+
+- `approver_id` 目前為 `null`（approver 解析邏輯待後續 phase 補齊）
+- 不影響核心請假申請 / 審批 / 拒絕 API 流程
+- 詳見：`docs/02_DEVELOPMENT_STATUS/WP-11-08_LEAVE_API_MANUAL_TEST_REPORT.md`
+
+---
+
+## 當前 WP：WP-C1-03 — Auth 轉換 Batch 2
+
+**Status：** NEXT  
+**前置條件：** WP-11-08 COMPLETE ✅  
+**內容：** audit / notifications / backup 模組 JWT 遷移  
+**範圍：** Backend auth wiring
 
 ---
 
@@ -89,9 +113,9 @@ WP-11-06（Reporting Backend）✅ COMPLETE 2026-03-14
   ↓
 WP-11-07（Reporting UI Polish / QA）✅ COMPLETE 2026-03-15
   ↓
-WP-11-08（Leave Request System）← 當前 WP
+WP-11-08（Leave Request System）✅ COMPLETE 2026-03-15
   ↓
-WP-C1-03（Auth 轉換 Batch 2：audit/notifications/backup）
+WP-C1-03（Auth 轉換 Batch 2：audit/notifications/backup）← 當前 WP
   ↓
 WP-C1-04（8 個回歸測試，真實 DB）
   ↓
@@ -105,4 +129,4 @@ WP-C1-06（Feature Gate 套用）
 ---
 
 **最後更新：** 2026-03-15  
-**更新原因：** WP-11-07 COMPLETE（2026-03-15）；WP-11-08 成為當前 WP
+**更新原因：** WP-11-08 Leave Request System COMPLETE（2026-03-15）；WP-C1-03 成為當前 WP

@@ -16,6 +16,7 @@ from app.modules.audit.api import router as audit_router
 from app.modules.auth.api import router as auth_router
 from app.modules.tenants.api import router as tenants_router
 from app.modules.customer_service.api import router as customer_service_router
+from app.modules.leave.api import router_v1 as leave_router_v1  # WP-11-08
 from app.modules.notifications.event_handlers import register_event_handlers
 
 # 設定日誌
@@ -44,6 +45,7 @@ app.include_router(audit_router)
 app.include_router(auth_router)
 app.include_router(tenants_router)
 app.include_router(customer_service_router)
+app.include_router(leave_router_v1)  # WP-11-08
 
 
 @app.on_event("startup")
