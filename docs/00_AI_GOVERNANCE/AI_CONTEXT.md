@@ -26,20 +26,20 @@
 
 ---
 
-#### 2. MASTER_DEVELOPMENT_ROADMAP_v2.md
-**開發路線圖（最新版）**
+#### 2. ATTENDANCE_DEVELOPMENT_ROADMAP.md
+**Attendance 系統開發路線圖（現行版）**
 
-- 6 個 Phase 的執行順序
-- 31 個 Work Packages 定義
-- 依賴關係與啟動條件
-- Production Readiness Checklist
+- 當前 WP 與下一個 WP
+- 各 WP 順序與依賴關係
+- WP completion definition
+- Protected core 提醒
 
 **使用時機：**
 - 規劃開發順序
 - 確認 WP 依賴關係
 - 評估開發進度
 
-**備註：** v1 版本已過時，請使用 v2
+**備註：** 本文件為 Attendance 系統實際治理 roadmap
 
 ---
 
@@ -75,15 +75,15 @@ Attendance 系統實際開發順序
 - 確認下一步功能
 
 
-### 🟡 P1 - 重要文件（現況與決策）
+### 🟡 P1 - 重要文件（現況與進度）
 
-#### 3. REALITY_AUDIT_STATUS_INVENTORY.md
-**系統現況盤點**
+#### 3. CURRENT_SYSTEM_STATE.md
+**當前系統狀態（Single Source of Truth）**
 
-- 7 個已實作模組狀態
-- 79 個 Python 檔案清單
-- 29 個測試檔案
-- 模組完成度評估
+- Current WP / Next WP
+- 已完成核心模組清單
+- 部分完成模組與缺口
+- 已知限制與測試缺口
 
 **使用時機：**
 - 了解系統現況
@@ -92,60 +92,28 @@ Attendance 系統實際開發順序
 
 ---
 
-#### 4. REALITY_AUDIT_RISK_REPORT.md
-**風險評估報告**
+#### 4. SYSTEM_DEVELOPMENT_STATUS_SNAPSHOT.md
+**系統開發狀態快照（v3.0）**
 
-- P0/P1/P2 風險分類
-- 3 個 P0 風險
-- 5 個 P1 風險
-- 5 個 P2 風險
+- 完整 repository 結構分析
+- 各模組實作狀態
+- 已知問題與風險
 
 **使用時機：**
-- 風險評估
-- 優先順序決策
+- 深入了解模組實作細節
+- 評估架構對齊狀況
+
+---
+
+#### 5. MODULE_STATUS_MATRIX.md
+**模組狀態矩陣**
+
+- 各模組狀態一覽
+- 技術債記錄
+
+**使用時機：**
+- 快速確認模組狀態
 - 技術債管理
-
----
-
-#### 5. REALITY_AUDIT_NEXT_ACTIONS.md
-**行動計畫**
-
-- 7 個 Work Packages
-- 執行步驟
-- 預期成果
-
-**使用時機：**
-- 規劃下一步工作
-- 確認執行細節
-
----
-
-#### 6. SA_REALITY_GAP_REPORT.md
-**規格與現況差異分析**
-
-- SA v1.9 vs Reality 比對
-- 70% 符合度分析
-- 17/40 完全符合
-- 11/40 部分符合
-- 12/40 完全缺失
-
-**使用時機：**
-- 評估 SA 符合度
-- 確認待補項目
-- 架構對齊工作
-
----
-
-#### 7. ARCHITECTURE_FIX_DECISION.md
-**架構修正決策**
-
-- 技術審查結果
-- 修正建議
-- 執行優先順序
-
-**使用時機：**
-- 架構修正工作
-- 技術決策參考
 
 ---
 
@@ -301,28 +269,29 @@ Attendance 系統實際開發順序
 → 讀取 `SA_MODULE_SPEC_v2.1.md`
 
 #### 規劃開發順序
-→ 讀取 `MASTER_DEVELOPMENT_ROADMAP_v2.md`
+→ 讀取 `ATTENDANCE_DEVELOPMENT_ROADMAP.md`
 
 #### 了解系統現況
-→ 讀取 `REALITY_AUDIT_STATUS_INVENTORY.md`
+→ 讀取 `CURRENT_SYSTEM_STATE.md`
 
-#### 評估風險
-→ 讀取 `REALITY_AUDIT_RISK_REPORT.md`
+#### 評估風險 / 技術債
+→ 讀取 `CURRENT_SYSTEM_STATE.md` §5 Known Limitations
+→ 讀取 `MODULE_STATUS_MATRIX.md`
 
 #### 確認下一步工作
-→ 讀取 `REALITY_AUDIT_NEXT_ACTIONS.md` 或 `NEXT_WP_TICKET.md`
+→ 讀取 `NEXT_WP_TICKET.md` 或 `ATTENDANCE_DEVELOPMENT_ROADMAP.md`
 
-#### 評估 SA 符合度
-→ 讀取 `SA_REALITY_GAP_REPORT.md`
+#### 評估模組實作狀態
+→ 讀取 `SYSTEM_DEVELOPMENT_STATUS_SNAPSHOT.md`
 
 #### 實作新功能
 → 先讀取 `SA_MODULE_SPEC_v2.1.md`，確認符合規範
 
 #### 修改現有模組
-→ 先讀取 `REALITY_AUDIT_STATUS_INVENTORY.md`，確認模組狀態
+→ 先讀取 `CURRENT_SYSTEM_STATE.md`，確認模組狀態
 
 #### 架構決策
-→ 讀取 `SA_MODULE_SPEC_v2.1.md` + `ARCHITECTURE_FIX_DECISION.md`
+→ 讀取 `SA_MODULE_SPEC_v2.1.md` + `ATTENDANCE_SYSTEM_ARCHITECTURE_MAP.md`
 
 ---
 
@@ -336,11 +305,11 @@ Attendance 系統實際開發順序
 2. **不要使用 SA_MODULE_SPECV1.8.md**
    - 已過時，使用 v1.9
 
-3. **不要使用 MASTER_DEVELOPMENT_ROADMAP.md (v1)**
-   - 已過時，使用 v2
+3. **不要使用已過期的 roadmap 文件**
+   - 使用 ATTENDANCE_DEVELOPMENT_ROADMAP.md（當前有效）
 
 4. **不要參考 PHASE1-7 實作報告**
-   - 這些是歷史記錄，當前狀態請參考 REALITY_AUDIT_*
+   - 這些是歷史記錄，當前狀態請參考 CURRENT_SYSTEM_STATE.md
 
 5. **不要參考 Gate 4 文件**
    - 已完成，當前在 Gate 5
@@ -351,11 +320,11 @@ Attendance 系統實際開發順序
 
 1. **優先讀取 P0 文件**
    - SA_MODULE_SPEC_v2.1.md
-   - MASTER_DEVELOPMENT_ROADMAP_v2.md
+   - ATTENDANCE_DEVELOPMENT_ROADMAP.md
 
 2. **確認系統現況**
-   - REALITY_AUDIT_STATUS_INVENTORY.md
-   - SA_REALITY_GAP_REPORT.md
+   - CURRENT_SYSTEM_STATE.md
+   - SYSTEM_DEVELOPMENT_STATUS_SNAPSHOT.md
 
 3. **遵循架構規範**
    - 所有開發必須符合 SA v2.1
@@ -375,11 +344,13 @@ Attendance 系統實際開發順序
 
 | 文件 | 當前版本 | 狀態 | 備註 |
 |------|---------|------|------|
-| SA_MODULE_SPEC | v2.1 | ✅ ACTIVE | 唯一權威 |
-| MASTER_DEVELOPMENT_ROADMAP | v2 | ✅ ACTIVE | 使用 v2 |
-| REALITY_AUDIT_* | 2026-03-04 | ✅ ACTIVE | 最新盤點 |
-| SA_REALITY_GAP_REPORT | 2026-03-04 | ✅ ACTIVE | 最新分析 |
-| ARCHITECTURE_FIX_DECISION | 2026-03-04 | ✅ ACTIVE | 最新決策 |
+| SA_MODULE_SPEC | v2.1 | ✅ ACTIVE | 唯一架構權威 |
+| ATTENDANCE_DEVELOPMENT_ROADMAP | 2026-03-14 | ✅ ACTIVE | WP 順序與狀態 |
+| ATTENDANCE_SYSTEM_ARCHITECTURE_MAP | 2026-03-14 | ✅ ACTIVE | 系統架構地圖 |
+| CURRENT_SYSTEM_STATE | 2026-03-15 | ✅ ACTIVE | 系統現況 SSoT |
+| GATE_PROGRESS_TRACKER | 2026-03-15 | ✅ ACTIVE | Gate 進度追蹤 |
+| NEXT_WP_TICKET | 2026-03-15 | ✅ ACTIVE | 當前 WP 定義 |
+| SYSTEM_DEVELOPMENT_STATUS_SNAPSHOT | v3.0 / 2026-03-15 | ✅ ACTIVE | 完整 repo 分析 |
 
 ---
 
@@ -393,17 +364,18 @@ Attendance 系統實際開發順序
 
 2. **架構變更**
    - 更新 SA_MODULE_SPEC（需團隊共識）
-   - 更新 ARCHITECTURE_FIX_DECISION.md
+   - 更新 ATTENDANCE_SYSTEM_ARCHITECTURE_MAP.md
 
 3. **系統現況變化**
-   - 更新 REALITY_AUDIT_STATUS_INVENTORY.md
-   - 更新 SA_REALITY_GAP_REPORT.md
+   - 更新 CURRENT_SYSTEM_STATE.md
+   - 更新 SYSTEM_DEVELOPMENT_STATUS_SNAPSHOT.md
 
-4. **風險變化**
-   - 更新 REALITY_AUDIT_RISK_REPORT.md
+4. **風險 / 技術債變化**
+   - 更新 CURRENT_SYSTEM_STATE.md §5 Known Limitations
+   - 更新 MODULE_STATUS_MATRIX.md
 
 5. **開發計畫調整**
-   - 更新 MASTER_DEVELOPMENT_ROADMAP_v2.md（需團隊共識）
+   - 更新 ATTENDANCE_DEVELOPMENT_ROADMAP.md（需團隊共識）
 
 ---
 
@@ -411,14 +383,14 @@ Attendance 系統實際開發順序
 
 **核心原則：**
 1. SA_MODULE_SPEC_v2.1.md 是唯一架構權威
-2. MASTER_DEVELOPMENT_ROADMAP_v2.md 是開發順序權威
-3. REALITY_AUDIT_* 是系統現況權威
+2. ATTENDANCE_DEVELOPMENT_ROADMAP.md 是開發順序權威
+3. CURRENT_SYSTEM_STATE.md 是系統現況權威（Single Source of Truth）
 4. archive 目錄僅供歷史參考，不作為開發依據
 
 **AI 工作流程：**
-1. 讀取 SA_MODULE_SPEC_v2.1.md 了解架構
-2. 讀取 MASTER_DEVELOPMENT_ROADMAP_v2.md 了解開發順序
-3. 讀取 REALITY_AUDIT_STATUS_INVENTORY.md 了解現況
+1. 讀取 SA_MODULE_SPEC_v2.1.md 了解架構規範
+2. 讀取 ATTENDANCE_DEVELOPMENT_ROADMAP.md 了解開發順序
+3. 讀取 CURRENT_SYSTEM_STATE.md 了解現況
 4. 讀取相關 P1/P2 文件了解細節
 5. 開始開發工作
 

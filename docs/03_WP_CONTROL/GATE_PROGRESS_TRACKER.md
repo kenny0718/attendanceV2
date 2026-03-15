@@ -1,6 +1,6 @@
 # Gate Progress Tracker
 
-**最後更新：** 2026-03-14（WP-11-06 Reporting Backend COMPLETE 後更新）
+**最後更新：** 2026-03-15（WP-11-07 COMPLETE；WP-11-08 成為當前 WP）
 
 ---
 
@@ -59,7 +59,7 @@
 | WP-11-13 Step2 | Backend Location Policy | CODE_COMPLETE | commit d8eb797 |
 | WP-11-13 Step3A | Frontend Integration | CODE_COMPLETE | |
 | WP-11-13 Manual QA | 瀏覽器 GPS + UI 人工測試 | BLOCKED | 需真實瀏覽器 + PostgreSQL 環境 |
-| WP-REPORTING-UI | Reporting UI（Sessions / Company / User Summary） | CODE_COMPLETE | BUG-01 待修復（stores/reporting.js 解構）|
+| WP-REPORTING-UI | Reporting UI（Sessions / Company / User Summary） | COMPLETE | WP-11-07 COMPLETE 2026-03-15；BUG-01 FIXED；QA 通過 |
 
 ---
 
@@ -96,6 +96,7 @@ Resolved by clean restart. No code changes required.
 
 - [x] WP-C1-01：PostgreSQL 環境建立 + Migration 驗證（VERIFIED 2026-03-11）
 - [x] WP-11-06：Reporting Backend API（COMPLETE 2026-03-14）
+- [x] WP-11-07：Reporting UI Polish / QA（COMPLETE 2026-03-15）
 - [ ] Phase 1 基線修正完成（WP-C1-02 ~ WP-C1-07）
 - [ ] WP-11-13 Manual QA 通過
 - [ ] SA 符合度 > 95%（目前約 65-70%）
@@ -110,8 +111,9 @@ Resolved by clean restart. No code changes required.
 
 - **剛完成：** WP-11-06 Reporting Backend API（2026-03-14）
 - **當前阻塞：** 4 個 P0 技術債（見 NEXT_WP_TICKET.md）
-- **建議下一步：** WP-11-07（Reporting UI Improvements）
-- **Gate 5 估計完成度：** 45%
+- **剛完成：** WP-11-07 Reporting UI Polish / QA（COMPLETE 2026-03-15）
+- **當前 WP：** WP-11-08 Leave Request System（PLANNED）
+- **Gate 5 估計完成度：** 50%
 
 ---
 

@@ -1,0 +1,9 @@
+Cursor MUST read documents in this order:
+
+1 AI_CONTEXT.md
+2 CURSOR_DEVELOPMENT_RULES.md
+3 ATTENDANCE_SYSTEM_ARCHITECTURE_MAP.md
+4 ATTENDANCE_DEVELOPMENT_ROADMAP.md
+5 NEXT_WP_TICKET.md
+
+Only after these may development start.

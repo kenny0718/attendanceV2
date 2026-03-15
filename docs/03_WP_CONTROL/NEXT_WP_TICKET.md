@@ -1,7 +1,7 @@
 # Next WP Ticket
 
-**更新日期：** 2026-03-14（WP-11-06 Reporting Backend COMPLETE 後更新）  
-**當前狀態：** WP-11-06 Reporting Backend API COMPLETE；準備 WP-11-07 Reporting UI Improvements
+**更新日期：** 2026-03-15（WP-11-07 COMPLETE；WP-11-08 成為當前 WP）  
+**當前狀態：** WP-11-07 COMPLETE；當前 WP：WP-11-08 Leave Request System (PLANNED)
 
 ---
 
@@ -43,6 +43,7 @@
 | WP-11-04B | Gate Ready Audit | COMPLETED |
 | WP-11-05A | Attendance Models Sync | COMPLETED |
 | **WP-11-06** | **Reporting Backend API** | **COMPLETE（2026-03-14）** |
+| **WP-11-07** | **Reporting UI Polish / QA** | **COMPLETE（2026-03-15）** |
 | WP-11-07~13 Step3A | Frontend UI 系列 | COMPLETED |
 | WP-11-13 Manual QA | GPS + UI 人工測試 | BLOCKED（需環境） |
 | **系統驗證基線建立** | SYSTEM_VERIFICATION_BASELINE | **COMPLETED（2026-03-11）** |
@@ -54,30 +55,30 @@
 
 ---
 
-## 下一張建議票：WP-11-07
+## 已完成 WP：WP-11-07 — Reporting UI Polish / QA ✅ COMPLETE
 
-### WP-11-07 — Reporting UI Improvements
+**完成日期：** 2026-03-15  
+**狀態：** COMPLETE
 
-**Priority：** 中（功能優化）  
-**前置條件：** WP-11-06 Reporting Backend API COMPLETE ✅  
-**背景：**  
-WP-11-06 完成後，三支 Reporting API 已可用。WP-REPORTING-UI 實作亦已完成，
-下一步為根據驗收審計結果（`WP-REPORTING-UI_IMPLEMENTATION_AUDIT.md`）修復已知問題並進行 UI 優化。
+### WP-11-07 Completion Notes
 
-**主要工作項目：**
+- ✅ Reporting UI pages verified（Sessions / CompanySummary / UserSummary 三頁均驗收通過）
+- ✅ BUG-01 fixed（`stores/reporting.js` response 解構正確，無多餘 `.data` 取用）
+- ✅ WARN-01 cleaned（`sessionsFilters` dead state 已移除）
+- ✅ Timezone display confirmed（Asia/Taipei，dayjs.tz 全域設定正確）
+- ✅ Loading / Error / Empty states verified（四態完整實作）
+- ✅ API endpoints 正確呼叫（`/api/v1/attendance/sessions`、`/reports/company-summary`、`/reports/user-summary`）
 
-1. **BUG-01 修復**（若尚未修復）：`stores/reporting.js` response 解構錯誤
-   - `fetchSessions`：移除多餘的 `.data` 取用
-   - `fetchCompanySummary` / `fetchUserSummary`：同上
+---
 
-2. **WARN-01**：移除 `sessionsFilters` dead state
+## 當前 WP：WP-11-08 — Leave Request System（PLANNED）
 
-3. **WARN-03**：提取共用 `formatDuration()` helper
+**Status：** PLANNED  
+**前置條件：** WP-11-07 COMPLETE ✅  
+**內容：** 員工請假申請、主管審核流程、請假記錄查詢  
+**範圍：** Backend API + Frontend UI + Tenant Isolation
 
-**驗收條件：**
-- 三頁 UI 均可正確顯示 API 資料
-- 無 TypeError crash
-- `stores/reporting.js` response 解構正確
+> 本 WP 開始前需建立完整 Spec 文件並更新 NEXT_WP_TICKET.md。
 
 ---
 
@@ -86,7 +87,9 @@ WP-11-06 完成後，三支 Reporting API 已可用。WP-REPORTING-UI 實作亦�
 ```
 WP-11-06（Reporting Backend）✅ COMPLETE 2026-03-14
   ↓
-WP-11-07（Reporting UI Improvements）← 當前建議
+WP-11-07（Reporting UI Polish / QA）✅ COMPLETE 2026-03-15
+  ↓
+WP-11-08（Leave Request System）← 當前 WP
   ↓
 WP-C1-03（Auth 轉換 Batch 2：audit/notifications/backup）
   ↓
@@ -101,5 +104,5 @@ WP-C1-06（Feature Gate 套用）
 
 ---
 
-**最後更新：** 2026-03-14  
-**更新原因：** WP-11-06 Reporting Backend API COMPLETE；下一張建議票：WP-11-07
+**最後更新：** 2026-03-15  
+**更新原因：** WP-11-07 COMPLETE（2026-03-15）；WP-11-08 成為當前 WP
