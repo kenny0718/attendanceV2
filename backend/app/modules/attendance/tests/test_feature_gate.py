@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch
 
 from app.main import app
-from app.tests.utils.auth import create_test_actor, override_all_auth_dependencies
+from app.tests.utils.auth import create_test_actor, override_actor_dependency
 from app.core.feature_service import FeatureDisabledError
 from app.core.features import FeatureKeys
 
@@ -17,7 +17,7 @@ class TestAttendanceFeatureGate:
     def test_punch_in_feature_disabled(self):
         """attendance.core disabled -> POST /api/v1/attendance/punch-in 回傳 403"""
         actor = create_test_actor("company-A", role_id="employee")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.attendance.api.get_feature_service"
             ) as mock_fs:
@@ -33,7 +33,7 @@ class TestAttendanceFeatureGate:
     def test_punch_out_feature_disabled(self):
         """attendance.core disabled -> POST /api/v1/attendance/punch-out 回傳 403"""
         actor = create_test_actor("company-A", role_id="employee")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.attendance.api.get_feature_service"
             ) as mock_fs:
@@ -47,7 +47,7 @@ class TestAttendanceFeatureGate:
     def test_current_status_feature_disabled(self):
         """attendance.core disabled -> GET /api/v1/attendance/current-status 回傳 403"""
         actor = create_test_actor("company-A", role_id="employee")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.attendance.api.get_feature_service"
             ) as mock_fs:
@@ -61,7 +61,7 @@ class TestAttendanceFeatureGate:
     def test_history_feature_disabled(self):
         """attendance.core disabled -> GET /api/v1/attendance/history 回傳 403"""
         actor = create_test_actor("company-A", role_id="employee")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.attendance.api.get_feature_service"
             ) as mock_fs:
@@ -75,7 +75,7 @@ class TestAttendanceFeatureGate:
     def test_sessions_reporting_feature_disabled(self):
         """attendance.core disabled -> GET /api/v1/attendance/sessions 回傳 403"""
         actor = create_test_actor("company-A", role_id="employee")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.attendance.api.get_feature_service"
             ) as mock_fs:
@@ -89,7 +89,7 @@ class TestAttendanceFeatureGate:
     def test_gate_rejection_schema_consistent(self):
         """Feature Gate 拒絕 schema 一致性 (code/feature/message)"""
         actor = create_test_actor("company-A", role_id="employee")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.attendance.api.get_feature_service"
             ) as mock_fs:

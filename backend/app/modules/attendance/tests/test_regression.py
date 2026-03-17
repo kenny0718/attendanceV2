@@ -1,12 +1,13 @@
 """Regression Test Suite
 
 WP-11-05C: Test 8 - Cross-midnight work attribution
-WP-C1-07: JWT Actor Migration - 使用 override_actor_dependency
+WP-C1-07: JWT Actor Migration - 使用 override_actor_dependency (已遷移至純 JWT actor 模式)
 """
 
 import pytest
 from datetime import datetime
 from uuid import uuid4
+from unittest.mock import patch
 
 from app.modules.attendance.models import AttendanceSession, AttendancePolicy
 from app.tests.utils.auth import create_test_actor, override_actor_dependency
@@ -50,22 +51,26 @@ class TestRegressionSuite:
 
         punch_in_time = datetime(2026, 3, 31, 23, 0, 0)
 
-        with override_actor_dependency(actor):
-            response = client.post(
-                "/api/v1/attendance/punch-in",
-                json={"punch_time": punch_in_time.isoformat()}
-            )
+        with patch("app.modules.attendance.api._require_attendance_feature") as mock_gate:
+            mock_gate.return_value = None
+            with override_actor_dependency(actor):
+                response = client.post(
+                    "/api/v1/attendance/punch-in",
+                    json={"punch_time": punch_in_time.isoformat()}
+                )
 
         assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.json()}"
         session_id = response.json().get("session_id")
 
         punch_out_time = datetime(2026, 4, 1, 2, 0, 0)
 
-        with override_actor_dependency(actor):
-            response = client.post(
-                "/api/v1/attendance/punch-out",
-                json={"punch_time": punch_out_time.isoformat()}
-            )
+        with patch("app.modules.attendance.api._require_attendance_feature") as mock_gate:
+            mock_gate.return_value = None
+            with override_actor_dependency(actor):
+                response = client.post(
+                    "/api/v1/attendance/punch-out",
+                    json={"punch_time": punch_out_time.isoformat()}
+                )
 
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.json()}"
 

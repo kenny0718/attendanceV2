@@ -679,3 +679,112 @@
 
 **最後更新：** 2026-03-17  
 **更新原因：** WP-C1-05 Tenant Isolation COMPLETE（39/39 tests PASS on PostgreSQL）
+
+---
+
+### WP-C1-06：Feature Gate 套用 + Docs Sync
+
+**完成日期：** 2026-03-17  
+**Git Commit：** 41df744（code）/ 522552e（docs status）  
+**負責人：** AI session（Cursor）
+
+**已完成：**
+- `core/features.py`：新增模組層級 FeatureKeys（attendance.core / leave.core / audit.core / notifications.core / backup.core）
+- `attendance/api.py`：新增 `_require_attendance_feature()` helper，套用至所有 router_v1 端點（11 個）
+- `leave/api.py`：`_require_leave_feature()` 覆蓋 5 個 endpoint
+- `audit/api.py`：`_require_audit_feature()` 覆蓋 5 個 endpoint
+- `notifications/api.py`：feature gate 覆蓋
+- `backup/api.py`：`_require_backup_feature()` 覆蓋 2 個 endpoint
+- 22 個 feature gate 自動化測試建立（5 模組）
+- `attendance/docs.md`：完整重寫為 v2（29,305 bytes，665 行），對齊實際程式碼狀態
+- `docs/02_DEVELOPMENT_STATUS/WP-C1-06_DOCS_SYNC_REPORT.md`：docs sync 結案報告
+
+**已驗證（VERIFIED）：**
+- 22/22 feature gate tests PASS ✅
+- 所有 5 個核心模組 gate 拒絕 schema 一致（HTTP 403, code: FEATURE_DISABLED）✅
+- docs.md 禁止關鍵字（X-Company-ID / Phase 1 / SA_MODULE_SPEC v1.7）僅出現在 Section 10 Deprecated ✅
+- docs.md 與 api.py / features.py / policy_engine.py 內容一致 ✅
+- WP-C1-06 `_require_attendance_feature()` 已完整記錄於 docs ✅
+
+**未驗證（NOT_VERIFIED）：**
+- router_v1 JWT migration（待 WP-C1-07）
+- feature_gate_demo.py stub endpoints 實際業務實作
+
+**測試結果：**
+- feature gate pytest：**22/22 PASS**
+- docs.md 自我檢查：**PASS**（所有驗證通過）
+
+**文件一致性：**
+- 建立 `docs/02_DEVELOPMENT_STATUS/WP-C1-06_DOCS_SYNC_REPORT.md`
+- 重寫 `backend/app/modules/attendance/docs.md`（v2）
+- 更新 `docs/02_DEVELOPMENT_STATUS/WORKSTREAM_STATUS_LEDGER.md`（本次）
+- 更新 `docs/03_WP_CONTROL/NEXT_WP_TICKET.md`
+
+**下一步：**
+- WP-C1-07：attendance router_v1 JWT migration
+
+**狀態：** `COMPLETE`
+
+---
+
+**最後更新：** 2026-03-17  
+**更新原因：** WP-C1-06 Feature Gate COMPLETE（22/22 PASS）+ docs.md v2 sync 完成
+
+---
+
+### WP-C1-07：Attendance router_v1 JWT Migration
+
+**完成日期：** 2026-03-17  
+**Git Branch：** feature/wp-11-09-schedule  
+**負責人：** AI session（Cursor）
+
+**已完成：**
+- `attendance/api.py`：11 個 router_v1 endpoints 遷移至 JWT Actor（get_actor_with_company）
+- `attendance/tests/test_regression.py`：override_all_auth_dependencies → override_actor_dependency
+- `attendance/tests/test_feature_gate.py`：override_all_auth_dependencies → override_actor_dependency
+- `attendance/tests/test_reporting_sessions.py`：X-Company-ID header → JWT Actor
+- `attendance/tests/test_reporting_user_summary.py`：X-Company-ID header → JWT Actor
+- `attendance/tests/test_reporting_company_summary.py`：X-Company-ID header → JWT Actor
+- `attendance/tests/test_router_v1_jwt_migration.py`：新增 12 個 JWT migration 驗證測試
+- `attendance/docs.md`：更新至 v2.1（Section 2.1/3.1/3.2/9.1/10.1）
+- Pre-Audit 報告：`WP-C1-07_ATTENDANCE_JWT_PRE_AUDIT.md`
+- Closeout 報告：`WP-C1-07_ATTENDANCE_ROUTER_V1_JWT_COMPLETE.md`
+
+**已驗證（VERIFIED）：**
+- 11/11 router_v1 endpoints 使用 actor: Actor = Depends(get_actor_with_company) ✅
+- 不再依賴 X-Company-ID header（router_v1）✅
+- JWT migration tests：12/12 PASS ✅
+- feature gate tests：6/6 PASS ✅
+- tenant isolation tests：9/9 PASS ✅
+- Python syntax valid ✅
+- docs.md v2.1：20,380 bytes ✅
+
+**未驗證（NOT_VERIFIED）：**
+- 舊版 router（/api/attendance/mock-create, approve）仍使用 Header-based auth（向後相容，不在本票範圍）
+- test_8_cross_midnight pre-existing bug（punch_time 被忽略）
+
+**測試結果：**
+- test_router_v1_jwt_migration.py：12/12 PASS
+- test_feature_gate.py：6/6 PASS
+- test_tenant_isolation_wp_c1_05.py：9/9 PASS
+- test_phase4.py：6/6 PASS
+- test_regression.py：0/1 PASS（pre-existing）
+- 合計本票相關：27/28 PASS（1 pre-existing failure）
+
+**文件一致性：**
+- 建立 `docs/02_DEVELOPMENT_STATUS/WP-C1-07_ATTENDANCE_JWT_PRE_AUDIT.md`
+- 建立 `docs/02_DEVELOPMENT_STATUS/WP-C1-07_ATTENDANCE_ROUTER_V1_JWT_COMPLETE.md`
+- 更新 `backend/app/modules/attendance/docs.md`（v2.1，20,380 bytes）
+- 更新 `docs/03_WP_CONTROL/NEXT_WP_TICKET.md`
+- 更新 `docs/02_DEVELOPMENT_STATUS/WORKSTREAM_STATUS_LEDGER.md`（本次）
+- 更新 `docs/02_DEVELOPMENT_STATUS/CURRENT_SYSTEM_STATE.md`（本次）
+
+**下一步：**
+- WP-C1-08 Phase 3：Attendance 測試全面啟用
+
+**狀態：** `COMPLETE`
+
+---
+
+**最後更新：** 2026-03-17  
+**更新原因：** WP-C1-07 Attendance router_v1 JWT Migration COMPLETE（11/11 endpoints，12/12 tests PASS）

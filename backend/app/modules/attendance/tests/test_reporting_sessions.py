@@ -23,6 +23,7 @@ from app.core.database import get_db
 from app.modules.attendance.models import AttendanceSession
 from app.modules.tenants.models import Tenant
 from app.modules.auth.models import User
+from app.tests.utils.auth import create_test_actor, override_actor_dependency
 
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 COMPANY_A = "company-sessions-a"
@@ -50,18 +51,20 @@ def make_open_session(db, company_id, user_id, punch_in_utc):
     db.add(s); db.commit(); db.refresh(s)
     return s
 
-def hdr(company_id, user_id):
-    return {"X-Company-ID": company_id, "X-User-ID": str(user_id)}
+def make_actor(company_id, user_id):
+    """WP-C1-07: 建立 JWT Actor 取代 X-Company-ID / X-User-ID header"""
+    return create_test_actor(company_id, user_id=user_id)
 
 
 # --- fixtures ---
 
 @pytest.fixture
 def client_a(db):
+    """WP-C1-07: override get_db only; auth override done per-test via override_actor_dependency"""
     app.dependency_overrides[get_db] = lambda: db
     c = TestClient(app)
     yield c
-    app.dependency_overrides.clear()
+    app.dependency_overrides.pop(get_db, None)
 
 @pytest.fixture
 def tenant_a(db):
@@ -227,8 +230,8 @@ class TestSES05StatusFilter:
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=30))
         make_open_session(db, COMPANY_A, user_a.id, now - timedelta(hours=1))
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"status": "closed"}, headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"status": "closed"})
         assert resp.status_code == 200
         for s in resp.json()["sessions"]:
             assert s["status"] == "closed"
@@ -236,8 +239,8 @@ class TestSES05StatusFilter:
     def test_status_open(self, client_a, db, user_a):
         now = datetime.now(timezone.utc)
         make_open_session(db, COMPANY_A, user_a.id, now - timedelta(minutes=30))
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"status": "open"}, headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"status": "open"})
         assert resp.status_code == 200
         assert resp.json()["total"] >= 1
         for s in resp.json()["sessions"]:
@@ -250,8 +253,8 @@ class TestSES06TenantIsolation:
     def test_company_a_cannot_see_company_b_sessions(self, client_a, db, user_a, user_b):
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_B, user_b.id, now - timedelta(hours=5))
-        resp = client_a.get("/api/v1/attendance/sessions",
-            headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+                resp = client_a.get("/api/v1/attendance/sessions")
         assert resp.status_code == 200
         for s in resp.json()["sessions"]:
             assert s["company_id"] == COMPANY_A
@@ -265,17 +268,17 @@ class TestSES07UserScope:
         db.add(other); db.commit(); db.refresh(other)
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=5))
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"user_id": str(other.id)},
-            headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+                resp = client_a.get("/api/v1/attendance/sessions",
+                    params={"user_id": str(other.id)})
         assert resp.status_code == 403
 
     def test_employee_can_query_own_sessions(self, client_a, db, user_a):
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=5))
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"user_id": str(user_a.id)},
-            headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+                resp = client_a.get("/api/v1/attendance/sessions",
+                    params={"user_id": str(user_a.id)})
         assert resp.status_code == 200
         assert resp.json()["total"] >= 1
 
@@ -286,8 +289,8 @@ class TestSES08NullDuration:
     def test_open_session_null_duration_does_not_crash(self, client_a, db, user_a):
         now = datetime.now(timezone.utc)
         make_open_session(db, COMPANY_A, user_a.id, now - timedelta(hours=1))
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"status": "open"}, headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"status": "open"})
         assert resp.status_code == 200
         for s in resp.json()["sessions"]:
             if s["status"] == "open":
@@ -298,18 +301,18 @@ class TestSES08NullDuration:
 
 class TestSES09LimitBoundary:
     def test_limit_zero_returns_400(self, client_a, user_a):
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"limit": 0}, headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"limit": 0})
         assert resp.status_code == 400
 
     def test_limit_101_returns_400(self, client_a, user_a):
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"limit": 101}, headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"limit": 101})
         assert resp.status_code == 400
 
     def test_limit_100_is_valid(self, client_a, user_a):
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"limit": 100}, headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"limit": 100})
         assert resp.status_code == 200
 
 
@@ -337,9 +340,9 @@ class TestSES10TotalCount:
 class TestSES11NaiveDatetimeRejected:
     def test_naive_start_date_returns_422(self, client_a, user_a):
         """API must reject naive datetime (no tzinfo) with 422"""
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"start_date": "2026-03-01T00:00:00"},
-            headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+                resp = client_a.get("/api/v1/attendance/sessions",
+                    params={"start_date": "2026-03-01T00:00:00"})
         # FastAPI parses naive ISO string as datetime without tz
         # Our endpoint rejects it with 422
         assert resp.status_code == 422

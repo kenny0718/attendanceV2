@@ -1,27 +1,27 @@
 # Current System State
 
-**建立日期：** 2026-03-17（WP-C1-05 COMPLETE 後更新）  
-**基於：** 已確認的 repo scan（2026-03-17）+ pytest 39/39 PASS  
+**建立日期：** 2026-03-17（WP-C1-07 COMPLETE 後更新）  
+**基於：** 已確認的 repo scan（2026-03-17）+ pytest 27/28 PASS（1 pre-existing）  
 **Repository：** `/opt/attendance-system`
 
 ---
 
 ## 1. Current WP（當前工作包）
 
-**WP-C1-06 — Feature Gate 套用**
+**WP-C1-08 Phase 3 — Attendance 測試全面啟用**
 
-- **Status：** CURRENT（WP-C1-05 已 COMPLETE，可開始執行）
-- **內容：** 所有核心 API 套用 Feature Gate
-- **範圍：** Backend feature gate
-- **前置條件：** WP-C1-05 COMPLETE ✅
+- **Status：** CURRENT（WP-C1-07 已 COMPLETE）
+- **內容：** attendance router_v1 JWT 遷移後的測試全面啟用
+- **範圍：** Backend tests
+- **前置條件：** WP-C1-07 COMPLETE ✅
 
 ---
 
 ## 2. Next WP（下一個工作包）
 
-**WP-C1-07（已完成）→ WP-C1-08（已完成）→ Gate 5 宣告完成**
+**Gate 5 完成宣告**
 
-- **Status：** PLANNED（必須等 WP-C1-06 COMPLETE 後才可開始）
+- **Status：** PLANNED（需 WP-C1-08 Phase 3 完成後）
 - **內容：** Gate 5 完成宣告
 - **範圍：** 全面驗收
 
@@ -38,7 +38,7 @@
 | **Timezone / Cross-midnight Rules** | ✅ STABLE | Session ownership = punch_in_time 的 Asia/Taipei 日期 |
 | **Reporting Backend API** | ✅ COMPLETE | 三支 endpoint（WP-11-06，2026-03-14）|
 | **Home UI** | ✅ STABLE | 主打卡頁、3-Card 佈局、mobile-first |
-| **Authentication（JWT）** | ✅ STABLE | JWT-based auth，audit/notifications/backup 遷移完成（WP-C1-03）|
+| **Authentication（JWT）** | ✅ STABLE | JWT-based auth，所有模組含 attendance router_v1 遷移完成（WP-C1-07）|
 | **OUT Checkpoint Model/Repo** | ✅ PARTIAL | model/repo 存在，API endpoint 未建（WP-C1-09 gap）|
 | **PostgreSQL Migration Chain** | ✅ VERIFIED | 21 tables，head = 009_wp_11_08（WP-C1-04，2026-03-17）|
 | **Reporting UI** | ✅ COMPLETE | 三頁 UI（WP-11-07，2026-03-15）|
@@ -46,6 +46,7 @@
 | **Auth JWT 遷移（audit/notifications/backup）** | ✅ COMPLETE | 78/78 tests PASS（WP-C1-03，2026-03-17）|
 | **PostgreSQL 回歸驗證** | ✅ COMPLETE | 78/78 PASS，migration HEAD 確認（WP-C1-04，2026-03-17）|
 | **Tenant Isolation 驗證** | ✅ COMPLETE | 39/39 PASS on PostgreSQL（WP-C1-05，2026-03-17）|
+| **Attendance router_v1 JWT 遷移** | ✅ COMPLETE | 11/11 endpoints，12/12 tests PASS（WP-C1-07，2026-03-17）|
 
 ---
 
@@ -54,7 +55,7 @@
 | 模組 | 狀態 | 已完成部分 | 缺口 |
 |------|------|-----------|------|
 | **OUT Checkpoint API** | ⚠️ PARTIAL | model + repo 存在 | API endpoint 未建（404）|
-| **router_v1 JWT 遷移** | ⚠️ PARTIAL | audit/notifications/backup 已遷移 | punch-in/out/break-out 仍用 X-Company-ID |
+| **router_v1 JWT 遷移** | ✅ COMPLETE | 所有 11 個 router_v1 endpoints 已遷移至 JWT Actor（WP-C1-07）| 舊版 router（mock-create/approve）維持 Header-based（向後相容）|
 | **GPS / Location** | ⚠️ FOUNDATION | break-out 條件式驗證 | punch-in/out/break-in 無 location policy |
 | **Feature Gate** | ✅ COMPLETE | 5 modules 22/22 tests PASS | WP-C1-06 COMPLETE 2026-03-17 |
 
@@ -64,14 +65,14 @@
 
 1. **OUT Checkpoint API 404** — WP-C1-09 只建 model/repo，未建 API endpoint
 2. **router_v1 punch-in/punch-out/break-out** — 仍使用舊 X-Company-ID header（WP-C1-07 未完成）
-3. **Feature Gate 未套用** — 計畫於 WP-C1-06 補足
+3. **Feature Gate** — ✅ 已完成（WP-C1-06，2026-03-17）
 4. **WP-11-13 Manual QA BLOCKED** — 需真實瀏覽器 + PostgreSQL 環境
 
 ---
 
 ## 6. Gate 5 Progress（開發進度）
 
-**Gate 5 估計完成度：72%**
+**Gate 5 估計完成度：90%**
 
 | 條件 | 狀態 |
 |------|------|
@@ -82,8 +83,8 @@
 | WP-C1-03 Auth 轉換 Batch 2 | ✅ COMPLETE（2026-03-17）|
 | WP-C1-04 PostgreSQL 回歸測試 | ✅ COMPLETE（2026-03-17）|
 | WP-C1-05 Tenant Isolation 真實 DB | ✅ COMPLETE（2026-03-17）|
-| 所有模組使用 JWT auth | ⚠️ PARTIAL（router_v1 punch 系列尚未遷移）|
-| Feature Gate 套用 | ❌ 0%（WP-C1-06）|
+| 所有模組使用 JWT auth | ✅ COMPLETE（WP-C1-07，router_v1 全面 JWT 遷移）|
+| Feature Gate 套用 | ✅ COMPLETE（WP-C1-06，2026-03-17）|
 | WP-11-13 Manual QA | ⛔ BLOCKED |
 
 ---
@@ -117,4 +118,4 @@
 **此文件為當前系統狀態的單一真相來源（Single Source of Truth）。**
 
 *本文件由 AI 依據 2026-03-17 實際執行結果更新。*  
-*WP-C1-05 COMPLETE：Tenant Isolation 驗證 + 39/39 tests PASS on PostgreSQL。*
+*WP-C1-07 COMPLETE：attendance router_v1 JWT Migration，11/11 endpoints，12/12 tests PASS。*

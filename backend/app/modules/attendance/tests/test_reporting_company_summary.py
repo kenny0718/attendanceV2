@@ -20,6 +20,7 @@ from app.core.database import get_db
 from app.modules.attendance.models import AttendanceSession
 from app.modules.tenants.models import Tenant
 from app.modules.auth.models import User
+from app.tests.utils.auth import create_test_actor, override_actor_dependency
 
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 COMPANY_A = "company-cmpsummary-a"
@@ -51,8 +52,10 @@ def make_open(db, company_id, user_id, punch_in_utc):
     return s
 
 
-def hdr(company_id):
-    return {"X-Company-ID": company_id}
+def make_actor_company(company_id, user_id=None):
+    """WP-C1-07: JWT Actor 取代 X-Company-ID header"""
+    from uuid import uuid4
+    return create_test_actor(company_id, user_id=user_id or uuid4())
 
 
 def make_user(db):
@@ -73,10 +76,11 @@ def ensure_tenant(db, company_id, name):
 
 @pytest.fixture
 def client_a(db):
+    """WP-C1-07: override get_db only"""
     app.dependency_overrides[get_db] = lambda: db
     c = TestClient(app)
     yield c
-    app.dependency_overrides.clear()
+    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture

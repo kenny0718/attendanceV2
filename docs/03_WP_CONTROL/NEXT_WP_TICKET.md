@@ -237,12 +237,56 @@ WP-C1-06（Feature Gate 套用）
 
 ---
 
-## Current WP: WP-C1-07
+## WP-C1-07 COMPLETE
+
+**完成日期：** 2026-03-17  
+**Status:** COMPLETE  
+
+- 11/11 router_v1 endpoints JWT Actor 遷移完成
+- 12/12 JWT migration tests PASS
+- attendance.core feature gate 維持正常
+- tenant isolation 維持正確
+- docs.md 更新至 v2.1
+
+---
+
+## Current WP: WP-C1-08 Phase 3
 
 **Status:** CURRENT  
-**Content:** attendance router_v1 JWT migration  
+**Content:** Attendance 測試全面啟用（router_v1 JWT 遷移後）  
+**前置條件：** WP-C1-07 COMPLETE
 
 ---
 
 **Last Updated:** 2026-03-17  
 **Reason:** WP-C1-06 COMPLETE; WP-C1-07 is now CURRENT
+
+---
+
+## WP-C1-06 Docs Sync — COMPLETE ✅
+
+**完成日期：** 2026-03-17  
+**Status：** COMPLETE  
+
+### Docs Sync 完成摘要
+
+- ✅ `attendance/docs.md` 完整重寫為 v2（29,305 bytes，665 行）
+- ✅ 舊版 Phase 1 / SA_MODULE_SPEC v1.7 描述全部移除，標注為 Deprecated
+- ✅ `_require_attendance_feature()` helper（WP-C1-06）完整記錄於 Section 2.1、4.2、5.2、7
+- ✅ 所有 router_v1 endpoint 標注 `attendance.core` Feature Gate
+- ✅ Data Flow 圖加入 Feature Gate 步驟
+- ✅ 建立 `WP-C1-06_DOCS_SYNC_REPORT.md`
+
+---
+
+## 當前 WP：WP-C1-07 — Attendance router_v1 JWT Migration
+
+**Status：** CURRENT  
+**前置條件：** WP-C1-06 COMPLETE ✅  
+**內容：** attendance router_v1 所有端點從 Header-based auth 遷移至 JWT Actor  
+**影響範圍：** `backend/app/modules/attendance/api.py`（router_v1）  
+
+---
+
+**最後更新：** 2026-03-17  
+**更新原因：** WP-C1-07 Attendance router_v1 JWT Migration COMPLETE；WP-C1-08 Phase 3 為當前 WP

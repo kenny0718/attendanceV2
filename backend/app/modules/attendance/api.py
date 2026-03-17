@@ -3,6 +3,7 @@
 Phase 4: 注入 db Session
 WP-11-02: Punch In/Out API
 WP-11-05C: Policy Engine Integration
+WP-C1-07: JWT Actor Migration - router_v1 全面遷移至 get_actor_with_company
 """
 
 import logging
@@ -14,7 +15,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.modules.attendance.service import get_attendance_service
-from app.core.tenant_context import get_current_company_id, get_current_user_id
+from app.core.scope import Actor
+from app.core.dependencies import get_actor_with_company
+from app.core.tenant_context import get_current_company_id, get_current_user_id  # 舊版 router 向後相容用
 from app.core.database import get_db
 from app.modules.attendance.repo import get_attendance_session_repository, get_reporting_repository
 from app.modules.attendance.schemas import (
@@ -130,12 +133,13 @@ def _require_attendance_feature(company_id: str, db) -> None:
 @router_v1.post("/punch-in", response_model=PunchInResponse, status_code=201)
 async def punch_in(
     request: PunchInRequest,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
-    """Punch in (打卡上班) - WP-11-02"""
+    """Punch in (打卡上班) - WP-11-02, WP-C1-07: JWT Actor"""
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
     repo = get_attendance_session_repository(db)
@@ -196,12 +200,13 @@ async def punch_in(
 @router_v1.post("/punch-out", response_model=PunchOutResponse)
 async def punch_out(
     request: PunchOutRequest,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
-    """Punch out (打卡下班) - WP-11-02, WP-11-05C: with policy engine"""
+    """Punch out (打卡下班) - WP-11-02, WP-11-05C: with policy engine, WP-C1-07: JWT Actor"""
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
     repo = get_attendance_session_repository(db)
@@ -290,11 +295,12 @@ async def punch_out(
 
 @router_v1.get("/current-status", response_model=CurrentStatusResponse)
 async def get_current_status(
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
-    """Get current attendance status - WP-11-02"""
+    """Get current attendance status - WP-11-02, WP-C1-07: JWT Actor"""
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
     repo = get_attendance_session_repository(db)
@@ -345,11 +351,12 @@ async def get_attendance_history(
     limit: int = 50,
     offset: int = 0,
     status: Optional[str] = None,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
-    """Get attendance history - WP-11-02"""
+    """Get attendance history - WP-11-02, WP-C1-07: JWT Actor"""
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
     if limit < 1 or limit > 100:
@@ -403,17 +410,18 @@ async def get_attendance_history(
 @router_v1.post("/break-out", response_model=BreakOutResponse, status_code=201)
 async def break_out(
     request: BreakOutRequest,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
-    """Break out (外出打卡) - WP-11-11.5 Blocker Fix, WP-11-13 Location Policy
+    """Break out (外出打卡) - WP-11-11.5 Blocker Fix, WP-11-13 Location Policy, WP-C1-07: JWT Actor
     
     允許連續外出打卡，不需要先返回
     
     WP-11-13: 加入 location policy 後端 authoritative enforcement
     """
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
     repo = get_attendance_session_repository(db)
@@ -488,12 +496,13 @@ async def break_out(
 @router_v1.post("/break-in", response_model=BreakInResponse, status_code=201)
 async def break_in(
     request: BreakInRequest,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
-    """Break in (返回打卡) - WP-11-11.5 Blocker Fix"""
+    """Break in (返回打卡) - WP-11-11.5 Blocker Fix, WP-C1-07: JWT Actor"""
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     repo = get_attendance_session_repository(db)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
@@ -541,14 +550,15 @@ async def break_in(
 @router_v1.get("/break-punches")
 async def get_break_punches(
     limit: int = 50,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
-    """Get today's break punches (今日外出/返回記錄) - WP-11-11.5 Blocker Fix
+    """Get today's break punches (今日外出/返回記錄) - WP-11-11.5 Blocker Fix, WP-C1-07: JWT Actor
     
     Returns all break_start and break_end punches for today
     """
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
     if not user_id:
@@ -605,11 +615,12 @@ async def get_break_punches(
 async def update_punch_note(
     punch_id: str,
     request: dict,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
-    """Update punch note (更新打卡備註) - WP-11-11.5"""
+    """Update punch note (更新打卡備註) - WP-11-11.5, WP-C1-07: JWT Actor"""
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
     if not user_id:
@@ -663,8 +674,7 @@ async def get_sessions_reporting(
     status: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-    company_id: str = Depends(get_current_company_id),
-    current_user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
     """GET /api/v1/attendance/sessions — Sessions reporting (WP-11-06 Step 1)
@@ -679,6 +689,8 @@ async def get_sessions_reporting(
     - 員工（無特殊角色）：只能查自己的 sessions
     - 管理者（manager/admin）：可查本公司任意 user 的 sessions
     """
+    company_id = actor.active_company_id
+    current_user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
     # --- 驗證 limit 範圍 ---
@@ -697,18 +709,11 @@ async def get_sessions_reporting(
             detail="end_date must be timezone-aware (naive datetime rejected)"
         )
 
-    # --- 確認 current_user_id 存在 ---
-    if not current_user_id:
-        raise HTTPException(status_code=400, detail="User ID is required")
-
-    # --- User scope 解析 ---
-    # 目前系統使用 Header auth，無 role 欄位可查
-    # 規則：若 user_id 查詢參數傳入且與 current_user_id 不同，視為管理者操作
-    # 員工只能查自己（user_id 參數若為 None 或等於自己，允許）
-    # 若 user_id 參數傳入且不等於自己，且非管理者，回傳 403
-    # 為安全起見：當 user_id 未傳入時，預設查詢者本身
+    # --- User scope 解析（WP-C1-07: JWT Actor 模式）---
+    # actor.active_role_id 可用於 role 判斷（admin/manager 可查他人）
     from uuid import UUID
     target_user_uuid: Optional[UUID] = None
+    is_admin = actor.active_role_id in ("admin", "manager", "hr")
 
     if user_id is not None:
         try:
@@ -719,13 +724,11 @@ async def get_sessions_reporting(
         current_uuid = UUID(current_user_id)
         if requested_uuid != current_uuid:
             # 查詢他人：需要管理者身份
-            # 目前 Header auth 無 role，暫以 X-User-ID == requested 不同者禁止
-            # manager 可透過不傳 user_id 查全公司，或傳入自己 user_id
-            # 此處嚴格：查他人一律 403（等 JWT migration 後可解鎖）
-            raise HTTPException(
-                status_code=403,
-                detail="Employees can only query their own sessions"
-            )
+            if not is_admin:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Employees can only query their own sessions"
+                )
         target_user_uuid = requested_uuid
     else:
         # user_id 未傳入：查詢者本身
@@ -785,11 +788,10 @@ async def get_sessions_reporting(
 async def get_user_summary(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    company_id: str = Depends(get_current_company_id),
-    current_user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
-    """GET /api/v1/attendance/reports/user-summary — Per-user summary (WP-11-06 Step 2)
+    """GET /api/v1/attendance/reports/user-summary — Per-user summary (WP-11-06 Step 2), WP-C1-07: JWT Actor
 
     Returns attendance summary statistics for the current user.
 
@@ -803,11 +805,10 @@ async def get_user_summary(
     - 員工只能查詢自己的 summary
     - 嘗試查詢他人回傳 403（本 Step 不支援 manager 查他人）
     """
+    company_id = actor.active_company_id
+    current_user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
-    # --- 確認 current_user_id 存在 ---
-    if not current_user_id:
-        raise HTTPException(status_code=400, detail="User ID is required")
 
     # --- 驗證 datetime 為 timezone-aware ---
     if start_date is not None and start_date.tzinfo is None:
@@ -883,10 +884,10 @@ async def get_user_summary(
 async def get_company_summary(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    company_id: str = Depends(get_current_company_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db)
 ):
-    """GET /api/v1/attendance/reports/company-summary — Company-level summary (WP-11-06 Step 3)
+    """GET /api/v1/attendance/reports/company-summary — Company-level summary (WP-11-06 Step 3), WP-C1-07: JWT Actor
 
     Returns attendance summary statistics for the entire company (all users).
 
@@ -898,9 +899,10 @@ async def get_company_summary(
     - total_users_with_sessions 使用 Python set() 去重（非 SQL COUNT DISTINCT）
 
     Tenant isolation:
-    - 所有查詢強制 WHERE company_id = ?（從 Header 取得）
+    - 所有查詢強制 WHERE company_id = ?（從 JWT Actor 取得）
     - 查詢全公司所有用戶，不過濾 user_id
     """
+    company_id = actor.active_company_id
     # --- Feature Gate (WP-C1-06) ---
     _require_attendance_feature(company_id, db)
     # --- 驗證 datetime 為 timezone-aware ---
