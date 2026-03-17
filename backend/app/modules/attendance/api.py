@@ -35,6 +35,8 @@ from app.modules.attendance.schemas import (
     CompanySummaryResponse
 )
 from app.modules.attendance.policy_engine import AttendancePolicyEngine
+from app.core.features import FeatureKeys
+from app.core.feature_service import get_feature_service, FeatureDisabledError
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +107,26 @@ async def approve_attendance(
 # 新的 API (WP-11-02, WP-11-05C)
 # ============================================
 
+
+# ============================================
+# Feature Gate Helper (WP-C1-06)
+# ============================================
+
+def _require_attendance_feature(company_id: str, db) -> None:
+    """attendance.core Feature Gate - raises 403 if disabled"""
+    try:
+        feature_service = get_feature_service(db)
+        feature_service.require_enabled(company_id, FeatureKeys.ATTENDANCE_CORE)
+    except FeatureDisabledError as e:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "FEATURE_DISABLED",
+                "feature": e.feature_key,
+                "message": str(e),
+            }
+        )
+
 @router_v1.post("/punch-in", response_model=PunchInResponse, status_code=201)
 async def punch_in(
     request: PunchInRequest,
@@ -114,6 +136,8 @@ async def punch_in(
     db: Session = Depends(get_db)
 ):
     """Punch in (打卡上班) - WP-11-02"""
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     repo = get_attendance_session_repository(db)
     
     # Validate user_id
@@ -178,6 +202,8 @@ async def punch_out(
     db: Session = Depends(get_db)
 ):
     """Punch out (打卡下班) - WP-11-02, WP-11-05C: with policy engine"""
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     repo = get_attendance_session_repository(db)
     
     # Validate user_id
@@ -269,6 +295,8 @@ async def get_current_status(
     db: Session = Depends(get_db)
 ):
     """Get current attendance status - WP-11-02"""
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     repo = get_attendance_session_repository(db)
     
     if not user_id:
@@ -322,6 +350,8 @@ async def get_attendance_history(
     db: Session = Depends(get_db)
 ):
     """Get attendance history - WP-11-02"""
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
     
@@ -384,6 +414,8 @@ async def break_out(
     
     WP-11-13: 加入 location policy 後端 authoritative enforcement
     """
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     repo = get_attendance_session_repository(db)
     
     if not user_id:
@@ -463,6 +495,8 @@ async def break_in(
 ):
     """Break in (返回打卡) - WP-11-11.5 Blocker Fix"""
     repo = get_attendance_session_repository(db)
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
@@ -515,6 +549,8 @@ async def get_break_punches(
     
     Returns all break_start and break_end punches for today
     """
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
@@ -574,6 +610,8 @@ async def update_punch_note(
     db: Session = Depends(get_db)
 ):
     """Update punch note (更新打卡備註) - WP-11-11.5"""
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
     
@@ -641,6 +679,8 @@ async def get_sessions_reporting(
     - 員工（無特殊角色）：只能查自己的 sessions
     - 管理者（manager/admin）：可查本公司任意 user 的 sessions
     """
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     # --- 驗證 limit 範圍 ---
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
@@ -763,6 +803,8 @@ async def get_user_summary(
     - 員工只能查詢自己的 summary
     - 嘗試查詢他人回傳 403（本 Step 不支援 manager 查他人）
     """
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     # --- 確認 current_user_id 存在 ---
     if not current_user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
@@ -859,6 +901,8 @@ async def get_company_summary(
     - 所有查詢強制 WHERE company_id = ?（從 Header 取得）
     - 查詢全公司所有用戶，不過濾 user_id
     """
+    # --- Feature Gate (WP-C1-06) ---
+    _require_attendance_feature(company_id, db)
     # --- 驗證 datetime 為 timezone-aware ---
     if start_date is not None and start_date.tzinfo is None:
         raise HTTPException(
