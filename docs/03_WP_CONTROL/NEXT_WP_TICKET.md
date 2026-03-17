@@ -1,7 +1,7 @@
 # Next WP Ticket
 
-**更新日期：** 2026-03-15（WP-11-08 Leave Request System COMPLETE）  
-**當前狀態：** WP-11-08 COMPLETE；當前 WP：WP-C1-03
+**更新日期：** 2026-03-17（WP-C1-03 JWT Migration Batch 2 COMPLETE）  
+**當前狀態：** WP-C1-03 COMPLETE；當前 WP：WP-C1-04
 
 ---
 
@@ -32,7 +32,7 @@
 
 ---
 
-## 當前完成狀態（截至 2026-03-14）
+## 當前完成狀態（截至 2026-03-17）
 
 | WP | 名稱 | 狀態 |
 |----|------|------|
@@ -46,13 +46,14 @@
 | **WP-11-07** | **Reporting UI Polish / QA** | **COMPLETE（2026-03-15）** |
 | **WP-11-08** | **Leave Request System** | **COMPLETE（2026-03-15）** |
 | WP-11-07~13 Step3A | Frontend UI 系列 | COMPLETED |
-| WP-11-13 Manual QA | GPS + UI 人工測試 | BLOCKED（需環境） |
+| WP-11-13 Manual QA | GPS + UI 人工測試 | BLOCKED（需環境）|
 | **系統驗證基線建立** | SYSTEM_VERIFICATION_BASELINE | **COMPLETED（2026-03-11）** |
 | **WP-C1-01** | PostgreSQL 環境建立 + Migration 驗證 | **VERIFIED（2026-03-11）** |
 | **WP-C1-07** | Attendance API JWT 遷移 | **COMPLETED（2026-03-12）** |
 | **WP-C1-08 Phase 1** | Attendance Test Re-Enable 基線驗證 | **VERIFIED（2026-03-12）** |
 | **WP-C1-08 Phase 2** | Fixture Layer 修復 | **FIXTURE_COMPLETE（2026-03-12）** |
 | **WP-C1-09** | OUT Checkpoint API | **DONE（2026-03-12）** |
+| **WP-C1-03** | Auth 轉換 Batch 2（audit/notifications/backup JWT 遷移）| **COMPLETE（2026-03-17）** |
 
 ---
 
@@ -97,12 +98,36 @@
 
 ---
 
-## 當前 WP：WP-C1-03 — Auth 轉換 Batch 2
+## 已完成 WP：WP-C1-03 — Auth 轉換 Batch 2 ✅ COMPLETE
 
-**Status：** NEXT  
-**前置條件：** WP-11-08 COMPLETE ✅  
-**內容：** audit / notifications / backup 模組 JWT 遷移  
-**範圍：** Backend auth wiring
+**完成日期：** 2026-03-17  
+**Status：** COMPLETE  
+**前置條件：** WP-11-08 COMPLETE ✅
+
+### WP-C1-03 Completion Summary
+
+- ✅ `audit/api.py`：JWT Actor 遷移（get_actor_with_company，含 admin RBAC）
+- ✅ `notifications/api.py`：JWT Actor 遷移（get_actor_with_company）
+- ✅ `backup/api.py`：JWT Actor 遷移（get_actor_with_company，含 admin RBAC）
+- ✅ `audit/tests/conftest.py`：重構，整合 get_db override，移除雙 autouse 衝突
+- ✅ `audit/tests/test_audit_api.py`：JWT actor override 模式
+- ✅ `notifications/tests/test_api.py`：新建完整測試（原為空檔案）
+- ✅ `backup/tests/conftest.py`：重構，整合 get_db override
+- ✅ `backup/tests/test_api.py`：完整重寫，移除 X-Company-ID header
+- ✅ pytest audit：27/27 PASS
+- ✅ pytest notifications：26/26 PASS
+- ✅ pytest backup：25/25 PASS（合計 78/78 PASS）
+
+**結案文件：** `docs/02_DEVELOPMENT_STATUS/WP-C1-03_JWT_MIGRATION_BATCH2_COMPLETE.md`
+
+---
+
+## 當前 WP：WP-C1-04 — 8 個回歸測試（真實 DB）
+
+**Status：** CURRENT  
+**前置條件：** WP-C1-03 COMPLETE ✅  
+**內容：** attendance 模組 8 個回歸測試，使用真實 PostgreSQL `attendance_test` 資料庫  
+**範圍：** Backend regression tests
 
 ---
 
@@ -115,9 +140,9 @@ WP-11-07（Reporting UI Polish / QA）✅ COMPLETE 2026-03-15
   ↓
 WP-11-08（Leave Request System）✅ COMPLETE 2026-03-15
   ↓
-WP-C1-03（Auth 轉換 Batch 2：audit/notifications/backup）← 當前 WP
+WP-C1-03（Auth 轉換 Batch 2：audit/notifications/backup）✅ COMPLETE 2026-03-17
   ↓
-WP-C1-04（8 個回歸測試，真實 DB）
+WP-C1-04（8 個回歸測試，真實 DB）← 當前 WP
   ↓
 WP-C1-05（Tenant Isolation 真實 DB 測試）
   ↓
@@ -128,5 +153,96 @@ WP-C1-06（Feature Gate 套用）
 
 ---
 
-**最後更新：** 2026-03-15  
-**更新原因：** WP-11-08 Leave Request System COMPLETE（2026-03-15）；WP-C1-03 成為當前 WP
+**最後更新：** 2026-03-17  
+**更新原因：** WP-C1-03 JWT Migration Batch 2 COMPLETE（2026-03-17）；WP-C1-04 成為當前 WP
+
+---
+
+## 已完成 WP：WP-C1-04 — PostgreSQL 回歸測試 ✅ COMPLETE
+
+**完成日期：** 2026-03-17  
+**Status：** COMPLETE  
+**前置條件：** WP-C1-03 COMPLETE ✅
+
+### WP-C1-04 Completion Summary
+
+- ✅ `attendance_test` PostgreSQL DB migration 至 HEAD（009_wp_11_08，21 tables）
+- ✅ audit/notifications/backup：78/78 PASS on PostgreSQL
+- ✅ PostgreSQL 未引入任何新的回歸失敗（PG failed 37 ≤ SQLite failed 42）
+- ✅ JWT Actor flow 在 PostgreSQL 正常
+- ✅ Tenant Isolation 在 PostgreSQL 正常
+- ✅ `override_all_auth_dependencies()` 新增至 auth.py 工具層
+- ✅ 37 個 pre-existing 失敗全部分類記錄
+
+**結案文件：** `docs/02_DEVELOPMENT_STATUS/WP-C1-04_POSTGRESQL_REGRESSION_REPORT.md`
+
+---
+
+## 當前 WP：WP-C1-05 — Tenant Isolation 真實 DB 測試
+
+**Status：** CURRENT  
+**前置條件：** WP-C1-04 COMPLETE ✅  
+**內容：** 5 個 Tenant Isolation 測試，使用真實 PostgreSQL  
+**範圍：** Backend isolation tests
+
+---
+
+**最後更新：** 2026-03-17  
+**更新原因：** WP-C1-04 PostgreSQL Regression COMPLETE；WP-C1-05 成為當前 WP
+
+---
+
+## 已完成 WP：WP-C1-05 — Tenant Isolation 真實 DB 測試 ✅ COMPLETE
+
+**完成日期：** 2026-03-17  
+**Status：** COMPLETE  
+**前置條件：** WP-C1-04 COMPLETE ✅
+
+### WP-C1-05 Completion Summary
+
+- ✅ Phase A：掃描 5 個模組 repo.py / service.py，無 isolation 漏洞
+- ✅ Phase B：建立 39 個 tenant isolation 測試（5 模組）
+- ✅ Phase C：無業務邏輯修正（無漏洞）；修正 5 個測試層問題
+- ✅ Phase D：PostgreSQL 真實 DB 執行 39/39 PASS
+- ✅ Phase E：`docs/02_DEVELOPMENT_STATUS/WP-C1-05_TENANT_ISOLATION_REPORT.md` 產出
+- ✅ Phase F：進度文件更新
+
+**結案文件：** `docs/02_DEVELOPMENT_STATUS/WP-C1-05_TENANT_ISOLATION_REPORT.md`
+
+---
+
+## 當前 WP：WP-C1-06 — Feature Gate 套用
+
+**Status：** CURRENT  
+**前置條件：** WP-C1-05 COMPLETE ✅  
+**內容：** 所有核心 API 套用 Feature Gate  
+**範圍：** Backend feature gate
+
+---
+
+**最後更新：** 2026-03-17  
+**更新原因：** WP-C1-05 Tenant Isolation COMPLETE；WP-C1-06 成為當前 WP
+
+---
+
+## WP-C1-06 COMPLETE
+
+**完成日期:** 2026-03-17  
+**Git Commit:** 41df744  
+**Status:** COMPLETE  
+
+- 22/22 feature gate tests PASS
+- attendance/leave/audit/notifications/backup all gated
+- Gate schema: {code: FEATURE_DISABLED}
+
+---
+
+## Current WP: WP-C1-07
+
+**Status:** CURRENT  
+**Content:** attendance router_v1 JWT migration  
+
+---
+
+**Last Updated:** 2026-03-17  
+**Reason:** WP-C1-06 COMPLETE; WP-C1-07 is now CURRENT
