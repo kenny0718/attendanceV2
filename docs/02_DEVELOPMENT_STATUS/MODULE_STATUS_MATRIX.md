@@ -84,3 +84,110 @@
 | **目標定位** | 打卡核心（punch-in/out）、break-out/in、Session 管理、Policy Engine、Location Policy | - |
 | **spec 狀態** | `DOC_COMPLETE` | SA_MODULE_SPEC v2.1 + ATTENDANCE_LOCATION_POLICY_SPEC_v1.0.md |
 | **backend 結構** | `CODE_COMPLETE` | api.py / service.py / repo.py / models.py / schemas.py / policy_engine.py / 
+---
+
+## WP-C1-08 Attendance Test Stabilization — 完成狀態更新（2026-03-17）
+
+### attendance 模組測試層狀態更新
+
+**更新依據：** WP-C1-08 Phase B COMPLETE（2026-03-17）
+
+| 面向 | 舊狀態 | 新狀態（WP-C1-08 後） | 說明 |
+|------|--------|----------------------|------|
+| **attendance 測試層（reporting）** | FAIL（hdr() 殘留）| `VERIFIED` | test_reporting_sessions 16/16、test_reporting_user_summary 13/13、test_reporting_company_summary 14/14 PASS |
+| **attendance 測試層（break-out enforcement）** | FAIL（feature gate 未 mock）| `VERIFIED` | test_break_out_enforcement 6/6 PASS |
+| **attendance 測試層（穩定核心）** | PASS（Phase A）| `VERIFIED`（維持）| feature_gate 6/6、model_constraints 20/20、policy_engine 28/28、router_v1_jwt 12/12、tenant_isolation 9/9 |
+| **attendance 測試層（整體）** | 85/179 PASS | 134/179 PASS | 36 FAIL + 9 ERROR 為 pre-existing，不影響本票收尾 |
+
+### attendance 模組 A3 狀態矩陣補充說明
+
+| 面向 | 狀態 | 說明 |
+|------|------|------|
+| **tests（reporting 層）** | `VERIFIED`（WP-C1-08 COMPLETE）| test_reporting_sessions / user_summary / company_summary 均 PASS；hdr() 遷移完整 |
+| **tests（break-out enforcement）** | `VERIFIED`（WP-C1-08 COMPLETE）| feature gate mock 補齊，6/6 PASS |
+| **tests（pre-existing 剩餘）** | `PARTIAL`（PRE-EXISTING）| 36 FAIL + 9 ERROR，來源 WP-C1-04；不屬於本票範圍 |
+| **WP-C1-08 結論** | `COMPLETE` | 本票範圍內測試穩定化完成；不進入 Phase C |
+
+**Last Updated:** 2026-03-17（WP-C1-08 COMPLETE 後同步更新）
+
+---
+
+## WP-C1-09A Governance Reconstruction — 模組狀態全面補齊（2026-03-18）
+
+**更新依據：** WP-C1-03、WP-C1-04、WP-C1-05、WP-C1-06、WP-C1-07、WP-C1-08 全部 COMPLETE（2026-03-17）  
+**更新性質：** 治理補齊（Governance repair），不修改任何 production code  
+**Source：** WORKSTREAM_STATUS_LEDGER.md（2026-03-17 記錄）
+
+---
+
+### 更新後各模組狀態矩陣（截至 2026-03-18）
+
+| 模組 | Functional Status | Auth Status | Test Status | Governance Status | Notes |
+|------|-------------------|-------------|-------------|-------------------|-------|
+| **auth** | CODE_COMPLETE | JWT（login 本身無需 auth）| CODE_COMPLETE | LEDGER 記錄至 WP-11-04A | RBAC 在 API 層未強制套用；runtime 未驗證 |
+| **tenants** | CODE_COMPLETE | JWT + get_current_actor() | CODE_COMPLETE | LEDGER 記錄 | runtime 未驗證 |
+| **attendance** | VERIFIED | JWT Actor（router_v1，WP-C1-07）| PARTIAL（134/179 PASS）| WP-C1-08 COMPLETE | 36 FAIL + 9 ERROR 為 pre-existing；reporting/break-out enforcement 已修復 |
+| **audit** | CODE_COMPLETE | JWT Actor（WP-C1-03）| VERIFIED（27/27 PASS）| WP-C1-03 COMPLETE | 78/78 PASS（含 notifications/backup）；E2E 未驗證 |
+| **notifications** | CODE_COMPLETE | JWT Actor（WP-C1-03）| VERIFIED（26/26 PASS）| WP-C1-03 COMPLETE | 同上 |
+| **backup** | CODE_COMPLETE | JWT Actor（WP-C1-03）| VERIFIED（25/25 PASS）| WP-C1-03 COMPLETE | 同上 |
+| **leave** | COMPLETE | 舊式 Header auth（待遷移）| NOT STARTED（無 tests 目錄）| WP-11-08 COMPLETE | 5 endpoints manual PASS；JWT Actor 遷移尚無對應 WP |
+| **customer_service** | CODE_COMPLETE | unknown | unknown | LEDGER 無詳細記錄 | 模組存在；詳細狀態待稽核 |
+| **schedule** | NOT STARTED | N/A | N/A | NOT STARTED | 無任何 implementation 證據；不得寫成 in progress |
+
+---
+
+### Tenant Isolation 狀態（WP-C1-05 結論）
+
+| 模組 | Isolation 狀態 | 測試數 | 結果 |
+|------|--------------|--------|------|
+| attendance | VERIFIED | 9 | 9/9 PASS on PostgreSQL |
+| audit | VERIFIED | 8 | 8/8 PASS on PostgreSQL |
+| notifications | VERIFIED | 6 | 6/6 PASS on PostgreSQL |
+| backup | VERIFIED | 6 | 6/6 PASS on PostgreSQL |
+| leave | VERIFIED | 10 | 10/10 PASS on PostgreSQL |
+| **合計** | **VERIFIED** | **39** | **39/39 PASS** |
+
+---
+
+### Feature Gate 狀態（WP-C1-06 結論）
+
+| 模組 | Feature Gate | Gate Key | 測試 |
+|------|-------------|----------|------|
+| attendance | COMPLETE | attendance.core | 6/6 PASS |
+| leave | COMPLETE | leave.core | verified |
+| audit | COMPLETE | audit.core | verified |
+| notifications | COMPLETE | notifications.core | verified |
+| backup | COMPLETE | backup.core | verified |
+| **合計** | **22/22 PASS** | - | - |
+| auth / tenants / customer_service | NOT GATED | 設計決策，非缺口 | - |
+| schedule | NOT STARTED | 無 implementation | - |
+
+---
+
+### Known Gaps（已知缺口，Out of Scope for WP-C1-09A）
+
+| 缺口 | 模組 | 說明 | 是否阻塞 |
+|------|------|------|----------|
+| leave JWT Actor 遷移 | leave | 目前使用 Header auth；尚無對應 WP | 否（pre-existing）|
+| leave 自動化測試 | leave | 無 tests 目錄；WP-11-08 僅有 manual test | 否（pre-existing）|
+| auth runtime 驗證 | auth | 登入流程未在真實 DB 驗證 | 否（pre-existing）|
+| tenants runtime 驗證 | tenants | 未在真實 DB 驗證 | 否（pre-existing）|
+| customer_service 詳細狀態 | customer_service | LEDGER 無詳細記錄，需獨立稽核 | 否（observation）|
+| attendance 36 FAIL + 9 ERROR | attendance | 全部 pre-existing，WP-C1-04 已分類 | 否（pre-existing）|
+| schedule 未實作 | schedule | 無任何 implementation，不在當前 roadmap 範圍 | 否（planned）|
+
+---
+
+### Reconstruction Note
+
+本矩陣依以下來源重建：
+- WORKSTREAM_STATUS_LEDGER.md（主要來源，2026-03-17）
+- GATE_PROGRESS_TRACKER.md（補充）
+- CURRENT_SYSTEM_STATE.md（補充）
+- WP-C1-03/04/05/06/07/08 各別結案文件（交叉比對）
+
+對於缺乏直接文件證據之處（customer_service），採保守標示（unknown / observation only）。
+本次更新為治理補齊，不代表 code 層有任何修改。
+
+**Last Updated:** 2026-03-18  
+**Updated by:** WP-C1-09A Governance Missing Files Reconstruction

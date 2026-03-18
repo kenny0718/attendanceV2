@@ -290,3 +290,105 @@ WP-C1-06（Feature Gate 套用）
 
 **最後更新：** 2026-03-17  
 **更新原因：** WP-C1-07 Attendance router_v1 JWT Migration COMPLETE；WP-C1-08 Phase 3 為當前 WP
+
+---
+
+## 已完成 WP：WP-C1-08 — Attendance Test Stabilization ✅ COMPLETE
+
+**完成日期：** 2026-03-17  
+**Status：** COMPLETE  
+**前置條件：** WP-C1-07 COMPLETE ✅
+
+### WP-C1-08 Completion Summary
+
+**Phase A Baseline（Pre-Audit）：**
+- pytest app/modules/attendance/tests/ 掃描結論：179 collected，85 PASS，85 FAIL，9 ERROR
+- 穩定 PASS 核心測試群：
+  - test_feature_gate.py：6/6 PASS
+  - test_model_constraints.py：20/20 PASS
+  - test_policy_engine.py：28/28 PASS
+  - test_router_v1_jwt_migration.py：12/12 PASS
+  - test_tenant_isolation_wp_c1_05.py：9/9 PASS
+
+**Phase B 修復成果：**
+- ✅ test_reporting_sessions.py：16/16 PASS（修復 hdr() 殘留、補 feature gate mock）
+- ✅ test_reporting_user_summary.py：13/13 PASS（修復 hdr() 殘留、補 feature gate mock）
+- ✅ test_reporting_company_summary.py：14/14 PASS（修復 hdr() 殘留、補 feature gate mock）
+- ✅ test_break_out_enforcement.py：6/6 PASS（補 unittest.mock.patch import、補 feature gate mock）
+- ✅ 修復合計：49/49 PASS（4 個測試檔）
+- ✅ 整體 PASS：85 → **134**
+
+**剩餘問題定性：**
+- 尚餘 36 FAIL + 9 ERROR，**全部為 pre-existing 問題**
+- 來源：WP-C1-04 已記錄範圍（舊 router header auth、OUT Checkpoint 未實作、migration 舊帳號等）
+- **不阻塞 WP-C1-08 收尾結論**
+
+**Production Code 修改：** 無（本票嚴格限定測試層，api.py / service.py / repo.py 均未觸碰）
+
+**結案文件：** `docs/02_DEVELOPMENT_STATUS/WP-C1-08_ATTENDANCE_TEST_STABILIZATION_COMPLETION_REPORT.md`
+
+---
+
+## 當前 WP：WP-C1-09（依 roadmap 下一票）
+
+**Status：** 依 ATTENDANCE_DEVELOPMENT_ROADMAP.md 與現有 roadmap 安排繼續執行  
+**前置條件：** WP-C1-08 COMPLETE ✅
+
+---
+
+**最後更新：** 2026-03-17  
+**更新原因：** WP-C1-08 Attendance Test Stabilization COMPLETE（85 → 134 PASS；49 個測試層修復；36+9 pre-existing 保留分類）
+
+---
+
+## WP-C1-09：Governance Consolidation — COMPLETE
+
+**完成日期：** 2026-03-18  
+**性質：** 治理收斂票（非功能票）  
+**Status：** COMPLETE
+
+**說明：**
+- 確認 WP-C1-08 在所有治理文件中一致標示為 COMPLETE
+- 修整 /root/docs/ 文件層狀態（與 /opt/attendance-system/ 分離的文件目錄）
+- 發現 /opt/attendance-system/docs/ 治理文件需進一步補齊，進入 WP-C1-09A
+
+---
+
+## 當前 WP：WP-C1-09A — Governance Missing Files Reconstruction
+
+**Status：** IN_PROGRESS  
+**性質：** Governance repair ticket（治理缺件補齊票）  
+**前置條件：** WP-C1-08 COMPLETE ✅；WP-C1-09 COMPLETE ✅  
+**啟動日期：** 2026-03-18
+
+### 目標
+
+補齊 /opt/attendance-system/docs/ 治理層缺失或過時的文件，使治理層完整且一致：
+- WORKSTREAM_STATUS_LEDGER.md：追加 WP-C1-09 / WP-C1-09A 記錄
+- MODULE_STATUS_MATRIX.md：補齊 WP-C1-03~08 完成後各模組狀態
+- NEXT_WP_TICKET.md（本文件）：標示 WP-C1-09A 為 Current WP
+- GATE_PROGRESS_TRACKER.md：補齊 WP-C1-03~08 全部 COMPLETE
+- CURRENT_SYSTEM_STATE.md：同步 Current WP
+
+### 本票性質
+
+- ✅ 治理文件補齊
+- ✅ 文件狀態一致性修復
+- ❌ 非功能開發票
+- ❌ 非 Schedule 實作票（schedule 尚未開始，不得虛構）
+- ❌ 非 production code 修改票
+- ❌ 非 repo cleanup 票
+
+### 完成條件
+
+- [x] WORKSTREAM_STATUS_LEDGER.md 追加 WP-C1-09 / WP-C1-09A 記錄
+- [x] MODULE_STATUS_MATRIX.md 補齊 WP-C1-03~08 後各模組狀態
+- [x] NEXT_WP_TICKET.md 標示 WP-C1-09A 為 Current WP
+- [ ] GATE_PROGRESS_TRACKER.md 補齊至最新狀態
+- [ ] CURRENT_SYSTEM_STATE.md 同步
+- [ ] Execution Report 完成
+
+---
+
+**最後更新：** 2026-03-18  
+**更新原因：** WP-C1-09 COMPLETE；WP-C1-09A Governance Repair IN_PROGRESS

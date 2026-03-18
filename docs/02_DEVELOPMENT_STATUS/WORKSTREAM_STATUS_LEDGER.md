@@ -788,3 +788,128 @@
 
 **最後更新：** 2026-03-17  
 **更新原因：** WP-C1-07 Attendance router_v1 JWT Migration COMPLETE（11/11 endpoints，12/12 tests PASS）
+
+---
+
+### WP-C1-08 Phase B：Attendance Test Stabilization（測試層修復）
+
+**完成日期：** 2026-03-17  
+**Git Commit：** 待 commit（測試層修改）  
+**負責人：** AI session（Cursor）
+
+**已完成：**
+- `attendance/tests/test_reporting_sessions.py`：移除 hdr() 殘留，改用 override_actor_dependency + make_actor_company，補 feature gate mock，修正 user_a.id.id typo
+- `attendance/tests/test_reporting_user_summary.py`：移除 hdr() 殘留，改用 override_actor_dependency + make_actor_company，補 feature gate mock
+- `attendance/tests/test_reporting_company_summary.py`：移除 hdr() 殘留，改用 override_actor_dependency + make_actor_company，補 feature gate mock
+- `attendance/tests/test_break_out_enforcement.py`：補 unittest.mock.patch import，補 _require_attendance_feature mock patch
+- `docs/02_DEVELOPMENT_STATUS/WP-C1-08_ATTENDANCE_TEST_STABILIZATION_COMPLETION_REPORT.md`：正式結案報告
+
+**已驗證（VERIFIED）：**
+- test_reporting_sessions.py：16/16 PASS ✅
+- test_reporting_user_summary.py：13/13 PASS ✅
+- test_reporting_company_summary.py：14/14 PASS ✅
+- test_break_out_enforcement.py：6/6 PASS ✅
+- 修復合計：49/49 PASS ✅
+- Phase A 穩定核心（feature_gate / model_constraints / policy_engine / router_v1_jwt / tenant_isolation）：維持全數 PASS ✅
+- 整體 PASS：85 → 134 ✅
+
+**未驗證（NOT_VERIFIED）：**
+- 剩餘 36 FAIL + 9 ERROR（全部為 pre-existing，不在本票範圍）
+
+**測試結果：**
+- pytest 修復目標：49/49 PASS
+- 整體 attendance 測試套件：134 PASS / 36 FAIL / 9 ERROR（179 collected）
+- Manual QA：N/A
+
+**Pre-existing 問題（不阻塞本票）：**
+- 舊 router header auth（test_api.py, test_tenant_isolation.py）：11 FAIL — PRE-EXISTING（WP-C1-04）
+- OUT Checkpoint API 未實作（test_out_checkpoint.py）：7 FAIL — PRE-EXISTING（WP-C1-09 遺留）
+- migration 舊帳號（test_migration.py）：9 FAIL — PRE-EXISTING（環境，WP-C1-04）
+- business_invariant repo 介面不符：5 FAIL — PRE-EXISTING（WP-C1-04）
+- location_policy fixture 不符：6 ERROR + 1 FAIL — PRE-EXISTING（WP-C1-04）
+- tenant_validation 舊 repo 介面：2 FAIL — PRE-EXISTING（WP-C1-04）
+- cross_midnight punch_time 被 API 忽略：1 FAIL — PRE-EXISTING（WP-C1-04）
+- test_phase4 空檔案依賴：3 ERROR — PRE-EXISTING（WP-C1-04）
+
+**文件一致性：**
+- 建立 `docs/02_DEVELOPMENT_STATUS/WP-C1-08_ATTENDANCE_TEST_STABILIZATION_COMPLETION_REPORT.md`
+- 更新 `docs/03_WP_CONTROL/NEXT_WP_TICKET.md`（WP-C1-08 COMPLETE）
+- 更新 `docs/02_DEVELOPMENT_STATUS/WORKSTREAM_STATUS_LEDGER.md`（本次）
+- 更新 `docs/02_DEVELOPMENT_STATUS/MODULE_STATUS_MATRIX.md`（attendance testing 狀態）
+- 更新 `docs/03_WP_CONTROL/GATE_PROGRESS_TRACKER.md`（WP-C1-08 狀態同步）
+
+**下一步：**
+- 依 ATTENDANCE_DEVELOPMENT_ROADMAP.md 與 NEXT_WP_TICKET.md 繼續後續 WP
+
+**狀態：** `COMPLETE`
+
+---
+
+**最後更新：** 2026-03-17  
+**更新原因：** WP-C1-08 Attendance Test Stabilization COMPLETE（4 個測試檔修復，49 PASS 新增，整體 85→134 PASS；36+9 pre-existing 保留分類）
+
+---
+
+### WP-C1-08 相關：Governance Consolidation 備注（2026-03-18）
+
+**備注日期：** 2026-03-18  
+**性質：** 治理收斂記錄（非新功能）
+
+**說明：**
+WP-C1-08 Attendance Test Stabilization 已於 2026-03-17 正式 COMPLETE。
+2026-03-18 執行 WP-C1-09 Governance Consolidation（治理收斂票），
+確認 WP-C1-08 完成狀態已在所有核心治理文件中一致標記。
+
+36 FAIL + 9 ERROR 均為 pre-existing，不屬於 WP-C1-08 範圍，不阻塞本票收尾。
+
+---
+
+### WP-C1-09：Governance Consolidation
+
+**完成日期：** 2026-03-18  
+**性質：** 治理收斂票（非功能票）  
+**負責人：** AI session（Cursor）
+
+**已完成（/root/docs 文件層）：**
+- `docs/NEXT_WP_TICKET.md`：重整，清理舊 WP-11-07 Current WP 殘留
+- `docs/GATE_PROGRESS_TRACKER.md`：同步 WP-C1-08 COMPLETE，標示 WP-C1-09 IN_PROGRESS
+- `docs/SYSTEM_DEVELOPMENT_STATUS_SNAPSHOT.md`：升版 v3.0，更正 doc-only repo 誤判
+- `docs/CURRENT_DEVELOPMENT_STATUS_AUDIT_2026-03-18.md`：新建治理收斂記錄
+
+**發現：**
+- `/root/docs/` 為獨立文件目錄，與 `/opt/attendance-system/` 真實 repo 分離
+- `/opt/attendance-system/docs/` 存在更完整的治理文件體系（含 WORKSTREAM_STATUS_LEDGER、MODULE_STATUS_MATRIX 等）
+- `/opt/attendance-system/docs/03_WP_CONTROL/NEXT_WP_TICKET.md` 與 `/opt/attendance-system/docs/03_WP_CONTROL/GATE_PROGRESS_TRACKER.md` 尚未同步 WP-C1-09 治理收斂狀態
+
+**下一步：**
+- WP-C1-09A：補齊 /opt/attendance-system/docs 治理文件，使其完全對齊
+
+**狀態：** `COMPLETE`（/root/docs 層）；`IN_PROGRESS`（/opt repo 文件層，由 WP-C1-09A 繼續）
+
+---
+
+### WP-C1-09A：Governance Missing Files Reconstruction
+
+**啟動日期：** 2026-03-18  
+**性質：** Governance repair ticket（治理缺件補齊票）  
+**負責人：** AI session（Cursor）
+
+**目的：**
+- 補齊 /opt/attendance-system/docs 治理文件，使治理層完整且一致
+- 更新 WORKSTREAM_STATUS_LEDGER（本次追加）
+- 更新 MODULE_STATUS_MATRIX（補齊 WP-C1-03 ~ WP-C1-08 後各模組狀態）
+- 更新 NEXT_WP_TICKET.md、GATE_PROGRESS_TRACKER.md、CURRENT_SYSTEM_STATE.md
+
+**本票不做：**
+- 不修改 production code
+- 不修改 API / schema / router / frontend logic
+- 不修改 tests
+- 不做 repo cleanup
+- 不開啟 WP-11-09 Schedule implementation
+
+**狀態：** `IN_PROGRESS`
+
+---
+
+**最後更新：** 2026-03-18  
+**更新原因：** WP-C1-09 Governance Consolidation COMPLETE；WP-C1-09A Governance Repair IN_PROGRESS

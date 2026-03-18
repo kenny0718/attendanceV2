@@ -119,3 +119,58 @@
 
 *本文件由 AI 依據 2026-03-17 實際執行結果更新。*  
 *WP-C1-07 COMPLETE：attendance router_v1 JWT Migration，11/11 endpoints，12/12 tests PASS。*
+
+---
+
+## 狀態更新（2026-03-18）— WP-C1-09A Governance Repair
+
+**更新性質：** 治理修復（非 production code 修改）
+
+### Current WP 更新
+
+| 項目 | 舊值（2026-03-17）| 新值（2026-03-18）|
+|------|-------------------|-------------------|
+| Current WP | WP-C1-08 Phase 3（CURRENT）| WP-C1-09A — Governance Missing Files Reconstruction（IN_PROGRESS）|
+| 前一完成 WP | WP-C1-07 | WP-C1-08 COMPLETE（2026-03-17）；WP-C1-09 COMPLETE（2026-03-18）|
+
+### WP-C1-08 正式確認
+
+- **WP-C1-08 Attendance Test Stabilization：COMPLETE（2026-03-17）**
+- 134/179 PASS；36 FAIL + 9 ERROR 均為 pre-existing
+- Production code 未修改
+- 結案文件：`docs/02_DEVELOPMENT_STATUS/WP-C1-08_ATTENDANCE_TEST_STABILIZATION_COMPLETION_REPORT.md`
+
+### Gate 5 進度更新
+
+**Gate 5 估計完成度：~90%**
+
+| 條件 | 狀態 |
+|------|------|
+| WP-C1-01 PostgreSQL 環境建立 | ✅ VERIFIED（2026-03-11）|
+| WP-C1-03 Auth 轉換 Batch 2 | ✅ COMPLETE（2026-03-17，78/78 PASS）|
+| WP-C1-04 PostgreSQL 回歸測試 | ✅ COMPLETE（2026-03-17）|
+| WP-C1-05 Tenant Isolation 真實 DB | ✅ COMPLETE（2026-03-17，39/39 PASS）|
+| WP-C1-06 Feature Gate 套用 | ✅ COMPLETE（2026-03-17，22/22 PASS）|
+| WP-C1-07 Attendance JWT 遷移 | ✅ COMPLETE（2026-03-17）|
+| WP-C1-08 Attendance Test Stabilization | ✅ COMPLETE（2026-03-17）|
+| WP-C1-09 Governance Consolidation | ✅ COMPLETE（2026-03-18）|
+| WP-11-06 Reporting Backend API | ✅ COMPLETE（2026-03-14）|
+| WP-11-07 Reporting UI Polish / QA | ✅ COMPLETE（2026-03-15）|
+| WP-11-08 Leave Request System | ✅ COMPLETE（2026-03-15）|
+| WP-11-13 Manual QA | ⛔ BLOCKED（pre-existing）|
+| leave JWT Actor 遷移 | ⚠️ PENDING（尚無對應 WP）|
+
+### Known Limitations 更新
+
+舊版 §5 Known Limitations 中：
+- 第 2 條「router_v1 punch-in/punch-out/break-out 仍使用 X-Company-ID header」— **已由 WP-C1-07 解決（COMPLETE）**
+- 第 3 條「Feature Gate — 待完成」— **已由 WP-C1-06 解決（COMPLETE，22/22 PASS）**
+
+補充已知限制：
+- leave 模組使用舊式 Header auth（JWT Actor 遷移尚無對應 WP）
+- leave 模組無自動化測試（manual test PASS，pre-existing）
+
+---
+
+**最後更新：** 2026-03-18  
+**更新原因：** WP-C1-09A Governance Repair — 同步 WP-C1-08 COMPLETE 狀態，更新 Current WP 為 WP-C1-09A
