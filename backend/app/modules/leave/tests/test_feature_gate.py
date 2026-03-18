@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch
 
 from app.main import app
-from app.tests.utils.auth import create_test_actor, override_all_auth_dependencies
+from app.tests.utils.auth import create_test_actor, override_actor_dependency
 from app.core.feature_service import FeatureDisabledError
 from app.core.features import FeatureKeys
 
@@ -17,7 +17,7 @@ class TestLeaveFeatureGate:
     def test_create_request_feature_disabled(self):
         """leave.core disabled -> POST /api/v1/leave/requests 回傳 403"""
         actor = create_test_actor("company-A", role_id="employee")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.leave.api.get_feature_service"
             ) as mock_fs:
@@ -40,7 +40,7 @@ class TestLeaveFeatureGate:
     def test_my_requests_feature_disabled(self):
         """leave.core disabled -> GET /api/v1/leave/my-requests 回傳 403"""
         actor = create_test_actor("company-A", role_id="employee")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.leave.api.get_feature_service"
             ) as mock_fs:
@@ -54,7 +54,7 @@ class TestLeaveFeatureGate:
     def test_pending_feature_disabled(self):
         """leave.core disabled -> GET /api/v1/leave/pending 回傳 403"""
         actor = create_test_actor("company-A", role_id="admin")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.leave.api.get_feature_service"
             ) as mock_fs:
@@ -68,7 +68,7 @@ class TestLeaveFeatureGate:
     def test_approve_feature_disabled(self):
         """leave.core disabled -> POST /api/v1/leave/requests/{id}/approve 回傳 403"""
         actor = create_test_actor("company-A", role_id="admin")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.leave.api.get_feature_service"
             ) as mock_fs:
@@ -86,7 +86,7 @@ class TestLeaveFeatureGate:
     def test_gate_rejection_schema_consistent(self):
         """Feature Gate 拒絕 schema 一致性"""
         actor = create_test_actor("company-A", role_id="employee")
-        with override_all_auth_dependencies(actor):
+        with override_actor_dependency(actor):
             with patch(
                 "app.modules.leave.api.get_feature_service"
             ) as mock_fs:

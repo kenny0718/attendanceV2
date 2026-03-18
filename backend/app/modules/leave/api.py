@@ -10,6 +10,10 @@ Endpoints:
   POST   /api/v1/leave/requests/{id}/reject  - 審批拒絕
 
 API layer only: 不含業務規則，所有邏輯交給 service 層。
+
+WP-C1-06: 套用 leave.core Feature Gate
+- 所有端點加入 leave.core feature gate 檢查
+- Feature disabled → HTTP 403 FEATURE_DISABLED
 """
 
 import logging
@@ -19,7 +23,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.tenant_context import get_current_company_id, get_current_user_id
+from app.core.scope import Actor
+from app.core.dependencies import get_actor_with_company
+from app.core.features import FeatureKeys
+from app.core.feature_service import get_feature_service, FeatureDisabledError
 from app.modules.leave.service import get_leave_service
 from app.modules.leave.schemas import (
     LeaveRequestCreate,
@@ -34,6 +41,26 @@ logger = logging.getLogger(__name__)
 router_v1 = APIRouter(prefix="/api/v1/leave", tags=["leave-v1"])
 
 
+def _require_leave_feature(company_id: str, db: Session) -> None:
+    """WP-C1-06: 檢查 leave.core Feature Gate
+
+    Raises:
+        HTTPException 403: 若 leave.core 未啟用
+    """
+    feature_service = get_feature_service(db)
+    try:
+        feature_service.require_enabled(company_id, FeatureKeys.LEAVE_CORE)
+    except FeatureDisabledError as e:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "FEATURE_DISABLED",
+                "feature": e.feature_key,
+                "message": str(e),
+            },
+        )
+
+
 # ============================================
 # POST /api/v1/leave/requests
 # ============================================
@@ -41,17 +68,19 @@ router_v1 = APIRouter(prefix="/api/v1/leave", tags=["leave-v1"])
 @router_v1.post("/requests", response_model=LeaveRequestResponse, status_code=201)
 async def create_leave_request(
     payload: LeaveRequestCreate,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ):
-    """建立請假申請
+    """建立請假申請 (WP-C1-10: JWT Actor)
 
     - leave_type_id 必須屬於同 company 且 is_active
     - start_date <= end_date (schema validator 保證)
     - 依 total_days 查找 approval policy (Strict Policy Mode)
     - 無匹配 policy -> 422
+    - leave.core feature 必須啟用
     """
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
 
@@ -59,6 +88,9 @@ async def create_leave_request(
         user_uuid = UUID(user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid User ID format")
+
+    # WP-C1-06: Feature Gate
+    _require_leave_feature(company_id, db)
 
     service = get_leave_service(db)
     return service.submit_leave_request(
@@ -77,17 +109,19 @@ async def get_my_leave_requests(
     status: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ):
-    """取得目前登入使用者自己的請假列表
+    """取得目前登入使用者自己的請假列表 (WP-C1-10: JWT Actor)
 
     Query parameters:
     - status: 可選過濾 (pending / approved / rejected / cancelled)
     - limit: 每頁筆數 (1-100, 預設 50)
     - offset: 偏移量 (預設 0)
+    - leave.core feature 必須啟用
     """
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
 
@@ -106,6 +140,9 @@ async def get_my_leave_requests(
             status_code=400,
             detail=f"Invalid status. Must be one of: {', '.join(sorted(valid_statuses))}"
         )
+
+    # WP-C1-06: Feature Gate
+    _require_leave_feature(company_id, db)
 
     service = get_leave_service(db)
     return service.get_my_leave_requests(
@@ -126,20 +163,19 @@ async def get_pending_leave_requests(
     approver_id: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ):
-    """取得待審批請假列表
+    """取得待審批請假列表 (WP-C1-10: JWT Actor)
 
     Query parameters:
     - approver_id: 可選，過濾指派給特定審批人的 pending requests
     - limit: 每頁筆數 (1-100, 預設 50)
     - offset: 偏移量 (預設 0)
-
-    Note: 目前無完整 RBAC，approver_id 為 optional filter。
-    後續 JWT migration 後可加入 manager 身份驗證。
+    - leave.core feature 必須啟用
     """
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
 
@@ -153,6 +189,9 @@ async def get_pending_leave_requests(
             approver_uuid = UUID(approver_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid approver_id format")
+
+    # WP-C1-06: Feature Gate
+    _require_leave_feature(company_id, db)
 
     service = get_leave_service(db)
     return service.get_pending_leave_requests(
@@ -171,16 +210,18 @@ async def get_pending_leave_requests(
 async def approve_leave_request(
     request_id: str,
     payload: LeaveApprovalAction,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ):
-    """審批通過請假申請
+    """審批通過請假申請 (WP-C1-10: JWT Actor)
 
     - request 必須存在且屬於同 company
     - request 必須為 pending 狀態
     - 重複審批已結案 request -> 409
+    - leave.core feature 必須啟用
     """
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
 
@@ -193,6 +234,9 @@ async def approve_leave_request(
         actor_uuid = UUID(user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid User ID format")
+
+    # WP-C1-06: Feature Gate
+    _require_leave_feature(company_id, db)
 
     service = get_leave_service(db)
     return service.approve_leave_request(
@@ -211,16 +255,18 @@ async def approve_leave_request(
 async def reject_leave_request(
     request_id: str,
     payload: LeaveApprovalAction,
-    company_id: str = Depends(get_current_company_id),
-    user_id: Optional[str] = Depends(get_current_user_id),
+    actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ):
-    """審批拒絕請假申請
+    """審批拒絕請假申請 (WP-C1-10: JWT Actor)
 
     - request 必須存在且屬於同 company
     - request 必須為 pending 狀態
     - 重複拒絕已結案 request -> 409
+    - leave.core feature 必須啟用
     """
+    company_id = actor.active_company_id
+    user_id = str(actor.user_id)
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID is required")
 
@@ -233,6 +279,9 @@ async def reject_leave_request(
         actor_uuid = UUID(user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid User ID format")
+
+    # WP-C1-06: Feature Gate
+    _require_leave_feature(company_id, db)
 
     service = get_leave_service(db)
     return service.reject_leave_request(

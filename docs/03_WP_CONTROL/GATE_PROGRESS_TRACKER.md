@@ -220,7 +220,8 @@ Resolved by clean restart. No code changes required.
 | **WP-C1-07** | **Attendance router_v1 JWT 遷移** | **COMPLETE** | **2026-03-17** | **11/11 endpoints；12/12 tests PASS** |
 | **WP-C1-08** | **Attendance Test Stabilization** | **COMPLETE** | **2026-03-17** | **134/179 PASS；36+9 pre-existing** |
 | WP-C1-09 | Governance Consolidation | COMPLETE | 2026-03-18 | 治理收斂票；非功能票 |
-| **WP-C1-09A** | **Governance Missing Files Reconstruction** | **IN_PROGRESS** | **2026-03-18** | **治理修復票；非功能票** |
+| WP-C1-09A | Governance Missing Files Reconstruction | COMPLETE | 2026-03-18 | 治理修復票；非功能票 |
+| **WP-C1-10** | **System-wide JWT Alignment** | **COMPLETE** | **2026-03-18** | **GAP-C1-001 + GAP-C1-003 RESOLVED** |
 
 ### Frontend WP 完成狀態（維持）
 
@@ -276,4 +277,9 @@ Resolved by clean restart. No code changes required.
 ---
 
 **最後更新：** 2026-03-18  
-**更新原因：** WP-C1-09A Governance Repair — 補齊 WP-C1-03~08 完成狀態；更新 Gate 5 進度
+**更新原因：** WP-C1-10 JWT Alignment COMPLETE；GAP-C1-001 + GAP-C1-003 RESOLVED
+
+---
+
+**最後更新：** 2026-03-18  
+**更新原因：** WP-C1-10 JWT Alignment COMPLETE；GAP-C1-001 + GAP-C1-003 RESOLVED

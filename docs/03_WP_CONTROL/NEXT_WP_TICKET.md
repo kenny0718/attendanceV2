@@ -354,9 +354,10 @@ WP-C1-06（Feature Gate 套用）
 
 ---
 
-## 當前 WP：WP-C1-09A — Governance Missing Files Reconstruction
+## WP-C1-09A — Governance Missing Files Reconstruction
 
-**Status：** IN_PROGRESS  
+**Status：** COMPLETE
+**完成日期：** 2026-03-18  
 **性質：** Governance repair ticket（治理缺件補齊票）  
 **前置條件：** WP-C1-08 COMPLETE ✅；WP-C1-09 COMPLETE ✅  
 **啟動日期：** 2026-03-18
@@ -388,7 +389,47 @@ WP-C1-06（Feature Gate 套用）
 - [ ] CURRENT_SYSTEM_STATE.md 同步
 - [ ] Execution Report 完成
 
+
+---
+
+## WP-C1-09A Execution Summary
+
+- WORKSTREAM_STATUS_LEDGER.md 追加 WP-C1-09 / WP-C1-09A 記錄 ✅
+- MODULE_STATUS_MATRIX.md 補齊 WP-C1-03~08 後各模組狀態 ✅
+- NEXT_WP_TICKET.md 標示 WP-C1-09A 為 Current WP ✅
+- GATE_PROGRESS_TRACKER.md 補齊至最新狀態 ✅
+- CURRENT_SYSTEM_STATE.md 同步 ✅
+
+---
+
+## WP-C1-10 — System-wide JWT Alignment
+
+**Status：** COMPLETE  
+**完成日期：** 2026-03-18  
+**性質：** Blocking Gap Resolution（GAP-C1-001 + GAP-C1-003）
+
+### 結果
+
+- GAP-C1-001 RESOLVED：attendance 舊 router JWT Actor 遷移 COMPLETE
+- GAP-C1-003 RESOLVED：leave module 全部 5 endpoints JWT Actor 遷移 COMPLETE
+- attendance test_api.py：5/5 PASS
+- leave test_feature_gate.py：5/5 PASS
+- leave test_tenant_isolation.py：8/9 PASS（1 pre-existing FAIL）
+
+---
+
+## 當前 WP：WP-C1-11 — OUT Checkpoint API Implementation
+
+**Status：** PENDING  
+**性質：** Blocking Gap Resolution（GAP-C1-002）  
+**前置條件：** WP-C1-10 COMPLETE ✅  
+**建議啟動日期：** 2026-03-18
+
+### 目標
+
+補實 OUT Checkpoint API endpoint（/api/v1/attendance/out-checkpoint），修復 7 個持續 FAIL 的測試。
+
 ---
 
 **最後更新：** 2026-03-18  
-**更新原因：** WP-C1-09 COMPLETE；WP-C1-09A Governance Repair IN_PROGRESS
+**更新原因：** WP-C1-10 COMPLETE；WP-C1-09A COMPLETE；當前進入 WP-C1-11

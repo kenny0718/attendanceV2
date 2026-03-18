@@ -1,7 +1,7 @@
 # Attendance Module — 技術文件 v2
 
-> **版本**：v2.1（WP-C1-07 router_v1 JWT Migration 更新）  
-> **最後更新**：2026-03-17  
+> **版本**：v2.2（WP-C1-10 全面 JWT Actor Migration 更新）  
+> **最後更新**：2026-03-18  
 > **狀態**：Production-aligned
 
 ---
@@ -147,22 +147,22 @@ Attendance Module 是考勤系統的核心業務模組，負責以下功能：
 
 ### 3.1 目前認證機制
 
-系統現行使用 Header-based context 注入（JWT Actor migration 進行中）：
+系統現行使用 JWT Actor pattern（WP-C1-10 全面遷移完成）：
 
 | Dependency | 來源 | 說明 |
 |-----------|------|------|
-| `get_current_company_id()` | `app.core.tenant_context` | 取得當前 company_id |
-| `get_current_user_id()` | `app.core.tenant_context` | 取得當前 user_id |
-| `get_actor_with_company()` | `app.core.dependencies` | JWT Actor 物件（feature_gate_demo.py 使用） |
+| `get_actor_with_company()` | `app.core.dependencies` | JWT Actor 物件（所有 endpoint 統一使用）|
 
-`Actor` 物件（JWT path）包含 `actor.active_company_id` 與 `actor.user_id`。
+`Actor` 物件包含 `actor.active_company_id` 與 `actor.user_id`，從 JWT token 解析，不依賴任何 Header。
+
+> **WP-C1-10（2026-03-18）：** 舊 router（/api/attendance/mock-create, approve）已完成 JWT Actor 遷移。舊式 `get_current_company_id` / `get_current_user_id` 不再使用。
 
 ### 3.2 `company_id` 注入規則（強制）
 
 | 規則 | 說明 |
 |------|------|
 | ✅ 從認證 context 取得 | `company_id` 必須由後端 dependency injection 注入 |
-| ✅ `router_v1` 使用 JWT Actor | `actor.active_company_id`（WP-C1-07 完成遷移）|
+| ✅ 所有 router 使用 JWT Actor | `actor.active_company_id`（WP-C1-07 router_v1 + WP-C1-10 舊 router 全面完成）|
 | ❌ 禁止從 request body 傳入 | 所有 Request Schema 均不含 `company_id` 欄位 |
 | ❌ 禁止客戶端自行指定租戶 | 不信任任何來自客戶端的 tenant 聲稱 |
 | ❌ 禁止使用 X-Company-ID header（router_v1）| router_v1 所有端點已不依賴此 header |
