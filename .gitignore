@@ -1,34 +1,55 @@
-# Python cache
-**/__pycache__/
-**/*.pyc
-**/*.pyo
-**/*.pyd
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Logs
-*.log
-backend.log
-backend/backend.log
-
-# PID files
-*.pid
-backend/backend.pid
-
-# Environment files (secrets — never commit)
-backend/.env
-
-# Backup files (should never enter Git)
-**/*.bak
-**/*.backup
-**/*.backup_*
-**/*.before_*
-**/*.after_*
-**/*.emergency_backup
-**/*_debug.js
-**/*.broken_backup*
-
-# Temporary/empty legacy files
-frontend/src/views/HomeV1.vue
-
-# Virtual environment
-venv/
+# ---- Virtualenv / local env ----
 .venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+*.local
+
+# ---- Build / coverage ----
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+
+# ---- Logs ----
+*.log
+
+# ---- Temp / backup ----
+*.tmp
+*.bak
+*.bak*
+*.swp
+*.swo
+*~
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---- Frontend ----
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ---- Misc cache ----
+.cache/
+
+# ---- Runtime / backup artifacts ----
+*.pid
+*.backup
+*.backup_*
+*.before_*
