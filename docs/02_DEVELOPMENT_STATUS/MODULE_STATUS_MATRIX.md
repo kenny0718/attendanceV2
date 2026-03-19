@@ -347,3 +347,15 @@
 | integration tests | NO | NO |
 
 **最後更新:** 2026-03-19
+
+---
+
+## Schedule Module Status Update (2026-03-19)
+
+**更新依據:** WP-S1-05 COMPLETE
+
+| Module | Foundation | Migration | CRUD Core | API Layer | Integration Tests | Status |
+|--------|-----------|-----------|-----------|-----------|-------------------|--------|
+| schedule | DONE (WP-S1-01/01A) | DONE (WP-S1-02/02A/02B) | DONE (WP-S1-03) | DONE (WP-S1-04A/04B) | DONE (WP-S1-05) | **INTEGRATION COMPLETE** |
+
+**下一步:** Frontend 串接 或 WP-S1-06 Production Entitlement

@@ -665,3 +665,29 @@ Gate 5 / C1 全部 blocking gaps 已解決：
 
 **最後更新:** 2026-03-19  
 **更新原因:** WP-S1-04B COMPLETE
+
+---
+
+## WP-S1-05 完成記錄 (2026-03-19)
+
+**票號:** WP-S1-05 — Schedule Integration Testing + Entitlement Setup
+**狀態:** COMPLETE
+**完成時間:** 2026-03-19
+**結案文件:** docs/WP-S1-05_INTEGRATION_TEST_REPORT.md
+
+### 完成內容
+- schedule.core entitlement fixture 建立（conftest.py）
+- JWT + tenant context integration 驗證（dependency_override）
+- ShiftTemplate API flow: 6/6 PASS
+- ShiftAssignment API flow: 6/6 PASS
+- Negative cases: 409/404/403 全驗證
+- pytest integration tests: 12/12 PASS
+
+### 下一票建議
+**WP-S1-06 — Schedule Production Entitlement + Real JWT E2E**
+或依 roadmap 推進前端串接
+
+---
+
+**最後更新:** 2026-03-19
+**更新原因:** WP-S1-05 COMPLETE

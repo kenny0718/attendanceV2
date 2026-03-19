@@ -12,7 +12,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.modules.auth.models import User
-from app.modules.tenants.models import Tenant
+from app.modules.tenants.models import Tenant, CompanyEntitlement
+from app.core.features import FeatureKeys
 
 
 @pytest.fixture
@@ -32,7 +33,30 @@ def test_session(db):
 
 
 @pytest.fixture
-def test_user(test_session):
+def test_entitlement(test_session):
+    """Ensure attendance.core feature is enabled for company-test"""
+    # Ensure tenant exists first (FK constraint)
+    tenant = test_session.query(Tenant).filter(Tenant.id == "company-test").first()
+    if not tenant:
+        test_session.add(Tenant(id="company-test", name="Test Company", is_active=True))
+        test_session.commit()
+    existing = test_session.query(CompanyEntitlement).filter(
+        CompanyEntitlement.company_id == "company-test",
+        CompanyEntitlement.feature_key == FeatureKeys.ATTENDANCE_CORE
+    ).first()
+    if not existing:
+        from uuid import uuid4
+        test_session.add(CompanyEntitlement(
+            id=uuid4(),
+            company_id="company-test",
+            feature_key=FeatureKeys.ATTENDANCE_CORE,
+            enabled=True,
+        ))
+        test_session.commit()
+
+
+@pytest.fixture
+def test_user(test_session, test_entitlement):
     """Create test user and tenant in test database
     
     Ensures test tenant exists, then creates a test user.

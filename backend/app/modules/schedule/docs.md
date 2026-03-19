@@ -403,3 +403,36 @@ migration 中直接使用 `sa.String(20)` + `sa.CheckConstraint("status IN (...)
 - [ ] pytest integration tests
 - [ ] Frontend 串接
 - [ ] 排班衝突偵測、批量排班等進階功能
+
+---
+
+## WP-S1-05 Integration Testing + Entitlement Setup（2026-03-19）
+
+### Integration Status: COMPLETE
+
+### Entitlement Requirement
+- Feature key: `schedule.core`
+- 設定方式: `company_entitlements` 表寫入 `(company_id, feature_key='schedule.core', enabled=True)`
+- 測試 fixture: `schedule_entitlement` (conftest.py) 自動建立
+- 不可 bypass feature gate，必須走正確 entitlement 流程
+
+### API 使用前提
+1. 公司必須有 `schedule.core` entitlement（否則所有 endpoint 回傳 403）
+2. 請求必須帶有效 JWT（actor 含 `active_company_id`）
+3. Tenant isolation 由 JWT actor 強制（不接受 body 傳入的 company_id 做跨 tenant 操作）
+
+### Pytest Integration Tests
+位置: `backend/app/modules/schedule/tests/`
+
+| 檔案 | 測試數 | 狀態 |
+|------|--------|------|
+| test_schedule_template_api.py | 6 | PASS |
+| test_schedule_assignment_api.py | 6 | PASS |
+| **合計** | **12** | **12/12 PASS** |
+
+### 驗證結果
+- Feature Gate（有/無 entitlement）: PASS
+- JWT + tenant context: PASS（dependency_override 模擬）
+- ShiftTemplate CRUD flow: PASS（create/get/list/update/activate/deactivate）
+- ShiftAssignment CRUD flow: PASS（create/get/list/update/cancel）
+- Negative cases: PASS（duplicate 409, not found 404, cross-tenant 404, double-cancel 409）

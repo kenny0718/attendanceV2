@@ -472,3 +472,21 @@ Resolved by clean restart. No code changes required.
 **WP-S1-04B GATE: PASS — MOUNT COMPLETE**
 
 **最後更新:** 2026-03-19
+
+---
+
+## WP-S1-05 Gate (2026-03-19)
+
+| Gate | 狀態 | 說明 |
+|------|------|------|
+| Entitlement Setup | PASS | schedule.core fixture 正確建立 |
+| JWT + Tenant Context | PASS | dependency_override 模擬 actor |
+| Feature Gate (enabled) | PASS | 有 entitlement 正常放行 |
+| Feature Gate (disabled) | PASS | 無 entitlement 403 |
+| Template CRUD | PASS | 6 endpoints 全通過 |
+| Assignment CRUD | PASS | 6 endpoints 全通過 |
+| Negative Cases | PASS | 409/404/403 全驗證 |
+| Pytest 12/12 | PASS | 零 failure |
+| Scope Control | PASS | 無 migration/model/frontend 變更 |
+
+**WP-S1-05 GATE: COMPLETE**

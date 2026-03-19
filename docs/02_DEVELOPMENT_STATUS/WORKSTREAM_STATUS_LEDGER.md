@@ -1120,3 +1120,27 @@ WP-S1-04B — Schedule Router Mount
 
 ### Next
 WP-S1-05 — Schedule Integration Testing + Entitlement Setup
+
+---
+
+## WP-S1-05 Ledger Entry (2026-03-19)
+
+**Workstream:** S1 — Schedule Module
+**票號:** WP-S1-05 — Integration Testing + Entitlement Setup
+**狀態:** COMPLETE
+**完成時間:** 2026-03-19
+
+**交付物:**
+- backend/app/modules/schedule/tests/conftest.py（新建）
+- backend/app/modules/schedule/tests/test_schedule_template_api.py（新建，6 tests）
+- backend/app/modules/schedule/tests/test_schedule_assignment_api.py（新建，6 tests）
+- backend/app/modules/schedule/docs.md（append）
+- docs/WP-S1-05_INTEGRATION_TEST_REPORT.md（新建）
+
+**Scope Control:**
+- models.py: NO CHANGE
+- repo.py: NO CHANGE
+- service.py: NO CHANGE
+- migration: NO CHANGE
+- frontend: NO CHANGE
+- git stash: NOT USED
