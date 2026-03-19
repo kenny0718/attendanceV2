@@ -14,7 +14,7 @@ const routes = [
     component: () => import('@/views/Login.vue'),
     meta: { requiresAuth: false }
   },
-  // ── Reporting UI (WP-REPORTING-UI) ────────────────────────────────
+  // ── Reporting UI (WP-REPORTING-UI) ─────────────────────────────────────
   {
     path: '/attendance/reports/sessions',
     name: 'AttendanceSessions',
@@ -31,6 +31,13 @@ const routes = [
     path: '/attendance/reports/user-summary',
     name: 'UserSummary',
     component: () => import('@/views/reports/UserSummaryPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  // ── Schedule (WP-S1-07) ──────────────────────────────────────────────
+  {
+    path: '/schedule',
+    name: 'Schedule',
+    component: () => import('@/views/schedule/SchedulePage.vue'),
     meta: { requiresAuth: true }
   }
 ]
