@@ -10,11 +10,21 @@ from typing import Set
 class FeatureKeys:
     """所有可用的 feature keys"""
     
+    # Core module feature keys (WP-C1-06)
+    ATTENDANCE_CORE = "attendance.core"
+    LEAVE_CORE = "leave.core"
+    AUDIT_CORE = "audit.core"
+    NOTIFICATIONS_CORE = "notifications.core"
+    BACKUP_CORE = "backup.core"
+
     # Attendance 模組相關功能
     ATTENDANCE_SHIFT_TEMPLATES = "attendance.shift_templates"
     ATTENDANCE_SPLIT_SHIFT = "attendance.split_shift"
     ATTENDANCE_SHIFT_OVERRIDES = "attendance.shift_overrides"
     
+    # Schedule 模組 feature keys (WP-S1-04B)
+    SCHEDULE_CORE = "schedule.core"
+
     # 未來可擴充其他模組的 feature keys
     # LEAVE_CUSTOM_TYPES = "leave.custom_types"
     # PAYROLL_ADVANCED = "payroll.advanced"
@@ -23,9 +33,15 @@ class FeatureKeys:
     def all_keys(cls) -> Set[str]:
         """回傳所有定義的 feature keys"""
         return {
+            cls.ATTENDANCE_CORE,
+            cls.LEAVE_CORE,
+            cls.AUDIT_CORE,
+            cls.NOTIFICATIONS_CORE,
+            cls.BACKUP_CORE,
             cls.ATTENDANCE_SHIFT_TEMPLATES,
             cls.ATTENDANCE_SPLIT_SHIFT,
             cls.ATTENDANCE_SHIFT_OVERRIDES,
+            cls.SCHEDULE_CORE,
         }
     
     @classmethod

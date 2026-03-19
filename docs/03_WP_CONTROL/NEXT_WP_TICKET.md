@@ -615,3 +615,53 @@ Gate 5 / C1 全部 blocking gaps 已解決：
 
 **最後更新:** 2026-03-19  
 **更新原因:** WP-S1-03 COMPLETE; READY FOR WP-S1-04
+
+---
+
+## WP-S1-04A 完成記錄 (2026-03-19)
+
+**票號:** WP-S1-04A — Schedule Module API Layer (router file only, not mounted)  
+**狀態:** COMPLETE  
+**完成時間:** 2026-03-19  
+**結案文件:** docs/WP-S1-04A_API_LAYER_EXECUTION_REPORT.md
+
+### 完成內容
+- api.py: 骨架 → 完整 API Layer (10948 bytes)
+- 11 endpoints：6 ShiftTemplate + 5 ShiftAssignment
+- router import: PASS，main.py: NOT mounted（CORRECT）
+- schemas.py: 無需修改
+
+### 下一票建議
+**WP-S1-04B — Schedule Router Mount**
+- main.py include_router
+- FeatureKeys.SCHEDULE_CORE 定義
+- api.py feature gate 補入
+- end-to-end 驗證
+
+---
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-04A COMPLETE; READY FOR WP-S1-04B
+
+---
+
+## WP-S1-04B 完成記錄 (2026-03-19)
+
+**票號:** WP-S1-04B — Schedule Router Mount + Feature Gate  
+**狀態:** COMPLETE  
+**完成時間:** 2026-03-19  
+**結案文件:** docs/WP-S1-04B_ROUTER_MOUNT_FEATURE_GATE_REPORT.md
+
+### 完成內容
+- FeatureKeys.SCHEDULE_CORE = 'schedule.core' 已定義
+- api.py: 11 endpoints 全受 feature gate 保護
+- main.py: schedule router 正式掛載
+- E2E smoke: 8/8 PASS
+
+### 下一票建議
+**WP-S1-05 — Schedule Integration Testing + Entitlement Setup**
+
+---
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-04B COMPLETE

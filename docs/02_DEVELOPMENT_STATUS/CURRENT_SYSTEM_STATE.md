@@ -330,3 +330,46 @@ support_company_assignments, tenants, user_company_memberships, users
 
 **最後更新:** 2026-03-19  
 **更新原因:** WP-S1-03 COMPLETE — CRUD Core implemented
+
+---
+
+## System State Update (2026-03-19) — WP-S1-04A Complete
+
+### Schedule Module State
+- Migration: APPLIED (010_wp_s1_02)
+- repo.py: CRUD CORE
+- service.py: CRUD CORE
+- api.py: API LAYER READY (11 endpoints, router not mounted)
+- Router: defined but NOT mounted in main.py
+- API: NOT live (pending WP-S1-04B)
+
+### Pending (Schedule)
+- WP-S1-04B: main.py router mount + feature gate
+- Frontend 串接
+- pytest integration tests
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-04A COMPLETE — API layer ready, pending mount
+
+---
+
+## System State Update (2026-03-19) — WP-S1-04B Complete
+
+### Schedule Module State
+- Migration: APPLIED (010_wp_s1_02)
+- repo.py: CRUD CORE
+- service.py: CRUD CORE
+- api.py: MOUNTED + FEATURE GATED (11 endpoints)
+- Router: LIVE in main.py
+- Feature Key: schedule.core (defined)
+- JWT auth: active (401 no-auth)
+- Feature gate: active (403 if schedule.core disabled)
+
+### Pending (Schedule)
+- company_entitlements: schedule.core not yet set in DB
+- Frontend 串接
+- pytest integration tests
+- Advanced scheduling features
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-04B COMPLETE — Schedule fully mounted

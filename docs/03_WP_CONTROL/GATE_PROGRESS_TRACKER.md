@@ -431,3 +431,44 @@ Resolved by clean restart. No code changes required.
 **WP-S1-03 GATE: PASS**
 
 **最後更新:** 2026-03-19
+
+---
+
+## WP-S1-04A Gate Entry (2026-03-19)
+
+| Gate Item | Status | Notes |
+|-----------|--------|-------|
+| api.py non-empty | PASS | 10948 bytes |
+| syntax check | PASS | ast.parse OK |
+| router import | PASS | IMPORT_OK |
+| router prefix | PASS | /api/v1/schedule |
+| template endpoints (6) | PASS | POST/GET/GET/PATCH/activate/deactivate |
+| assignment endpoints (5) | PASS | POST/GET/GET/PATCH/cancel |
+| total routes | PASS | 11 routes |
+| main.py unchanged | PASS | schedule NOT mounted |
+| schemas.py unchanged | PASS | no modification needed |
+| scope lock respected | PASS | repo/service/migration unchanged |
+
+**WP-S1-04A GATE: PASS — API LAYER READY**
+
+**最後更新:** 2026-03-19
+
+---
+
+## WP-S1-04B Gate Entry (2026-03-19)
+
+| Gate Item | Status | Notes |
+|-----------|--------|-------|
+| FeatureKeys.SCHEDULE_CORE defined | PASS | 'schedule.core' in all_keys() |
+| api.py feature gate wired | PASS | 11/11 endpoints protected |
+| main.py include_router | PASS | schedule_router mounted |
+| app import/startup | PASS | no errors |
+| schedule routes in app | PASS | 11 routes |
+| e2e smoke (no auth → 401) | PASS | 4/4 endpoints |
+| nonexistent route → 404 | PASS | |
+| OpenAPI schedule paths | PASS | 7 paths |
+| scope lock respected | PASS | repo/service/migration unchanged |
+
+**WP-S1-04B GATE: PASS — MOUNT COMPLETE**
+
+**最後更新:** 2026-03-19

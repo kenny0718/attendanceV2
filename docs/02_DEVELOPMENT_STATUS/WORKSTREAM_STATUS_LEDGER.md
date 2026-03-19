@@ -1083,3 +1083,40 @@ WP-S1-03 — Schedule Module CRUD Implementation
 
 ### Next
 WP-S1-04 — Schedule Module API Layer
+
+---
+
+## WP-S1-04A Ledger Entry (2026-03-19)
+
+**Workstream:** Schedule (S1)  
+**Ticket:** WP-S1-04A — Schedule Module API Layer  
+**Status:** COMPLETE  
+**Date:** 2026-03-19
+
+### Deliverables
+- [x] api.py: 完整 API Layer (10948 bytes, 11 endpoints)
+- [x] router import: PASS
+- [x] main.py: NOT mounted (scope lock)
+- [x] Execution report: docs/WP-S1-04A_API_LAYER_EXECUTION_REPORT.md
+
+### Next
+WP-S1-04B — Schedule Router Mount
+
+---
+
+## WP-S1-04B Ledger Entry (2026-03-19)
+
+**Workstream:** Schedule (S1)  
+**Ticket:** WP-S1-04B — Schedule Router Mount + Feature Gate  
+**Status:** COMPLETE  
+**Date:** 2026-03-19
+
+### Deliverables
+- [x] FeatureKeys.SCHEDULE_CORE = 'schedule.core'
+- [x] api.py: feature gate wired (11 endpoints)
+- [x] main.py: schedule router mounted
+- [x] E2E smoke: 8/8 PASS
+- [x] Execution report: docs/WP-S1-04B_ROUTER_MOUNT_FEATURE_GATE_REPORT.md
+
+### Next
+WP-S1-05 — Schedule Integration Testing + Entitlement Setup

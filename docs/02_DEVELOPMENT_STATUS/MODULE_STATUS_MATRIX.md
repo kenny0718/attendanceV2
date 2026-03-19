@@ -312,3 +312,38 @@
 | Smoke Test | — | — | — | — | 15/15 PASS |
 
 **最後更新:** 2026-03-19
+
+---
+
+## Schedule Module Status Update (2026-03-19) — WP-S1-04A
+
+| Item | WP-S1-03 | WP-S1-04A |
+|------|----------|----------|
+| repo.py | CRUD CORE | CRUD CORE |
+| service.py | CRUD CORE | CRUD CORE |
+| api.py | stub | **API LAYER READY** |
+| router prefix | /api/v1/schedule | /api/v1/schedule |
+| endpoints | 0 | 11 (6 template + 5 assignment) |
+| main.py mount | NO | NO (WP-S1-04B) |
+| feature gate | — | NOT YET (WP-S1-04B) |
+| frontend | NO | NO |
+
+**最後更新:** 2026-03-19
+
+---
+
+## Schedule Module Status Update (2026-03-19) — WP-S1-04B
+
+| Item | WP-S1-04A | WP-S1-04B |
+|------|----------|----------|
+| api.py | READY (no gate) | **READY + FEATURE GATE** |
+| FeatureKeys.SCHEDULE_CORE | NOT DEFINED | **DEFINED** |
+| main.py mount | NO | **YES** |
+| router live | NO | **YES** |
+| JWT auth gate | NO | YES (401 no-auth) |
+| feature gate | NO | YES (403 if disabled) |
+| entitlement in DB | NO | NO (WP-S1-05) |
+| frontend | NO | NO |
+| integration tests | NO | NO |
+
+**最後更新:** 2026-03-19

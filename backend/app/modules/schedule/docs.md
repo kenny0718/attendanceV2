@@ -319,3 +319,87 @@ migration 中直接使用 `sa.String(20)` + `sa.CheckConstraint("status IN (...)
 - [ ] 排班衝突偵測（future）
 - [ ] 批量排班（future）
 - [ ] Attendance / Leave 整合（future）
+
+---
+
+## WP-S1-04A API Layer Record (2026-03-19)
+
+**票號:** WP-S1-04A — Schedule Module API Layer  
+**狀態:** COMPLETE — router ready, NOT YET MOUNTED in main.py
+
+### api.py 現已提供的 ShiftTemplate Endpoints
+
+| Method | Path | 說明 |
+|--------|------|------|
+| POST | /api/v1/schedule/shift-templates | 建立班別模板（code 重複 → 409）|
+| GET | /api/v1/schedule/shift-templates | 列出班別模板（?active_only=true）|
+| GET | /api/v1/schedule/shift-templates/{id} | 取得單筆（不存在 → 404）|
+| PATCH | /api/v1/schedule/shift-templates/{id} | 部分更新 |
+| POST | /api/v1/schedule/shift-templates/{id}/activate | 啟用 |
+| POST | /api/v1/schedule/shift-templates/{id}/deactivate | 停用 |
+
+### api.py 現已提供的 ShiftAssignment Endpoints
+
+| Method | Path | 說明 |
+|--------|------|------|
+| POST | /api/v1/schedule/shift-assignments | 建立指派（跨 tenant template → 422）|
+| GET | /api/v1/schedule/shift-assignments | 列出指派（?user_id / ?start_date / ?end_date / ?work_date）|
+| GET | /api/v1/schedule/shift-assignments/{id} | 取得單筆 |
+| PATCH | /api/v1/schedule/shift-assignments/{id} | 部分更新（已取消 → 409）|
+| POST | /api/v1/schedule/shift-assignments/{id}/cancel | 取消（已取消再取消 → 409）|
+
+### Request/Filter 規則
+- company_id 從 JWT actor 取得，不接受 payload 自填
+- list assignments 支援：work_date（單日）/ user_id+date_range / date_range / 全公司
+- status change 透過 PATCH update endpoint 處理（含 cancel 獨立端點）
+
+### Tenant Isolation
+- 所有 endpoint 透過 JWT actor 取得 company_id
+- 跨 tenant 操作由 service 層攔截
+
+### 仍未完成（後續票）
+- [ ] main.py include_router（WP-S1-04B）
+- [ ] Feature Gate（schedule.core 待定義於 FeatureKeys）
+- [ ] pytest integration tests
+- [ ] Frontend 串接
+- [ ] 排班衝突偵測、批量排班等進階功能
+
+---
+
+## WP-S1-04B Router Mount + Feature Gate Record (2026-03-19)
+
+**票號:** WP-S1-04B — Schedule Router Mount + Feature Gate  
+**狀態:** COMPLETE — router mounted, feature gate active
+
+### Schedule Router 已掛入 main.py
+- `backend/app/main.py` 已 `include_router(schedule_router)`
+- 所有 11 個 endpoints 現已對外可用（需 JWT + schedule.core entitlement）
+
+### Feature Gate
+- Feature Key: `schedule.core`（定義於 `app.core.features.FeatureKeys.SCHEDULE_CORE`）
+- 所有 11 個 endpoints 均受 `_require_schedule_feature()` 保護
+- 未帶 JWT → 401；JWT 有效但 schedule.core 未啟用 → 403 FEATURE_DISABLED
+
+### 目前後端可用 Endpoints
+
+**ShiftTemplate（6）：**
+- POST /api/v1/schedule/shift-templates
+- GET /api/v1/schedule/shift-templates
+- GET /api/v1/schedule/shift-templates/{id}
+- PATCH /api/v1/schedule/shift-templates/{id}
+- POST /api/v1/schedule/shift-templates/{id}/activate
+- POST /api/v1/schedule/shift-templates/{id}/deactivate
+
+**ShiftAssignment（5）：**
+- POST /api/v1/schedule/shift-assignments
+- GET /api/v1/schedule/shift-assignments
+- GET /api/v1/schedule/shift-assignments/{id}
+- PATCH /api/v1/schedule/shift-assignments/{id}
+- POST /api/v1/schedule/shift-assignments/{id}/cancel
+
+### 仍未完成（後續票）
+- [ ] company_entitlements 設定 schedule.core（DB entitlement setup）
+- [ ] JWT 完整 e2e 驗證（帶 token 的 API call）
+- [ ] pytest integration tests
+- [ ] Frontend 串接
+- [ ] 排班衝突偵測、批量排班等進階功能
