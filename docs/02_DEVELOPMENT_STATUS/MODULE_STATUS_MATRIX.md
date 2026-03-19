@@ -359,3 +359,23 @@
 | schedule | DONE (WP-S1-01/01A) | DONE (WP-S1-02/02A/02B) | DONE (WP-S1-03) | DONE (WP-S1-04A/04B) | DONE (WP-S1-05) | **INTEGRATION COMPLETE** |
 
 **下一步:** Frontend 串接 或 WP-S1-06 Production Entitlement
+
+---
+
+## Schedule Module Status Update (2026-03-19) -- WP-S1-06
+
+**Update basis:** WP-S1-06 COMPLETE -- Real JWT E2E verified
+
+| Module | Foundation | Migration | CRUD Core | API Layer | Integration Tests | Real JWT E2E | Status |
+|--------|-----------|-----------|-----------|-----------|-------------------|--------------|--------|
+| schedule | DONE (S1-01/01A) | DONE (S1-02/02B) | DONE (S1-03) | DONE (S1-04A/04B) | DONE (S1-05) | **DONE (S1-06)** | **REAL JWT VERIFIED** |
+
+### WP-S1-06 Key Facts
+- schedule.core entitlement path: CONFIRMED (company_entitlements table)
+- PLAN_DEFAULTS: schedule.core NOT included (opt-in; remaining gap for WP-S1-07)
+- Real JWT (HS256): PASS -- full auth dependency chain verified
+- Feature gate no-entitlement block: PASS (403 FEATURE_DISABLED)
+- Cross-tenant isolation: PASS
+- pytest 14/14 PASS (1.91s)
+
+**Last Updated:** 2026-03-19

@@ -373,3 +373,32 @@ support_company_assignments, tenants, user_company_memberships, users
 
 **最後更新:** 2026-03-19  
 **更新原因:** WP-S1-04B COMPLETE — Schedule fully mounted
+
+---
+
+## System State Update (2026-03-19) -- WP-S1-06 Complete
+
+### Schedule Module State (WP-S1-06 complete)
+- Migration: APPLIED (010_wp_s1_02)
+- repo.py: CRUD CORE
+- service.py: CRUD CORE
+- api.py: MOUNTED + FEATURE GATED (11 endpoints)
+- Router: LIVE in main.py
+- Feature Key: schedule.core (defined + verified)
+- Entitlement path: CONFIRMED (company_entitlements table)
+- Real JWT auth: VERIFIED (HS256, full dependency chain)
+- Integration tests (WP-S1-05): 12/12 PASS
+- Real JWT E2E tests (WP-S1-06): 14/14 PASS
+
+### What Is NOT Done (Schedule)
+- PLAN_DEFAULTS does not include schedule.core (opt-in; WP-S1-07)
+- Production/Staging entitlement seeding (ops work; WP-S1-07)
+- Frontend Schedule UI (future WP)
+- Advanced scheduling: conflict detection, bulk assign, recurring rules
+- Attendance/Leave integration
+
+### Current WP
+WP-S1-06 COMPLETE. Next: WP-S1-07 (Production Rollout Prep) or Frontend Schedule WP.
+
+**Last Updated:** 2026-03-19
+**Reason:** WP-S1-06 Real JWT E2E COMPLETE (14/14 PASS)

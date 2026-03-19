@@ -436,3 +436,112 @@ migration 中直接使用 `sa.String(20)` + `sa.CheckConstraint("status IN (...)
 - ShiftTemplate CRUD flow: PASS（create/get/list/update/activate/deactivate）
 - ShiftAssignment CRUD flow: PASS（create/get/list/update/cancel）
 - Negative cases: PASS（duplicate 409, not found 404, cross-tenant 404, double-cancel 409）
+
+---
+
+## WP-S1-06 Production Entitlement + Real JWT E2E（2026-03-19）
+
+**票號:** WP-S1-06 — Schedule Production Entitlement + Real JWT E2E  
+**狀態:** COMPLETE  
+**完成時間:** 2026-03-19
+
+### 1. Entitlement Path Audit
+
+#### schedule.core 正式啟用路徑
+
+| 層級 | 說明 |
+|------|------|
+| Feature Key | `FeatureKeys.SCHEDULE_CORE = "schedule.core"`（定義於 `backend/app/core/features.py`）|
+| DB 資料表 | `company_entitlements`（model: `CompanyEntitlement`）|
+| 啟用方式 | 在 `company_entitlements` 寫入 `(company_id, feature_key='schedule.core', enabled=True)` |
+| API 管理端點 | `GET/POST /api/v1/tenants/{company_id}/entitlements`（tenants module 已提供）|
+| 測試 fixture | `schedule_entitlement`（conftest.py）自動建立 |
+
+#### PLAN_DEFAULTS 現況
+
+`PLAN_DEFAULTS`（`app/core/features.py`）目前**未納入 `schedule.core`**：
+
+```python
+PLAN_DEFAULTS = {
+    "Basic": {
+        FeatureKeys.ATTENDANCE_SHIFT_TEMPLATES: False,
+        FeatureKeys.ATTENDANCE_SPLIT_SHIFT: False,
+        FeatureKeys.ATTENDANCE_SHIFT_OVERRIDES: False,
+    },
+    "Pro": {
+        FeatureKeys.ATTENDANCE_SHIFT_TEMPLATES: True,
+        FeatureKeys.ATTENDANCE_SPLIT_SHIFT: True,
+        FeatureKeys.ATTENDANCE_SHIFT_OVERRIDES: True,
+    },
+}
+```
+
+**結論：** `schedule.core` 尚未納入 `PLAN_DEFAULTS`，不影響 entitlement 機制本身（entitlement 直接由 `company_entitlements` 表控制），但 production/staging rollout 時需手動為各公司在 `company_entitlements` 表寫入 `schedule.core=enabled`，或透過 tenants API endpoint 設定。
+
+**本輪決定：** `PLAN_DEFAULTS` 屬 plan-tier 概念（Basic/Pro plan 預設配置），不屬於 schedule module 本身的 entitlement 機制。未將 `schedule.core` 納入 `PLAN_DEFAULTS` 屬正常狀態——schedule 模組處於 opt-in 階段，需顯式啟用。不做修改，記錄為已知缺口（WP-S1-07 or later）。
+
+### 2. Real JWT Verification Method
+
+- 使用 `app.core.security.jwt.create_access_token()` 產生真實 HS256 signed JWT
+- Claims: `{sub: user_id, company_id: xxx, role_id: admin}`
+- 透過 `Authorization: Bearer <token>` header 傳入
+- 完整路徑：`get_current_actor()` → `decode_access_token()` → User DB 查詢 → Membership 驗證 → Actor 建立 → `get_actor_with_company()` → endpoint
+- **不使用** `override_actor_dependency`（依 WP-S1-06 要求）
+- 僅 override `get_db`（讓 test DB 注入，不影響 auth 路徑）
+
+### 3. Real JWT E2E 測試結果（14/14 PASS）
+
+**測試檔:** `backend/app/modules/schedule/tests/test_schedule_real_jwt_e2e.py`
+
+#### Auth Baseline
+| 測試 | 結果 |
+|------|------|
+| No token → 401 | PASS |
+| Invalid token → 401 | PASS |
+| Valid JWT + entitlement → 200 | PASS |
+| Valid JWT + no entitlement → 403 FEATURE_DISABLED | PASS |
+
+#### Template Flow（Real JWT）
+| 測試 | 結果 |
+|------|------|
+| create template | PASS |
+| get template by id | PASS |
+| list templates | PASS |
+
+#### Assignment Flow（Real JWT）
+| 測試 | 結果 |
+|------|------|
+| create assignment | PASS |
+| get assignment by id | PASS |
+| cancel assignment | PASS |
+
+#### Negative Cases
+| 測試 | 結果 |
+|------|------|
+| no entitlement → list blocked (403) | PASS |
+| no entitlement → create blocked (403) | PASS |
+| cross-tenant template access blocked (403/404) | PASS |
+| unauthenticated assignment → 401 | PASS |
+
+**pytest 結果:** `14 passed, 19 warnings in 1.91s`
+
+### 4. Bug Fixed（最小修正）
+
+測試開發過程中發現並修正一個測試層 bug：
+- **問題：** `from app.main import app as fastapi_app` 若在 fixture 函數內執行 `import app.modules.*`，Python 會將 `app` 局部重綁為 package，覆蓋 FastAPI instance
+- **修正：** 將 model imports 移至 module level，並使用 `fastapi_app` alias 區分 FastAPI instance 與 `app` package
+- **影響範圍：** 僅測試檔案（不影響 production code）
+
+### 5. 仍未完成項目
+
+| 項目 | 說明 | 建議票號 |
+|------|------|----------|
+| `schedule.core` 納入 PLAN_DEFAULTS | 需決定 plan tier 策略 | WP-S1-07 |
+| Production/Staging entitlement seeding | 正式環境需手動或自動設定 | WP-S1-07 |
+| Frontend 串接 | Schedule API 尚無 UI | 後續 Frontend WP |
+| 排班進階功能 | 衝突偵測、批量排班、循環排班 | S2/S3 |
+
+---
+
+**文件版本:** v1.6 (WP-S1-06 Real JWT E2E COMPLETE)  
+**前次版本:** v1.5 (WP-S1-05 Integration Testing COMPLETE)

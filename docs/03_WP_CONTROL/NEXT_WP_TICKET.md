@@ -691,3 +691,38 @@ Gate 5 / C1 全部 blocking gaps 已解決：
 
 **最後更新:** 2026-03-19
 **更新原因:** WP-S1-05 COMPLETE
+
+---
+
+## WP-S1-06 完成記錄 (2026-03-19)
+
+**票號:** WP-S1-06 — Schedule Production Entitlement + Real JWT E2E  
+**狀態:** COMPLETE  
+**完成時間:** 2026-03-19  
+**結案文件:** docs/WP-S1-06_REAL_JWT_E2E_REPORT.md
+
+### 完成內容
+- schedule.core entitlement 正式路徑確認（company_entitlements 表 + tenants API）
+- PLAN_DEFAULTS 現況審計（schedule.core 未納入，記錄為 remaining gap）
+- Real JWT E2E 測試建立（test_schedule_real_jwt_e2e.py，14 tests）
+- 真實 HS256 JWT token 產生 + Authorization header 傳入
+- 完整 auth dependency chain 驗證（不走 override_actor_dependency）
+- pytest 14/14 PASS
+
+### 驗證結果
+- schedule.core entitlement 路徑: CONFIRMED
+- 真實 JWT auth flow: PASS
+- Template flow (create/get/list): PASS
+- Assignment flow (create/get/cancel): PASS  
+- No entitlement → 403: PASS
+- Cross-tenant blocked: PASS
+- No JWT → 401: PASS
+
+### 下一票建議
+**WP-S1-07 — Schedule Production Rollout Preparation**  
+或 Frontend Schedule UI WP
+
+---
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-06 COMPLETE

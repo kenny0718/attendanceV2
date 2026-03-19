@@ -490,3 +490,48 @@ Resolved by clean restart. No code changes required.
 | Scope Control | PASS | 無 migration/model/frontend 變更 |
 
 **WP-S1-05 GATE: COMPLETE**
+
+---
+
+## Gate 6 WP-S1-06 完成記錄 (2026-03-19)
+
+### WP-S1-06 Gate Entry
+
+| Gate Item | Status | Notes |
+|-----------|--------|-------|
+| schedule.core entitlement path confirmed | PASS | company_entitlements table + tenants API |
+| PLAN_DEFAULTS audit completed | PASS | schedule.core not in PLAN_DEFAULTS（opt-in design）|
+| Real JWT token generation | PASS | create_access_token() HS256 |
+| Real auth dependency chain | PASS | get_current_actor → decode → DB → Actor |
+| No override_actor_dependency | PASS | only get_db overridden |
+| Auth baseline (401 no-token) | PASS | |
+| Auth baseline (401 invalid-token) | PASS | |
+| Template create real JWT | PASS | 201 |
+| Template get real JWT | PASS | 200 |
+| Template list real JWT | PASS | 200 |
+| Assignment create real JWT | PASS | 201 |
+| Assignment get real JWT | PASS | 200 |
+| Assignment cancel real JWT | PASS | 200, status=cancelled |
+| No entitlement → 403 FEATURE_DISABLED | PASS | Company B correctly blocked |
+| Cross-tenant blocked | PASS | 403 (feature gate fires first) |
+| pytest 14/14 | PASS | 1.91s |
+| scope lock respected | PASS | no model/repo/service/api/migration changes |
+
+**WP-S1-06 GATE: PASS — REAL JWT E2E COMPLETE**
+
+### Gate 6 WP 完成狀態（更新）
+
+| WP | 名稱 | 狀態 | 完成日期 |
+|----|------|------|----------|
+| WP-S1-01 | Schedule Module Foundation | COMPLETE | 2026-03-18 |
+| WP-S1-01A | Models Alignment Fix | COMPLETE | 2026-03-18 |
+| WP-S1-02 | Schedule Migration | COMPLETE | 2026-03-18 |
+| WP-S1-02B | Alembic Definitive Fix | COMPLETE | 2026-03-19 |
+| WP-S1-03 | CRUD Core | COMPLETE | 2026-03-19 |
+| WP-S1-04A | API Layer | COMPLETE | 2026-03-19 |
+| WP-S1-04B | Router Mount + Feature Gate | COMPLETE | 2026-03-19 |
+| WP-S1-05 | Integration Tests + Entitlement Setup | COMPLETE | 2026-03-19 |
+| **WP-S1-06** | **Real JWT E2E** | **COMPLETE** | **2026-03-19** |
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-06 COMPLETE

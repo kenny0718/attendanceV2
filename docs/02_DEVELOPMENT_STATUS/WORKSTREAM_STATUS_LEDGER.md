@@ -1144,3 +1144,35 @@ WP-S1-05 — Schedule Integration Testing + Entitlement Setup
 - migration: NO CHANGE
 - frontend: NO CHANGE
 - git stash: NOT USED
+
+---
+
+## WP-S1-06 Ledger Entry (2026-03-19)
+
+**Workstream:** S1 -- Schedule Module
+**Ticket:** WP-S1-06 -- Real JWT E2E
+**Status:** COMPLETE
+**Date:** 2026-03-19
+
+### Deliverables
+- [x] test_schedule_real_jwt_e2e.py (new, 14 tests)
+- [x] schedule/docs.md (append)
+- [x] docs/WP-S1-06_REAL_JWT_E2E_REPORT.md (new)
+- [x] 5 governance docs appended
+
+### Results
+- schedule.core entitlement path: CONFIRMED
+- Real JWT auth flow: PASS
+- Template flow (create/get/list): PASS
+- Assignment flow (create/get/cancel): PASS
+- No entitlement -> 403: PASS
+- Cross-tenant blocked: PASS
+- pytest 14/14: PASS
+
+### Scope Control
+- models/repo/service/api/main/migration: NO CHANGE
+- frontend: NO CHANGE
+- git stash: NOT USED
+
+### Next
+WP-S1-07 -- Schedule Production Rollout Preparation
