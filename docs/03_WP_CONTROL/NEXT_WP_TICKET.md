@@ -433,3 +433,185 @@ WP-C1-06（Feature Gate 套用）
 
 **最後更新：** 2026-03-18  
 **更新原因：** WP-C1-10 COMPLETE；WP-C1-09A COMPLETE；當前進入 WP-C1-11
+
+---
+
+## Gate 5 / C1 CLOSED ✅
+
+**宣告日期：** 2026-03-18  
+**狀態：** CLOSED  
+
+Gate 5 / C1 全部 blocking gaps 已解決：
+- GAP-C1-001 RESOLVED（WP-C1-10）
+- GAP-C1-002 RESOLVED（WP-C1-11）
+- GAP-C1-003 RESOLVED（WP-C1-10）
+- GAP-C1-NEW-001 RESOLVED（WP-C1-13）
+- GAP-C1-NEW-002 RESOLVED（WP-C1-13）
+
+**下一階段：Gate 6 — Schedule 模組開發（WP-S1 系列）**
+
+---
+
+**最後更新：** 2026-03-18  
+**更新原因：** WP-C1-13 COMPLETE；Gate 5 / C1 正式關閉
+
+---
+
+## 當前 WP：WP-S1-01 — Schedule Module Foundation
+
+**Status：** COMPLETE  
+**完成日期：** 2026-03-18  
+**性質：** Module Foundation Ticket（架構邊界 + 資料模型定義）  
+**前置條件：** Gate 5 / C1 CLOSED ✅
+
+### WP-S1-01 Completion Summary
+
+- ✅ `backend/app/modules/schedule/__init__.py` 建立
+- ✅ `backend/app/modules/schedule/models.py`：ShiftTemplate + ShiftAssignment ORM 定義（code-level only，無 migration）
+- ✅ `backend/app/modules/schedule/schemas.py`：Pydantic schema 骨架
+- ✅ `backend/app/modules/schedule/repo.py`：Repository 骨架（stub，NotImplementedError）
+- ✅ `backend/app/modules/schedule/service.py`：Service 骨架（stub，NotImplementedError）
+- ✅ `backend/app/modules/schedule/api.py`：Router 定義（無 endpoint，未
+
+
+---
+
+## 當前 WP：WP-S1-01 — Schedule Module Foundation
+
+**Status:** COMPLETE  
+**完成日期:** 2026-03-18  
+**性質:** Module Foundation Ticket（架構邊界 + 資料模型定義）  
+**前置條件:** Gate 5 / C1 CLOSED
+
+### WP-S1-01 Completion Summary
+
+- WP-S1-01 backend/app/modules/schedule/__init__.py 建立
+- WP-S1-01 models.py: ShiftTemplate + ShiftAssignment ORM 定義（code-level only，無 migration）
+- WP-S1-01 schemas.py: Pydantic schema 骨架
+- WP-S1-01 repo.py: Repository 骨架（stub，NotImplementedError）
+- WP-S1-01 service.py: Service 骨架（stub，NotImplementedError）
+- WP-S1-01 api.py: Router 定義（無 endpoint，未掛入主 app）
+- WP-S1-01 docs.md: 模組說明文件
+- Smoke test PASS: IMPORT_OK, 全部類別可正常 import
+
+### Next WP: WP-S1-02
+
+**Status:** PENDING  
+**內容:** Schedule Module Migration（Alembic migration 建立 shift_templates / shift_assignments 資料表）  
+**前置條件:** WP-S1-01 COMPLETE
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-01 Schedule Module Foundation COMPLETE；Gate 6 正式啟動
+
+
+---
+
+## WP-S1-01A — Schedule Models Alignment Fix
+
+**完成日期:** 2026-03-18  
+**性質:** Blocking Issue Resolution（Pre-Migration Audit B1/B2 修正）  
+**前置條件:** WP-S1-01 COMPLETE + WP-S1-02 Pre-Migration Audit NOT READY
+
+### 完成摘要
+
+- B1 FIXED: company_id Integer → String(255) + ForeignKeyConstraint(tenants.id CASCADE)
+- B2 FIXED: user_id Integer → UUID(as_uuid=True) + ForeignKeyConstraint(users.id CASCADE)
+- M2 FIXED: PK Integer → UUID + gen_random_uuid()
+- M3 FIXED: inline ForeignKey → ForeignKeyConstraint in __table_args__
+- M4 ADDED: UniqueConstraint(company_id, code) on ShiftTemplate
+- M6 CLARIFIED: AssignmentStatus SQLAlchemy Enum → String(20) + CheckConstraint
+- Smoke test: ALL_CHECKS_PASS
+- docs.md: 更新至 v1.1
+- 結案文件: docs/WP-S1-01A_MODELS_ALIGNMENT_FIX_REPORT.md
+
+### Migration Readiness
+
+**READY FOR WP-S1-02: YES**
+
+下一票建議: WP-S1-02 Schedule Module Migration
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-01A COMPLETE; READY FOR WP-S1-02
+
+---
+
+## WP-S1-02 完成記錄 (2026-03-18)
+
+**票號:** WP-S1-02 — Schedule Module Migration  
+**狀態:** COMPLETE  
+**完成時間:** 2026-03-18  
+**結案文件:** docs/WP-S1-02_EXECUTION_REPORT.md
+
+### 完成內容
+- 建立 `010_wp_s1_02_create_schedule_tables.py`
+- `alembic upgrade head` PASS (009_wp_11_08 → 010_wp_s1_02)
+- shift_templates + shift_assignments 資料表已建立
+- env.py 補 schedule models import（最小修正）
+- schemas.py UUID 欄位對齊（company_id: str, id/user_id/shift_template_id: UUID）
+
+### 下一票建議
+**WP-S1-03 — Schedule Module CRUD Implementation**
+- 實作 repo.py（ShiftTemplate CRUD + ShiftAssignment CRUD）
+- 實作 service.py（業務邏輯層）
+- 建立 router.py 並掛進 main.py
+- 補 API endpoints
+- 補 unit tests
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-02 COMPLETE; READY FOR WP-S1-03
+
+---
+
+## WP-S1-02B 完成記錄 (2026-03-19)
+
+**票號:** WP-S1-02B — env.py Definitive Fix  
+**狀態:** COMPLETE  
+**完成時間:** 2026-03-19  
+**結案文件:** docs/WP-S1-02B_ENV_PY_DEFINITIVE_FIX_REPORT.md
+
+### 完成內容
+- backend/alembic/env.py 正式重建（5464 bytes，8/8 模組，23 tables）
+- alembic current: 010_wp_s1_02 (head) ✓
+- alembic upgrade head: PASS ✓
+- .tmp 殘留清除 ✓
+- ALEMBIC SAFE: YES
+
+### 下一票建議
+**WP-S1-03 — Schedule Module CRUD Implementation**
+
+---
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-02B COMPLETE; ALEMBIC STABLE; READY FOR WP-S1-03
+
+---
+
+## WP-S1-03 完成記錄 (2026-03-19)
+
+**票號:** WP-S1-03 — Schedule Module CRUD Core  
+**狀態:** COMPLETE  
+**完成時間:** 2026-03-19  
+**結案文件:** docs/WP-S1-03_CRUD_CORE_EXECUTION_REPORT.md
+
+### 完成內容
+- repo.py: stub → CRUD Core (9436 bytes, ShiftTemplate + ShiftAssignment)
+- service.py: stub → CRUD Core (15037 bytes, 含業務規則與 Tenant Isolation)
+- Smoke Test: 15/15 PASS
+- schemas.py: 無需修改（WP-S1-02 已對齊）
+
+### 下一票建議
+**WP-S1-04 — Schedule Module API Layer**
+- 實作 router.py + FastAPI endpoints
+- 掛進 main.py
+- 補 API 層 request/response schema
+
+---
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-03 COMPLETE; READY FOR WP-S1-04

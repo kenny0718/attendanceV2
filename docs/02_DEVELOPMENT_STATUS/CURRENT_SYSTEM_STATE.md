@@ -174,3 +174,159 @@
 
 **最後更新：** 2026-03-18  
 **更新原因：** WP-C1-09A Governance Repair — 同步 WP-C1-08 COMPLETE 狀態，更新 Current WP 為 WP-C1-09A
+
+
+---
+
+## 狀態更新（2026-03-18）— WP-S1-01 Schedule Module Foundation
+
+**更新性質:** Gate 6 啟動；Schedule 模組 Foundation 建立
+
+### Current WP 更新
+
+| 項目 | 舊值 | 新值（2026-03-18）|
+|------|------|-------------------|
+| Gate | Gate 5 / C1（CLOSED）| Gate 6 — Schedule 模組開發（IN_PROGRESS）|
+| Current WP | WP-C1-13（COMPLETE）| WP-S1-01 COMPLETE；WP-S1-02 為下一票 |
+
+### WP-S1-01 正式確認
+
+- **WP-S1-01 Schedule Module Foundation: COMPLETE（2026-03-18）**
+- 7 個骨架檔案建立（__init__, models, schemas, repo, service, api, docs.md）
+- ShiftTemplate + ShiftAssignment ORM 定義（code-level only，無 migration）
+- Smoke test PASS（import OK）
+- production code 未修改
+- 結案文件: docs/WP-S1-01_EXECUTION_REPORT.md
+
+### Gate 6 進度
+
+| WP | 名稱 | 狀態 |
+|----|------|------|
+| WP-S1-01 | Schedule Module Foundation | COMPLETE（2026-03-18）|
+| WP-S1-02 | Schedule Migration | PENDING |
+| WP-S1-03+ | Basic API / Tests / Feature Gate | PENDING |
+
+### Schedule 模組現況
+
+- 模組位置: backend/app/modules/schedule/
+- 資料表: 尚未建立（需 WP-S1-02 Migration）
+- API endpoint: 無（需 WP-S1-03）
+- 主 app 掛載: 無（需 WP-S1-03）
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-01 COMPLETE；Gate 6 Schedule 模組開發啟動
+
+
+---
+
+## WP-S1-01A — Schedule Models Alignment Fix
+
+**完成日期:** 2026-03-18  
+**性質:** Blocking Issue Resolution（Pre-Migration Audit B1/B2 修正）  
+**前置條件:** WP-S1-01 COMPLETE + WP-S1-02 Pre-Migration Audit NOT READY
+
+### 完成摘要
+
+- B1 FIXED: company_id Integer → String(255) + ForeignKeyConstraint(tenants.id CASCADE)
+- B2 FIXED: user_id Integer → UUID(as_uuid=True) + ForeignKeyConstraint(users.id CASCADE)
+- M2 FIXED: PK Integer → UUID + gen_random_uuid()
+- M3 FIXED: inline ForeignKey → ForeignKeyConstraint in __table_args__
+- M4 ADDED: UniqueConstraint(company_id, code) on ShiftTemplate
+- M6 CLARIFIED: AssignmentStatus SQLAlchemy Enum → String(20) + CheckConstraint
+- Smoke test: ALL_CHECKS_PASS
+- docs.md: 更新至 v1.1
+- 結案文件: docs/WP-S1-01A_MODELS_ALIGNMENT_FIX_REPORT.md
+
+### Migration Readiness
+
+**READY FOR WP-S1-02: YES**
+
+下一票建議: WP-S1-02 Schedule Module Migration
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-01A COMPLETE; READY FOR WP-S1-02
+
+---
+
+## System State Update (2026-03-18) — WP-S1-02 Complete
+
+### Database State
+- alembic_version: `010_wp_s1_02`
+- Total tables: 23 (21 existing + shift_templates + shift_assignments)
+- New tables: `shift_templates`, `shift_assignments`
+
+### Schedule Module State
+- Migration: APPLIED (010_wp_s1_02)
+- Models: ALIGNED (WP-S1-01A)
+- Schemas: UUID ALIGNED (WP-S1-02)
+- Router: stub (not mounted)
+- API: NO endpoints live
+- repo/service: stub (raise NotImplementedError)
+
+### What Is NOT Done (Schedule)
+- No CRUD endpoints
+- No router mounted in main.py
+- No repo.py / service.py implementation
+- No attendance / leave integration
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-02 COMPLETE
+
+---
+
+## System State Update (2026-03-19) — WP-S1-02B Complete
+
+### Alembic Infrastructure State
+- alembic_version: `010_wp_s1_02` (head)
+- env.py: STABLE（5464 bytes，正式版）
+- env.py coverage: 8/8 modules, 23 tables
+- ALEMBIC SAFE: YES
+
+### What Was Fixed
+- env.py 從 0 bytes 重建為完整正式版
+- auth / audit / tenants / customer_service 4 個模組首次正式納入 env.py
+- .tmp 殘留檔清除
+
+### Current DB Tables (23)
+allowed_locations, attendance_out_checkpoints, attendance_policies,
+attendance_punches, attendance_records, attendance_sessions,
+alembic_version, audit_logs, audit_retention_policies,
+company_entitlements, leave_approval_logs, leave_approval_policies,
+leave_requests, leave_types, notifications, permissions,
+role_permissions, roles, shift_assignments, shift_templates,
+support_company_assignments, tenants, user_company_memberships, users
+
+### Schedule Module State (unchanged from WP-S1-02)
+- Migration: APPLIED (010_wp_s1_02)
+- Router: stub (not mounted)
+- API: NO endpoints live
+- repo/service: stub (raise NotImplementedError)
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-02B COMPLETE — Alembic infrastructure stabilized
+
+---
+
+## System State Update (2026-03-19) — WP-S1-03 Complete
+
+### Schedule Module State
+- Migration: APPLIED (010_wp_s1_02)
+- repo.py: CRUD CORE (ShiftTemplate + ShiftAssignment, Tenant Isolation)
+- service.py: CRUD CORE (業務邏輯 + error handling)
+- Router: stub (not mounted)
+- API: NO endpoints live
+- Smoke Test: 15/15 PASS
+
+### What Is NOT Done (Schedule)
+- No API router mounted in main.py
+- No FastAPI endpoints live
+- No pytest full coverage
+- No conflict detection
+- No attendance/leave integration
+
+**最後更新:** 2026-03-19  
+**更新原因:** WP-S1-03 COMPLETE — CRUD Core implemented

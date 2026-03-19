@@ -283,3 +283,151 @@ Resolved by clean restart. No code changes required.
 
 **最後更新：** 2026-03-18  
 **更新原因：** WP-C1-10 JWT Alignment COMPLETE；GAP-C1-001 + GAP-C1-003 RESOLVED
+
+---
+
+**最後更新：** 2026-03-18  
+**更新原因：** WP-C1-13 COMPLETE；Gate 5 / C1 正式關閉
+
+### Gate 5 / C1 Final Status
+
+- **WP-C1-13** Test Stabilization：COMPLETE ✅（2026-03-18）
+- **Gate 5 / C1：CLOSED ✅**
+- **Gate 5 完成度：100%**
+- backup/tests/test_api.py：14/14 PASS ✅
+- notifications/tests/test_api.py：13/13 PASS ✅
+- attendance/tests/test_out_checkpoint.py：7/7 PASS ✅
+- 所有 blocking gaps RESOLVED
+- 下一階段：Gate 6 — Schedule 模組（WP-S1）
+
+
+---
+
+## Gate 6 — Schedule 模組開發（WP-S1 系列）
+
+**狀態:** IN_PROGRESS  
+**啟動日期:** 2026-03-18  
+**前置條件:** Gate 5 / C1 CLOSED (2026-03-18)
+
+### Gate 6 WP 完成狀態
+
+| WP | 名稱 | 狀態 | 完成日期 |
+|----|------|------|----------|
+| **WP-S1-01** | **Schedule Module Foundation** | **COMPLETE** | **2026-03-18** |
+| WP-S1-02 | Schedule Migration | PENDING | - |
+| WP-S1-03 | Basic Schedule API | PENDING | - |
+| WP-S1-04 | ShiftAssignment API | PENDING | - |
+| WP-S1-05 | Tenant Isolation Tests | PENDING | - |
+| WP-S1-06 | Feature Gate | PENDING | - |
+
+### WP-S1-01 完成記錄（2026-03-18）
+
+- schedule 模組骨架建立（7 個檔案）
+- ShiftTemplate + ShiftAssignment ORM 定義（code-level only）
+- repo / service / api 骨架（stub，NotImplementedError）
+- docs.md 建立
+- Smoke test PASS（import OK，全部類別可正常載入）
+- 無 migration，無 API endpoint，無主 app 掛載
+- production code 未修改
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-01 COMPLETE；Gate 6 Schedule 模組開發正式啟動
+
+
+---
+
+## WP-S1-01A — Schedule Models Alignment Fix
+
+**完成日期:** 2026-03-18  
+**性質:** Blocking Issue Resolution（Pre-Migration Audit B1/B2 修正）  
+**前置條件:** WP-S1-01 COMPLETE + WP-S1-02 Pre-Migration Audit NOT READY
+
+### 完成摘要
+
+- B1 FIXED: company_id Integer → String(255) + ForeignKeyConstraint(tenants.id CASCADE)
+- B2 FIXED: user_id Integer → UUID(as_uuid=True) + ForeignKeyConstraint(users.id CASCADE)
+- M2 FIXED: PK Integer → UUID + gen_random_uuid()
+- M3 FIXED: inline ForeignKey → ForeignKeyConstraint in __table_args__
+- M4 ADDED: UniqueConstraint(company_id, code) on ShiftTemplate
+- M6 CLARIFIED: AssignmentStatus SQLAlchemy Enum → String(20) + CheckConstraint
+- Smoke test: ALL_CHECKS_PASS
+- docs.md: 更新至 v1.1
+- 結案文件: docs/WP-S1-01A_MODELS_ALIGNMENT_FIX_REPORT.md
+
+### Migration Readiness
+
+**READY FOR WP-S1-02: YES**
+
+下一票建議: WP-S1-02 Schedule Module Migration
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-01A COMPLETE; READY FOR WP-S1-02
+
+---
+
+## WP-S1-02 Gate Entry (2026-03-18)
+
+| Gate Item | Status | Notes |
+|-----------|--------|-------|
+| Migration file created | PASS | 010_wp_s1_02_create_schedule_tables.py |
+| revision chain correct | PASS | 009_wp_11_08 → 010_wp_s1_02 |
+| alembic upgrade head | PASS | EXIT=0 |
+| shift_templates exists | PASS | Confirmed via pg_tables |
+| shift_assignments exists | PASS | Confirmed via pg_tables |
+| uq_shift_templates_company_code | PASS | Confirmed via pg_constraint |
+| ck_shift_assignments_status | PASS | Confirmed via pg_constraint |
+| FK to tenants.id | PASS | fk_shift_templates_company_id + fk_shift_assignments_company_id |
+| FK to users.id | PASS | fk_shift_assignments_user_id |
+| FK to shift_templates.id | PASS | fk_shift_assignments_template_id |
+| env.py schedule import | PASS | Minimal fix only |
+| schemas.py UUID alignment | PASS | company_id:str, id/user_id/shift_template_id:UUID |
+| main.py unchanged | PASS | Scope lock respected |
+| other modules unchanged | PASS | Scope lock respected |
+| old migrations unchanged | PASS | Scope lock respected |
+
+**WP-S1-02 GATE: PASS**
+
+**最後更新:** 2026-03-18
+
+---
+
+## WP-S1-02B Gate Entry (2026-03-19)
+
+| Gate Item | Status | Notes |
+|-----------|--------|-------|
+| env.py non-empty | PASS | 5464 bytes |
+| env.py all modules import | PASS | 8/8 modules, 23 tables |
+| static import test | PASS | ALL_IMPORTS_OK |
+| alembic current | PASS | 010_wp_s1_02 (head) |
+| alembic upgrade head | PASS | EXIT=0, no-op |
+| .tmp residue removed | PASS | 010_wp_s1_02_create_schedule_tables.py.tmp deleted |
+| scope lock respected | PASS | no new migration, no model changes |
+
+**WP-S1-02B GATE: PASS — ALEMBIC SAFE = YES**
+
+**最後更新:** 2026-03-19
+
+---
+
+## WP-S1-03 Gate Entry (2026-03-19)
+
+| Gate Item | Status | Notes |
+|-----------|--------|-------|
+| repo.py non-stub | PASS | 9436 bytes, all NotImplementedError removed |
+| service.py non-stub | PASS | 15037 bytes, all NotImplementedError removed |
+| import test | PASS | REPO_IMPORT_OK + SERVICE_IMPORT_OK |
+| ShiftTemplate CRUD smoke | PASS | Tests 1-7: all PASS |
+| ShiftAssignment CRUD smoke | PASS | Tests 8-15: all PASS |
+| Tenant isolation enforced | PASS | company_id WHERE clause in all queries |
+| cross-tenant template blocked | PASS | Test 15: HTTPException |
+| duplicate code blocked | PASS | Test 2: HTTPException 409 |
+| double cancel blocked | PASS | Test 14: HTTPException 409 |
+| scope lock respected | PASS | api.py/main.py/migration unchanged |
+
+**WP-S1-03 GATE: PASS**
+
+**最後更新:** 2026-03-19

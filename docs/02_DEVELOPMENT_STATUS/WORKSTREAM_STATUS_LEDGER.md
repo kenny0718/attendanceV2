@@ -913,3 +913,173 @@ WP-C1-08 Attendance Test Stabilization 已於 2026-03-17 正式 COMPLETE。
 
 **最後更新：** 2026-03-18  
 **更新原因：** WP-C1-09 Governance Consolidation COMPLETE；WP-C1-09A Governance Repair IN_PROGRESS
+
+
+---
+
+### WP-S1-01：Schedule Module Foundation
+
+**完成日期:** 2026-03-18  
+**Git Commit:** N/A（本票新增 schedule 模組骨架，無 production code 修改）  
+**負責人:** AI session（Cursor）
+
+**已完成:**
+- backend/app/modules/schedule/__init__.py（模組說明）
+- backend/app/modules/schedule/models.py（ShiftTemplate + ShiftAssignment ORM，code-level only）
+- backend/app/modules/schedule/schemas.py（Pydantic schema 骨架）
+- backend/app/modules/schedule/repo.py（Repository 骨架，stub）
+- backend/app/modules/schedule/service.py（Service 骨架，stub）
+- backend/app/modules/schedule/api.py（Router 定義，無 endpoint，未掛入主 app）
+- backend/app/modules/schedule/docs.md（模組說明文件）
+- docs/WP-S1-01_EXECUTION_REPORT.md（結案報告）
+
+**已驗證（VERIFIED）:**
+- 所有 7 個檔案存在且非空（271~6480 bytes）
+- Smoke test PASS: IMPORT_OK
+- ShiftTemplate.__tablename__ = shift_templates
+- ShiftAssignment.__tablename__ = shift_assignments
+- router prefix = /api/v1/schedule
+- AssignmentStatus values = scheduled / confirmed / cancelled
+- production code 未修改
+- forbidden 區域（attendance/leave/frontend/alembic）未觸碰
+
+**未驗證（NOT_VERIFIED）:**
+- 資料庫 table（無 migration，table 尚未建立）
+- API endpoint（無 endpoint，未掛入主 app）
+- 任何 repo / service 方法（全為 stub）
+
+**測試結果:**
+- pytest: N/A（本票不做 tests）
+- Smoke import: PASS
+
+**文件一致性:**
+- 建立 docs/WP-S1-01_EXECUTION_REPORT.md
+- 更新 docs/03_WP_CONTROL/NEXT_WP_TICKET.md
+- 更新 docs/03_WP_CONTROL/GATE_PROGRESS_TRACKER.md
+- 更新 docs/02_DEVELOPMENT_STATUS/WORKSTREAM_STATUS_LEDGER.md
+- 更新 docs/02_DEVELOPMENT_STATUS/MODULE_STATUS_MATRIX.md
+- 更新 docs/02_DEVELOPMENT_STATUS/CURRENT_SYSTEM_STATE.md
+
+**下一步:**
+- WP-S1-02: Schedule Migration（建立 Alembic migration）
+
+**狀態:** COMPLETE
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-01 Schedule Module Foundation COMPLETE
+
+
+---
+
+## WP-S1-01A — Schedule Models Alignment Fix
+
+**完成日期:** 2026-03-18  
+**性質:** Blocking Issue Resolution（Pre-Migration Audit B1/B2 修正）  
+**前置條件:** WP-S1-01 COMPLETE + WP-S1-02 Pre-Migration Audit NOT READY
+
+### 完成摘要
+
+- B1 FIXED: company_id Integer → String(255) + ForeignKeyConstraint(tenants.id CASCADE)
+- B2 FIXED: user_id Integer → UUID(as_uuid=True) + ForeignKeyConstraint(users.id CASCADE)
+- M2 FIXED: PK Integer → UUID + gen_random_uuid()
+- M3 FIXED: inline ForeignKey → ForeignKeyConstraint in __table_args__
+- M4 ADDED: UniqueConstraint(company_id, code) on ShiftTemplate
+- M6 CLARIFIED: AssignmentStatus SQLAlchemy Enum → String(20) + CheckConstraint
+- Smoke test: ALL_CHECKS_PASS
+- docs.md: 更新至 v1.1
+- 結案文件: docs/WP-S1-01A_MODELS_ALIGNMENT_FIX_REPORT.md
+
+### Migration Readiness
+
+**READY FOR WP-S1-02: YES**
+
+下一票建議: WP-S1-02 Schedule Module Migration
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-01A COMPLETE; READY FOR WP-S1-02
+
+---
+
+## WP-S1-02 Ledger Entry (2026-03-18)
+
+**Workstream:** Schedule (S1)  
+**Ticket:** WP-S1-02 — Schedule Module Migration  
+**Status:** COMPLETE  
+**Date:** 2026-03-18
+
+### Deliverables
+- [x] Migration: `010_wp_s1_02_create_schedule_tables.py`
+- [x] Tables: `shift_templates`, `shift_assignments`
+- [x] env.py: schedule models import added (minimal)
+- [x] schemas.py: UUID alignment fixed
+- [x] alembic upgrade head: PASS
+- [x] Execution report: docs/WP-S1-02_EXECUTION_REPORT.md
+
+### Scope Lock Confirmation
+- main.py: NOT changed
+- frontend: NOT changed
+- other modules: NOT changed
+- old migrations: NOT changed
+
+### Next
+WP-S1-03 — Schedule Module CRUD Implementation
+
+**最後更新:** 2026-03-18
+
+---
+
+## WP-S1-02B Ledger Entry (2026-03-19)
+
+**Workstream:** Infrastructure / Alembic Stabilization  
+**Ticket:** WP-S1-02B — env.py Definitive Fix  
+**Status:** COMPLETE  
+**Date:** 2026-03-19
+
+### Deliverables
+- [x] backend/alembic/env.py 正式重建（5464 bytes）
+- [x] 8/8 ORM 模組全部納入（attendance, leave, schedule, auth, audit, tenants, notifications, customer_service）
+- [x] Base.metadata 23 tables 全部正確登記
+- [x] alembic current: PASS
+- [x] alembic upgrade head: PASS
+- [x] .tmp 殘留清除
+- [x] Execution report: docs/WP-S1-02B_ENV_PY_DEFINITIVE_FIX_REPORT.md
+
+### Scope Lock Confirmation
+- new migration: NO
+- models changed: NO
+- main.py: NO
+- frontend: NO
+
+### Next
+WP-S1-03 — Schedule Module CRUD Implementation
+
+**最後更新:** 2026-03-19
+
+---
+
+## WP-S1-03 Ledger Entry (2026-03-19)
+
+**Workstream:** Schedule (S1)  
+**Ticket:** WP-S1-03 — Schedule Module CRUD Core  
+**Status:** COMPLETE  
+**Date:** 2026-03-19
+
+### Deliverables
+- [x] repo.py: CRUD Core (9436 bytes)
+- [x] service.py: CRUD Core (15037 bytes)
+- [x] Smoke Test: 15/15 PASS
+- [x] Tenant Isolation: fully enforced
+- [x] Execution report: docs/WP-S1-03_CRUD_CORE_EXECUTION_REPORT.md
+
+### Scope Lock Confirmation
+- api.py: NOT changed
+- main.py: NOT changed
+- migration: NOT changed
+- other modules: NOT changed
+
+### Next
+WP-S1-04 — Schedule Module API Layer

@@ -191,3 +191,124 @@
 
 **Last Updated:** 2026-03-18  
 **Updated by:** WP-C1-09A Governance Missing Files Reconstruction
+
+
+---
+
+## WP-S1-01 Schedule Foundation — 模組狀態新增（2026-03-18）
+
+**更新依據:** WP-S1-01 COMPLETE（2026-03-18）  
+**更新性質:** 新模組加入矩陣（foundation only）
+
+### schedule 模組狀態（新增）
+
+| 面向 | 狀態 | 說明 |
+|------|------|------|
+| **目標定位** | 班別模板管理 + 班別指派 | ShiftTemplate / ShiftAssignment |
+| **backend 結構** | FOUNDATION | 7 個骨架檔案建立；所有 repo/service 方法為 stub |
+| **migration** | NOT_STARTED | 無 Alembic migration；資料表尚未建立 |
+| **tests** | NOT_STARTED | 無測試檔案 |
+| **auth 方式** | NOT_STARTED | 無 API endpoint；auth 尚未套用 |
+| **tenant isolation** | DESIGN_ONLY | models 含 company_id 欄位；查詢層未實作 |
+| **feature gate** | NOT_STARTED | 無 gate 定義 |
+| **runtime verification** | NOT_STARTED | 無任何 runtime 驗證 |
+| **完成度（保守）** | 5% | Foundation skeleton only |
+| **主要風險** | 無 migration；無 API；所有方法 NotImplementedError |
+| **可進入下一階段** | 需先完成 WP-S1-02 Migration |
+| **建議優先級** | WP-S1-02 Migration（下一票）|
+
+**Last Updated:** 2026-03-18  
+**Updated by:** WP-S1-01 Schedule Module Foundation
+
+
+---
+
+## WP-S1-01A — Schedule Models Alignment Fix
+
+**完成日期:** 2026-03-18  
+**性質:** Blocking Issue Resolution（Pre-Migration Audit B1/B2 修正）  
+**前置條件:** WP-S1-01 COMPLETE + WP-S1-02 Pre-Migration Audit NOT READY
+
+### 完成摘要
+
+- B1 FIXED: company_id Integer → String(255) + ForeignKeyConstraint(tenants.id CASCADE)
+- B2 FIXED: user_id Integer → UUID(as_uuid=True) + ForeignKeyConstraint(users.id CASCADE)
+- M2 FIXED: PK Integer → UUID + gen_random_uuid()
+- M3 FIXED: inline ForeignKey → ForeignKeyConstraint in __table_args__
+- M4 ADDED: UniqueConstraint(company_id, code) on ShiftTemplate
+- M6 CLARIFIED: AssignmentStatus SQLAlchemy Enum → String(20) + CheckConstraint
+- Smoke test: ALL_CHECKS_PASS
+- docs.md: 更新至 v1.1
+- 結案文件: docs/WP-S1-01A_MODELS_ALIGNMENT_FIX_REPORT.md
+
+### Migration Readiness
+
+**READY FOR WP-S1-02: YES**
+
+下一票建議: WP-S1-02 Schedule Module Migration
+
+---
+
+**最後更新:** 2026-03-18  
+**更新原因:** WP-S1-01A COMPLETE; READY FOR WP-S1-02
+
+---
+
+## Schedule Module Status Update (2026-03-18)
+
+| Item | WP-S1-01 | WP-S1-01A | WP-S1-02 |
+|------|----------|-----------|----------|
+| models.py | DONE | ALIGNED | — |
+| schemas.py | DONE | — | UUID ALIGNED |
+| Migration | — | — | DONE |
+| shift_templates table | — | — | CREATED |
+| shift_assignments table | — | — | CREATED |
+| env.py schedule import | — | — | ADDED |
+| router.py | stub | stub | stub |
+| repo.py | stub | stub | stub |
+| service.py | stub | stub | stub |
+| main.py mount | NO | NO | NO |
+| API endpoints | NO | NO | NO |
+
+**Overall Schedule Module Status:** MIGRATION COMPLETE, CRUD PENDING (WP-S1-03)
+
+**最後更新:** 2026-03-18
+
+---
+
+## Alembic Infrastructure Status Update (2026-03-19) — WP-S1-02B
+
+| Module | models.py | Migration | env.py納入(WP-S1-02) | env.py納入(WP-S1-02B) |
+|--------|-----------|-----------|---------------------|----------------------|
+| auth | YES | YES | NO | **YES** |
+| attendance | YES | YES | YES | YES |
+| audit | YES | YES | NO | **YES** |
+| leave | YES | YES | YES | YES |
+| notifications | YES | YES | YES | YES |
+| schedule | YES | YES | YES | YES |
+| tenants | YES | YES | NO | **YES** |
+| customer_service | YES | YES | NO | **YES** |
+| backup | NO | — | NO | NO (不需要) |
+
+**env.py Coverage: 8/8 (100%) — ALEMBIC SAFE = YES**
+
+**最後更新:** 2026-03-19
+
+---
+
+## Schedule Module Status Update (2026-03-19) — WP-S1-03
+
+| Item | WP-S1-01 | WP-S1-01A | WP-S1-02 | WP-S1-02B | WP-S1-03 |
+|------|----------|-----------|----------|-----------|----------|
+| models.py | DONE | ALIGNED | — | — | — |
+| schemas.py | DONE | — | UUID ALIGNED | — | — |
+| Migration | — | — | DONE | — | — |
+| env.py | — | — | PARTIAL | COMPLETE | — |
+| repo.py | stub | stub | stub | stub | **CRUD CORE** |
+| service.py | stub | stub | stub | stub | **CRUD CORE** |
+| router.py | stub | stub | stub | stub | stub |
+| main.py mount | NO | NO | NO | NO | NO |
+| API endpoints | NO | NO | NO | NO | NO |
+| Smoke Test | — | — | — | — | 15/15 PASS |
+
+**最後更新:** 2026-03-19
