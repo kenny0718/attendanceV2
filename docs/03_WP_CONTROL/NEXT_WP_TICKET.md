@@ -726,3 +726,42 @@ Gate 5 / C1 全部 blocking gaps 已解決：
 
 **最後更新:** 2026-03-19  
 **更新原因:** WP-S1-06 COMPLETE
+
+---
+
+## 當前 WP：WP-S1-07 — Schedule Frontend（Vue）
+
+**Status:** IN PLANNING — Execution Plan 已建立，尚未開始 Vue 實作
+**前置條件:** WP-S1-06 COMPLETE
+**Execution Plan:** docs/03_WP_CONTROL/WP-S1-07_FRONTEND_EXECUTION_PLAN.md
+
+### 本票目前狀態
+
+- [x] Frontend Execution Plan 建立（WP-S1-07_FRONTEND_EXECUTION_PLAN.md）
+- [x] Phase 邊界與 scope 固定
+- [ ] Phase 0 — Frontend Audit Only（尚未開始）
+- [ ] Phase 1 — API Connection Layer
+- [ ] Phase 2 — Basic Page Scaffold
+- [ ] Phase 3 — Data Fetch（read-only list）
+- [ ] Phase 4 — Create Schedule UI
+- [ ] Phase 5 — Update/Delete UI
+
+### 下一步
+
+**Phase 0 — Frontend Audit Only**
+- 閱讀  現有架構（router / stores / api / composables）
+- 確認 auth token 注入方式、store 架構、feature gate 前端判斷機制
+- 確認 schedule 前端可安全掛載的路徑
+- 不建立任何 .vue / .js 檔案
+- 產出 Phase 0 Audit Summary（文字回報）
+
+### Scope Reminder
+
+- backend: 不可修改（已完成）
+- frontend/src/：只允許新增 schedule 相關模組
+- docs/02_DEVELOPMENT_STATUS/：不可修改（本票不做 status report）
+
+---
+
+**最後更新:** 2026-03-19
+**更新原因:** WP-S1-07 Execution Plan 建立；Phase 0 為下一步
