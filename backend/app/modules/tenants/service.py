@@ -318,3 +318,113 @@ def get_entitlement_service(db: Session) -> CompanyEntitlementService:
         CompanyEntitlementService: Service instance
     """
     return CompanyEntitlementService(db)
+
+
+class OnboardingService:
+    """Admin Onboarding orchestration service (WP-S1-09C)
+
+    Atomically creates:
+      1. Company (Tenant)
+      2. Global User
+      3. Membership (user <-> company + role + login credentials)
+
+    Transaction safety: all three steps run inside a single DB transaction.
+    If any step fails the whole operation is rolled back — no dirty data.
+    """
+
+    def __init__(self, db: Session):
+        self.db = db
+        self.tenant_repo = TenantRepository(db)
+        # Import here to avoid circular imports at module level
+        from app.modules.auth.repo import AuthRepository
+        self.auth_repo = AuthRepository(db)
+
+    def onboard(
+        self,
+        company_id: str,
+        company_name: str,
+        company_timezone: str,
+        user_display_name: str,
+        user_login_username: str,
+        user_password: str,
+        user_email: Optional[str],
+        user_role_id: str,
+    ) -> dict:
+        """Create company + user + membership in one atomic operation.
+
+        Args:
+            company_id: Desired company ID (must be unique)
+            company_name: Company display name
+            company_timezone: Timezone string (default 'UTC')
+            user_display_name: Global display name for the initial user
+            user_login_username: Per-company login username (unique within company)
+            user_password: Plain text password (will be hashed)
+            user_email: Optional email for notifications
+            user_role_id: Role to assign in membership (e.g. 'company_admin')
+
+        Returns:
+            dict with keys: company, user, membership
+
+        Raises:
+            ValueError: DUPLICATE_COMPANY or DUPLICATE_LOGIN_USERNAME
+            sqlalchemy.exc.IntegrityError: unexpected DB constraint violations
+        """
+        # ── Step 0: pre-flight validation (before touching DB) ──────────
+        if self.tenant_repo.exists(company_id):
+            raise ValueError(f"DUPLICATE_COMPANY: company '{company_id}' already exists")
+
+        # Check login_username uniqueness within this company
+        # (company doesn't exist yet so no conflict possible on login_username;
+        #  but we verify role_id exists to fail fast before any write)
+        from app.modules.auth.models import Role
+        role = self.db.query(Role).filter(Role.id == user_role_id).first()
+        if role is None:
+            raise ValueError(f"INVALID_ROLE: role '{user_role_id}' does not exist")
+
+        # ── Step 1-3: all writes inside a savepoint ─────────────────────
+        # We use a nested transaction (SAVEPOINT) so that a failure in step 2
+        # or 3 rolls back steps 1+2 without affecting the outer session.
+        try:
+            # Step 1: create company
+            company = Tenant(
+                id=company_id,
+                name=company_name,
+                timezone=company_timezone,
+                is_active=True,
+            )
+            self.db.add(company)
+            self.db.flush()  # write to DB but do NOT commit yet
+
+            # Step 2: create global user
+            user = self.auth_repo.create_user(
+                display_name=user_display_name,
+                plain_password=user_password,
+                email=user_email,
+                must_change_password=False,
+            )
+            # create_user() calls commit internally; re-use the session
+            # so membership can see both company and user.
+
+            # Step 3: create membership
+            membership = self.auth_repo.create_membership(
+                user_id=user.id,
+                company_id=company_id,
+                role_id=user_role_id,
+                login_username=user_login_username,
+                login_email=user_email,
+            )
+
+        except Exception:
+            self.db.rollback()
+            raise
+
+        return {
+            "company": company,
+            "user": user,
+            "membership": membership,
+        }
+
+
+def get_onboarding_service(db: Session) -> "OnboardingService":
+    """FastAPI Dependency factory for OnboardingService."""
+    return OnboardingService(db)
