@@ -45,11 +45,23 @@ const routes = [
     component: () => import('@/views/schedule/SchedulePage.vue'),
     meta: { requiresAuth: true, requiresCompanyAdmin: true }
   },
-  // ── Admin (WP-S1-08B) — super_admin only ───────────────────────────
+  // ── Admin (WP-S1-08B / WP-S1-10A) — super_admin only ──────────────
   {
     path: '/admin',
     name: 'Admin',
     component: () => import('@/views/Admin.vue'),
+    meta: { requiresAuth: true, requiresSuperAdmin: true }
+  },
+  {
+    path: '/admin/companies',
+    name: 'AdminCompanies',
+    component: () => import('@/views/admin/AdminCompaniesView.vue'),
+    meta: { requiresAuth: true, requiresSuperAdmin: true }
+  },
+  {
+    path: '/admin/onboarding',
+    name: 'AdminOnboarding',
+    component: () => import('@/views/admin/AdminOnboardingView.vue'),
     meta: { requiresAuth: true, requiresSuperAdmin: true }
   }
 ]
