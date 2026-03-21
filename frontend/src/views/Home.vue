@@ -16,239 +16,31 @@
       />
 
 
-      <!-- 外出管理 - 統一卡片 -->
-      <div class="section-title">
-        <h2>外出管理</h2>
-      </div>
-      <Card class="break-management-card">
-        <!-- 外出原因 -->
-        <div class="break-reason-section">
-          <h3 class="subsection-title">外出原因</h3>
-          <div class="reason-input-area">
-            <!-- 常用原因快速選擇 -->
-            <div class="reason-chips">
-              <button
-                v-for="reason in reasonPresets"
-                :key="reason"
-                @click="selectReason(reason)"
-                :class="[
-                  'reason-chip',
-                  { 'selected': breakOutReason === reason }
-                ]"
-              >
-                {{ reason }}
-              </button>
-            </div>
-            
-            <!-- 自訂原因 -->
-            <div v-if="reasonCustoms.length > 0" class="custom-reasons">
-              <button
-                v-for="reason in reasonCustoms"
-                :key="reason"
-                @click="selectReason(reason)"
-                :class="[
-                  'reason-chip custom',
-                  { 'selected': breakOutReason === reason }
-                ]"
-              >
-                {{ reason }}
-                <span 
-                  @click.stop="removeCustomReason(reason)"
-                  class="remove-btn"
-                >
-                  ✕
-                </span>
-              </button>
-            </div>
-            
-            <!-- 原因輸入欄 -->
-            <input
-              v-model="breakOutReason"
-              type="text"
-              class="reason-input"
-              placeholder="請輸入外出原因"
-              maxlength="50"
-            />
-            
-            <!-- 新增自訂原因 -->
-            <div class="add-custom-reason">
-              <input
-                v-model="newCustomReason"
-                @keyup.enter="addCustomReason"
-                type="text"
-                placeholder="新增常用原因..."
-                class="custom-input"
-                maxlength="20"
-              />
-              <button
-                @click="addCustomReason"
-                :disabled="!newCustomReason.trim()"
-                class="add-btn"
-              >
-                ＋新增
-              </button>
-            </div>
-          </div>
-        </div>
 
-        <!-- 外出 / 返回打卡 -->
-        <div class="break-actions-section">
-          <h3 class="subsection-title">外出 / 返回</h3>
-          <div class="punch-grid-break">
-            <!-- 外出打卡 -->
-            <div 
-              @click="handleBreakOutPunch"
-              :class="[
-                'punch-card',
-                { 'disabled': !canBreakOut || isLoading }
-              ]"
-            >
-              <div class="card-icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </div>
-              <div class="card-label">外出打卡</div>
-              <div v-if="todayStatus.is_on_break" class="status-badge active">外出中</div>
-            </div>
+      <!-- 外出管理 -->
+      <OutingOverviewCard
+        :reason-presets="reasonPresets"
+        :reason-customs="reasonCustoms"
+        :selected-reason="breakOutReason"
+        :new-custom-reason="newCustomReason"
+        :can-break-out="canBreakOut"
+        :can-break-in="canBreakIn"
+        :is-on-break="todayStatus.is_on_break"
+        :is-loading="isLoading"
+        :break-punches="breakPunches"
+        :is-break-logs-expanded="isBreakLogsExpanded"
+        @select-reason="selectReason"
+        @remove-custom-reason="removeCustomReason"
+        @add-custom-reason="addCustomReason"
+        @update:selected-reason="breakOutReason = $event"
+        @update:new-custom-reason="newCustomReason = $event"
+        @break-out="handleBreakOutPunch"
+        @break-in="handleBreakInPunch"
+        @edit-note="editPunchNote"
+      />
 
-            <!-- 返回打卡 -->
-            <div 
-              @click="handleBreakInPunch"
-              :class="[
-                'punch-card',
-                { 'disabled': !canBreakIn || isLoading }
-              ]"
-            >
-              <div class="card-icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                </svg>
-              </div>
-              <div class="card-label">返回打卡</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 今日外出 / 返回紀錄 -->
-        <div v-if="breakPunches.length > 0" class="break-records-section">
-          <div 
-            class="records-header-inline"
-            @click="toggleBreakLogs"
-          >
-            <h3 class="subsection-title">今日外出 / 返回紀錄</h3>
-            <div class="header-right">
-              <span class="count-badge">
-                {{ breakPunches.length }} 筆
-              </span>
-              <svg 
-                class="expand-icon"
-                :class="{ 'expanded': isBreakLogsExpanded }"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-                stroke-width="2"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-          
-          <div v-show="isBreakLogsExpanded" class="records-content">
-            <div class="break-list">
-              <div
-                v-for="punch in breakPunches.slice(0, 10)"
-                :key="punch.punch_id"
-                class="break-item"
-              >
-                <div class="break-icon">
-                  <svg v-if="punch.punch_type === 'break_start'" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
-                  </svg>
-                  <svg v-else fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-                
-                <div class="break-info">
-                  <div class="break-type-time">
-                    <span class="break-type">
-                      {{ punch.punch_type === 'break_start' ? '外出' : '返回' }}
-                    </span>
-                    <span class="break-time">
-                      {{ formatTime(punch.punch_time) }}
-                    </span>
-                  </div>
-                  <div v-if="punch.notes" class="break-notes">
-                    {{ punch.notes }}
-                  </div>
-                </div>
-                
-                <div class="break-actions">
-                  <a
-                    v-if="punch.location_lat && punch.location_lng"
-                    :href="`https://www.google.com/maps?q=${punch.location_lat},${punch.location_lng}`"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="map-link"
-                    title="在 Google Maps 開啟"
-                  >
-                    <svg fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
-                    </svg>
-                    <span>地圖</span>
-                  </a>
-                  
-                  <button
-                    v-if="punch.punch_type === 'break_start'"
-                    @click="editPunchNote(punch)"
-                    class="edit-btn"
-                    title="編輯原因"
-                  >
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-
-      <!-- 快捷功能 -->
-      <div class="section-title">
-        <h2>快捷功能</h2>
-      </div>
-      <div class="shortcut-grid">
-        <div class="shortcut-card disabled">
-          <div class="card-icon">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <div class="card-label">個人資料</div>
-        </div>
-
-        <div class="shortcut-card disabled">
-          <div class="card-icon">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <div class="card-label">請假申請</div>
-        </div>
-
-        <div class="shortcut-card disabled">
-          <div class="card-icon">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div class="card-label">補打卡申請</div>
-        </div>
-      </div>
+      <!-- 個人服務 -->
+      <PersonalServiceCard />
 
       <!-- Toast 提示 -->
       <div 
@@ -321,6 +113,8 @@ import Navbar from '@/components/Navbar.vue'
 import { useLocation } from '@/composables/useLocation'
 import Card from '@/components/Card.vue'
 import AttendanceOverviewCard from '@/components/attendance/AttendanceOverviewCard.vue'
+import OutingOverviewCard from '@/components/attendance/OutingOverviewCard.vue'
+import PersonalServiceCard from '@/components/attendance/PersonalServiceCard.vue'
 import StatusCard from '@/components/StatusCard.vue'
 
 const attendanceStore = useAttendanceStore()

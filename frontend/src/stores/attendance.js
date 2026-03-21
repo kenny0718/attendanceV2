@@ -1,16 +1,7 @@
 import { defineStore } from 'pinia'
 import dayjs from 'dayjs'
-import utc from 'dayjs/plugin/utc'
-import timezone from 'dayjs/plugin/timezone'
 import { attendanceApi } from '@/api/attendance'
 import { useLocation } from '@/composables/useLocation'
-
-// 確保 timezone 插件已載入（main.js 已全域設定，此處作為保險）
-dayjs.extend(utc)
-dayjs.extend(timezone)
-
-// Asia/Taipei 時區常數，所有 today 判斷與顯示皆使用此值
-const TZ = 'Asia/Taipei'
 
 export const useAttendanceStore = defineStore('attendance', {
   state: () => ({
@@ -28,23 +19,11 @@ export const useAttendanceStore = defineStore('attendance', {
     // 最近打卡記錄
     recentLogs: [],
     
-    // WP-11-11: OUT Checkpoint 狀態
-    outCheckpointList: [],
     breakPunches: [],  // 今日外出打卡記錄
-    outCheckpointLoading: false,
-    outCheckpointError: null,
     
-    // WP-11-11: 原因選擇器
-    lastSelectedReason: '',
-    reasonPresets: [
-      '外出洽公',
-      '拜訪客戶',
-      '銀行辦事',
-      '郵局辦事',
-      '採購物資',
-      '用餐'
-    ],
-    reasonCustoms: [],
+    // 外出原因管理
+    reasonPresets: ['拜訪客戶', '外出洽公', '外出開會', '銀行辦事'],
+    reasonCustoms: [],  // 自訂原因（從 localStorage 載入）
     
     // 狀態管理
     isLoading: false,
@@ -59,16 +38,12 @@ export const useAttendanceStore = defineStore('attendance', {
     canBreakIn: (state) => state.todayStatus.is_on_break,
     
     // WP-11-11: 可以創建 OUT checkpoint（不需要 open session）
-    canCreateOutCheckpoint: (state) => !state.outCheckpointLoading,
-    
-    // WP-11-11: 所有原因選項（preset + custom）
-    allReasons: (state) => [...state.reasonPresets, ...state.reasonCustoms],
     
     formattedTodayStatus: (state) => ({
-      punch_in: state.todayStatus.punch_in ? dayjs(state.todayStatus.punch_in).tz(TZ).format('HH:mm') : '-',
-      punch_out: state.todayStatus.punch_out ? dayjs(state.todayStatus.punch_out).tz(TZ).format('HH:mm') : '-',
-      break_out: state.todayStatus.break_out ? dayjs(state.todayStatus.break_out).tz(TZ).format('HH:mm') : '-',
-      break_in: state.todayStatus.break_in ? dayjs(state.todayStatus.break_in).tz(TZ).format('HH:mm') : '-'
+      punch_in: state.todayStatus.punch_in ? dayjs(state.todayStatus.punch_in).format('HH:mm') : '-',
+      punch_out: state.todayStatus.punch_out ? dayjs(state.todayStatus.punch_out).format('HH:mm') : '-',
+      break_out: state.todayStatus.break_out ? dayjs(state.todayStatus.break_out).format('HH:mm') : '-',
+      break_in: state.todayStatus.break_in ? dayjs(state.todayStatus.break_in).format('HH:mm') : '-'
     })
   },
   
@@ -139,29 +114,6 @@ export const useAttendanceStore = defineStore('attendance', {
         
         return { success: true, data: response }
       } catch (error) {
-        // 下班打卡 404 → 直接映射為業務規則結果
-        const _is404 = error.code === 404 || error.status === 404
-        if (type === 'OUT' && _is404) {
-          this.error = {
-            message: '今天已經打過下班卡',
-            code: 404,
-            originalError: error
-          }
-          throw this.error
-        }
-
-        // 上班打卡 409 ALREADY_OPEN_SESSION → 直接映射為業務規則結果
-        const _is409 = error.code === 409 || error.status === 409
-        const _errorCode = error.message?.error_code || error.data?.error_code || error.data?.detail?.error_code
-        if (type === 'IN' && _is409 && _errorCode === 'ALREADY_OPEN_SESSION') {
-          this.error = {
-            message: '今天已經打過上班卡',
-            code: 409,
-            originalError: error
-          }
-          throw this.error
-        }
-
         // 統一錯誤處理
         this.error = this.handleError(error)
         
@@ -174,7 +126,9 @@ export const useAttendanceStore = defineStore('attendance', {
         
         throw this.error
       } finally {
+        // 確保 isLoading 一定會被重置
         this.isLoading = false
+        console.log('[DEBUG] isLoading 已重置為 false')
       }
     },
     
@@ -237,66 +191,12 @@ export const useAttendanceStore = defineStore('attendance', {
         throw this.error
         
       } finally {
+        // 確保 isLoading 一定會被重置
         this.isLoading = false
+        console.log('[DEBUG] isLoading 已重置為 false')
       }
     },
     
-    // WP-11-11: 提交 OUT checkpoint
-    async outCheckpointSubmit(reasonText) {
-      if (this.outCheckpointLoading) {
-        console.warn('操作進行中，請稍候...')
-        return
-      }
-      
-      if (!reasonText || reasonText.trim() === '') {
-        throw new Error('請先選擇原因')
-      }
-      
-      this.outCheckpointLoading = true
-      this.outCheckpointError = null
-      
-      try {
-        // 偵測裝置類型
-        const deviceType = this.detectDeviceType()
-        
-        // 準備 payload
-        const payload = {
-          device_type: deviceType,
-          notes: reasonText.trim()
-        }
-        
-        // Mobile 需要 GPS
-        if (deviceType === 'mobile') {
-          const gpsData = await this.getGPSLocation()
-          payload.gps = gpsData
-        }
-        
-        // 提交 checkpoint
-        const response = await attendanceApi.createOutCheckpoint(payload)
-        
-        // 保存最後選擇的原因
-        this.lastSelectedReason = reasonText
-        localStorage.setItem('lastSelectedReason', reasonText)
-        
-        // 刷新 checkpoint 列表
-        await this.loadOutCheckpoints()
-        
-        return { success: true, data: response }
-      } catch (error) {
-        this.outCheckpointError = this.handleError(error)
-        
-        // 即使錯誤也嘗試刷新列表（可能是 409 重複）
-        try {
-          await this.loadOutCheckpoints()
-        } catch (refreshError) {
-          console.error('刷新列表失敗:', refreshError)
-        }
-        
-        throw this.outCheckpointError
-      } finally {
-        this.outCheckpointLoading = false
-      }
-    },
     
     // 載入今日外出打卡記錄
     async loadBreakPunches() {
@@ -309,23 +209,6 @@ export const useAttendanceStore = defineStore('attendance', {
       }
     },
     
-    // WP-11-11: 載入 OUT checkpoints 列表
-    async loadOutCheckpoints() {
-      try {
-        const data = await attendanceApi.listOutCheckpoints({ limit: 50, offset: 0 })
-        
-        // 只顯示今天的記錄 — 以 Asia/Taipei 時區判斷當日邊界
-        const todayTz = dayjs().tz(TZ).startOf('day')
-        
-        this.outCheckpointList = (data.checkpoints || []).filter(checkpoint => {
-          const checkpointDayTz = dayjs(checkpoint.punch_time).tz(TZ).startOf('day')
-          return checkpointDayTz.isSame(todayTz)
-        })
-      } catch (error) {
-        console.error('載入 OUT checkpoints 失敗:', error)
-        this.outCheckpointList = []
-      }
-    },
     
     // @deprecated WP-11-12: 請使用 useLocation composable
     // 保留此方法僅供向後相容，未來將移除
@@ -384,65 +267,19 @@ export const useAttendanceStore = defineStore('attendance', {
       })
     },
     
-    // WP-11-11: 添加自訂原因
-    addCustomReason(text) {
-      const trimmed = text.trim()
-      if (!trimmed) return
-      
-      // 避免重複
-      if (this.reasonPresets.includes(trimmed) || this.reasonCustoms.includes(trimmed)) {
-        return
-      }
-      
-      this.reasonCustoms.push(trimmed)
-      this.persistReasonsToLocalStorage()
-    },
     
-    // WP-11-11: 移除自訂原因
-    removeCustomReason(text) {
-      const index = this.reasonCustoms.indexOf(text)
-      if (index > -1) {
-        this.reasonCustoms.splice(index, 1)
-        this.persistReasonsToLocalStorage()
-      }
-    },
     
-    // WP-11-11: 從 localStorage 載入原因
-    hydrateReasonsFromLocalStorage() {
-      try {
-        const saved = localStorage.getItem('customReasons')
-        if (saved) {
-          this.reasonCustoms = JSON.parse(saved)
-        }
-        
-        const lastReason = localStorage.getItem('lastSelectedReason')
-        if (lastReason) {
-          this.lastSelectedReason = lastReason
-        }
-      } catch (error) {
-        console.error('載入自訂原因失敗:', error)
-      }
-    },
     
-    // WP-11-11: 保存原因到 localStorage
-    persistReasonsToLocalStorage() {
-      try {
-        localStorage.setItem('customReasons', JSON.stringify(this.reasonCustoms))
-      } catch (error) {
-        console.error('保存自訂原因失敗:', error)
-      }
-    },
     
     // 獲取今日狀態（真實 API）- WP-11-07 Phase 3B: 從 localStorage 恢復狀態
     async fetchTodayStatus() {
       try {
         const data = await attendanceApi.getCurrentStatus()
         
-        if (data.session) {
-          // 有 session 資料（open 或今日 closed）→ 使用後端資料
-          const isOnBreak = data.has_open_session ? (data.is_on_break || false) : false
+        if (data.has_open_session && data.session) {
+          // 有 open session，更新狀態
+          const isOnBreak = data.is_on_break || false
           
-          // 同步到 localStorage
           localStorage.setItem('is_on_break', isOnBreak ? 'true' : 'false')
           
           this.todayStatus = {
@@ -450,16 +287,31 @@ export const useAttendanceStore = defineStore('attendance', {
             punch_out: data.session.punch_out_time,
             break_out: this.todayStatus.break_out,
             break_in: this.todayStatus.break_in,
-            is_punched_in: data.has_open_session && data.session.status === 'open',
+            is_punched_in: data.session.status === 'open',
             is_on_break: isOnBreak,
             session_id: data.session.session_id
           }
-        } else {
-          // 今日確實無任何 session → 清空狀態
+        } else if (data.session) {
+          // 沒有 open session 但有 session（已下班），保留時間顯示
           localStorage.removeItem('is_on_break')
           this.todayStatus = {
-            punch_in: null,
-            punch_out: null,
+            punch_in: data.session.punch_in_time,
+            punch_out: data.session.punch_out_time,  // 關鍵修復：確保 punch_out_time 被正確設置
+            break_out: this.todayStatus.break_out,
+            break_in: this.todayStatus.break_in,
+            is_punched_in: false,
+            is_on_break: false,
+            session_id: data.session.session_id
+          }
+        } else {
+          // 完全沒有 session，重置狀態
+          // 但保留當日已知的 punch_in / punch_out（避免下班後閃現問題）
+          const preservedPunchIn = this.todayStatus.punch_in
+          const preservedPunchOut = this.todayStatus.punch_out
+          localStorage.removeItem('is_on_break')
+          this.todayStatus = {
+            punch_in: preservedPunchIn,
+            punch_out: preservedPunchOut,
             break_out: null,
             break_in: null,
             is_punched_in: false,
@@ -472,7 +324,6 @@ export const useAttendanceStore = defineStore('attendance', {
         // 不拋出錯誤，避免影響頁面載入
       }
     },
-    
     // 獲取最近記錄（真實 API）
     async fetchRecentLogs() {
       try {
@@ -563,10 +414,58 @@ export const useAttendanceStore = defineStore('attendance', {
       }
     },
     
+    
+    // 外出原因管理
+    addCustomReason(reason) {
+      const trimmed = reason.trim()
+      if (!trimmed) return
+      
+      // 避免重複
+      if (this.reasonCustoms.includes(trimmed) || this.reasonPresets.includes(trimmed)) {
+        return
+      }
+      
+      this.reasonCustoms.push(trimmed)
+      this.saveReasonsToLocalStorage()
+    },
+    
+    removeCustomReason(reason) {
+      const index = this.reasonCustoms.indexOf(reason)
+      if (index > -1) {
+        this.reasonCustoms.splice(index, 1)
+        this.saveReasonsToLocalStorage()
+      }
+    },
+    
+    saveReasonsToLocalStorage() {
+      try {
+        localStorage.setItem('customBreakReasons', JSON.stringify(this.reasonCustoms))
+      } catch (error) {
+        console.error('保存自訂原因失敗:', error)
+      }
+    },
+    
+    hydrateReasonsFromLocalStorage() {
+      try {
+        const saved = localStorage.getItem('customBreakReasons')
+        if (saved) {
+          this.reasonCustoms = JSON.parse(saved)
+        }
+      } catch (error) {
+        console.error('載入自訂原因失敗:', error)
+        this.reasonCustoms = []
+      }
+    },
+    
     // 清除錯誤
     clearError() {
       this.error = null
-      this.outCheckpointError = null
+    },
+    
+    // 手動重置 isLoading 狀態（用於調試）
+    resetLoadingState() {
+      console.log('[DEBUG] 手動重置 isLoading 狀態')
+      this.isLoading = false
     }
   }
 })
