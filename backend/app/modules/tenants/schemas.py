@@ -133,3 +133,32 @@ class AdminOnboardingResponse(BaseModel):
     company: OnboardingCompanyResult
     user: OnboardingUserResult
     membership: OnboardingMembershipResult
+
+
+# ── WP-S1-10B: Admin read-only members view schemas ──────────────────
+
+class CompanyMemberResponse(BaseModel):
+    """Single user+membership record for admin view"""
+    # Membership fields
+    membership_id: str = Field(..., description="Membership ID")
+    user_id: str = Field(..., description="User ID")
+    company_id: str = Field(..., description="Company ID")
+    role_id: str = Field(..., description="Role ID")
+    login_username: str = Field(..., description="Per-company login username")
+    membership_is_active: bool = Field(..., description="Membership active status")
+    membership_created_at: datetime = Field(..., description="Membership created timestamp")
+    # User fields
+    display_name: str = Field(..., description="User global display name")
+    email: Optional[str] = Field(None, description="User email")
+    user_is_active: bool = Field(..., description="User active status")
+
+    @field_serializer('membership_created_at')
+    def serialize_membership_created_at(self, dt: datetime, _info):
+        return dt.isoformat()
+
+
+class CompanyMembersResponse(BaseModel):
+    """GET /api/admin/companies/{company_id}/members - response"""
+    company_id: str = Field(..., description="Company ID")
+    members: List[CompanyMemberResponse] = Field(..., description="Members list")
+    total: int = Field(..., description="Total member count")

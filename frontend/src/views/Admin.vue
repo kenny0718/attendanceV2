@@ -48,6 +48,22 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </router-link>
+
+        <router-link to="/admin/users" class="nav-card">
+          <div class="nav-card-icon nav-card-icon--purple">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <div class="nav-card-body">
+            <h2 class="nav-card-title">使用者 / 成員查看</h2>
+            <p class="nav-card-desc">查看各公司的使用者帳號與 Membership</p>
+          </div>
+          <svg class="nav-card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </router-link>
       </div>
     </div>
   </div>
@@ -113,6 +129,7 @@ import Navbar from '@/components/Navbar.vue'
 }
 .nav-card-icon--blue { background: linear-gradient(135deg, #7BA3D1, #4A6FA5); }
 .nav-card-icon--green { background: linear-gradient(135deg, #86efac, #16a34a); }
+.nav-card-icon--purple { background: linear-gradient(135deg, #c4b5fd, #7c3aed); }
 .nav-card-icon svg { width: 26px; height: 26px; }
 .nav-card-body { flex: 1; }
 .nav-card-title { font-size: 17px; font-weight: 600; color: var(--heading); margin: 0 0 6px; }

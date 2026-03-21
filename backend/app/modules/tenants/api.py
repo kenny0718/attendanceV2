@@ -287,3 +287,70 @@ def admin_onboard(
             login_username=membership.login_username,
         ),
     )
+
+
+# ── WP-S1-10B: Admin read-only members endpoint ──────────────────────
+
+from app.modules.tenants.schemas import CompanyMemberResponse, CompanyMembersResponse
+from app.modules.auth.models import Membership as MembershipModel, User as UserModel
+
+
+@router.get(
+    "/{company_id}/members",
+    response_model=CompanyMembersResponse,
+    tags=["admin", "users"],
+)
+def list_company_members(
+    company_id: str,
+    actor: Actor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+):
+    """
+    List all members (users + memberships) for a company.
+
+    Permission: super_admin only
+    """
+    if not actor.is_super_admin():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin can view company members"},
+        )
+
+    # Verify company exists
+    service = get_tenant_service(db)
+    if not service.tenant_exists(company_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"},
+        )
+
+    # Query memberships joined with users
+    rows = (
+        db.query(MembershipModel, UserModel)
+        .join(UserModel, MembershipModel.user_id == UserModel.id)
+        .filter(MembershipModel.company_id == company_id)
+        .order_by(MembershipModel.created_at.asc())
+        .all()
+    )
+
+    members = [
+        CompanyMemberResponse(
+            membership_id=str(m.id),
+            user_id=str(m.user_id),
+            company_id=m.company_id,
+            role_id=m.role_id,
+            login_username=m.login_username,
+            membership_is_active=m.is_active,
+            membership_created_at=m.created_at,
+            display_name=u.display_name,
+            email=u.email,
+            user_is_active=u.is_active,
+        )
+        for m, u in rows
+    ]
+
+    return CompanyMembersResponse(
+        company_id=company_id,
+        members=members,
+        total=len(members),
+    )

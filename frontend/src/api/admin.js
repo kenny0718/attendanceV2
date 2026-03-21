@@ -19,4 +19,10 @@ export const adminApi = {
   // POST /api/admin/companies/onboarding
   onboardCompany: (data) =>
     apiClient.post('/admin/companies/onboarding', data)
+,
+
+  // WP-S1-10B: List users + memberships for a company (read-only)
+  // GET /api/admin/companies/{company_id}/members
+  listCompanyMembers: (companyId) =>
+    apiClient.get(`/admin/companies/${companyId}/members`)
 }

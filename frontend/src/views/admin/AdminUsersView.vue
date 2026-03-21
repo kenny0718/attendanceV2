@@ -1,0 +1,302 @@
+<template>
+  <div class="admin-page">
+    <Navbar />
+    <div class="container">
+      <div class="admin-header">
+        <div class="admin-header-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="admin-title">使用者 / 成員查看</h1>
+          <p class="admin-description"><router-link to="/admin" class="back-link">← 平台管理</router-link></p>
+        </div>
+      </div>
+
+      <!-- Company Selector -->
+      <div class="panel selector-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
+            </svg>
+            選擇公司
+          </h2>
+          <button class="btn-refresh" :disabled="companiesLoading" @click="loadCompanies" title="重新整理公司列表">
+            <svg :class="{ spinning: companiesLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+        <div class="selector-body">
+          <div v-if="companiesLoading" class="state-box">
+            <div class="spinner"></div><span>載入公司列表中…</span>
+          </div>
+          <div v-else-if="companiesError" class="state-box state-error">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div><p class="state-title">載入失敗</p><p class="state-msg">{{ companiesError }}</p></div>
+          </div>
+          <div v-else class="selector-row">
+            <select v-model="selectedCompanyId" class="company-select" @change="onCompanyChange">
+              <option value="">— 請選擇公司 —</option>
+              <option v-for="co in companies" :key="co.id" :value="co.id">
+                {{ co.name }} ({{ co.id }})
+              </option>
+            </select>
+            <span v-if="companies.length > 0" class="company-count">共 {{ companies.length }} 間公司</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Members Panel -->
+      <div class="panel members-panel" v-if="selectedCompanyId">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            {{ selectedCompanyId }} 的成員
+          </h2>
+          <button class="btn-refresh" :disabled="membersLoading" @click="loadMembers" title="重新整理">
+            <svg :class="{ spinning: membersLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- loading -->
+        <div v-if="membersLoading" class="state-box">
+          <div class="spinner"></div><span>載入成員中…</span>
+        </div>
+
+        <!-- error -->
+        <div v-else-if="membersError" class="state-box state-error">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div><p class="state-title">載入失敗</p><p class="state-msg">{{ membersError }}</p></div>
+        </div>
+
+        <!-- empty -->
+        <div v-else-if="members.length === 0" class="state-box">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <div><p class="state-title">尚無成員</p><p class="state-msg">此公司目前沒有任何成員。</p></div>
+        </div>
+
+        <!-- success: table -->
+        <div v-else class="table-wrapper">
+          <table class="members-table">
+            <thead>
+              <tr>
+                <th>顯示名稱</th>
+                <th>登入帳號</th>
+                <th>角色</th>
+                <th>Email</th>
+                <th>帳號狀態</th>
+                <th>成員狀態</th>
+                <th>加入時間</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in members" :key="m.membership_id">
+                <td class="cell-name">{{ m.display_name }}</td>
+                <td class="cell-mono">{{ m.login_username }}</td>
+                <td><span class="role-badge" :class="'role-' + m.role_id">{{ m.role_id }}</span></td>
+                <td class="cell-email">{{ m.email || '—' }}</td>
+                <td>
+                  <span :class="m.user_is_active ? 'badge-active' : 'badge-inactive'">
+                    {{ m.user_is_active ? '啟用' : '停用' }}
+                  </span>
+                </td>
+                <td>
+                  <span :class="m.membership_is_active ? 'badge-active' : 'badge-inactive'">
+                    {{ m.membership_is_active ? '有效' : '停用' }}
+                  </span>
+                </td>
+                <td class="cell-date">{{ formatDate(m.membership_created_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="total-count">共 {{ members.length }} 名成員</p>
+        </div>
+      </div>
+
+      <!-- Initial state: no company selected -->
+      <div v-else class="state-box state-initial">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+        </svg>
+        <div><p class="state-title">請先選擇公司</p><p class="state-msg">從上方下拉選單選擇要查看的公司。</p></div>
+      </div>
+
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import Navbar from '@/components/Navbar.vue'
+import { adminApi } from '@/api/admin'
+
+// ── Companies ─────────────────────────────────────────────────────────
+const companies = ref([])
+const companiesLoading = ref(false)
+const companiesError = ref(null)
+
+async function loadCompanies() {
+  companiesLoading.value = true
+  companiesError.value = null
+  try {
+    const data = await adminApi.listCompanies()
+    companies.value = data.companies || []
+  } catch (err) {
+    companiesError.value = err.message || '無法載入公司列表，請稍後再試'
+  } finally {
+    companiesLoading.value = false
+  }
+}
+
+onMounted(loadCompanies)
+
+// ── Members ───────────────────────────────────────────────────────────
+const selectedCompanyId = ref('')
+const members = ref([])
+const membersLoading = ref(false)
+const membersError = ref(null)
+
+async function loadMembers() {
+  if (!selectedCompanyId.value) return
+  membersLoading.value = true
+  membersError.value = null
+  try {
+    const data = await adminApi.listCompanyMembers(selectedCompanyId.value)
+    members.value = data.members || []
+  } catch (err) {
+    membersError.value = err.message || '無法載入成員列表，請稍後再試'
+  } finally {
+    membersLoading.value = false
+  }
+}
+
+function onCompanyChange() {
+  members.value = []
+  membersError.value = null
+  loadMembers()
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────
+function formatDate(isoStr) {
+  if (!isoStr) return '—'
+  const d = new Date(isoStr)
+  if (isNaN(d)) return isoStr
+  return d.toLocaleDateString('zh-TW', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
+</script>
+
+<style scoped>
+.admin-page {
+  --primary: #4A6FA5;
+  --heading: #1C3B6B;
+  --text-primary: #2D3A52;
+  --text-secondary: #5A6C7D;
+  --bg-main: #F4F7F9;
+  --bg-card: #FFFFFF;
+  --border: #E5E7EB;
+  --error: #dc2626;
+  min-height: 100vh;
+  background-color: var(--bg-main);
+  padding-bottom: 48px;
+}
+.container { padding: 24px 16px; max-width: 1300px; margin: 0 auto; }
+@media (min-width: 768px) { .container { padding: 32px; } }
+
+/* Header */
+.admin-header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+.admin-header-icon {
+  width: 52px; height: 52px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #93c5fd, #3b82f6);
+  border-radius: 14px; color: white;
+}
+.admin-header-icon svg { width: 28px; height: 28px; }
+.admin-title { font-size: 26px; font-weight: 700; color: var(--heading); margin: 0 0 4px; }
+.admin-description { font-size: 13px; color: var(--text-secondary); margin: 0; }
+.back-link { color: var(--primary); text-decoration: none; }
+.back-link:hover { text-decoration: underline; }
+
+/* Panel */
+.panel { background: var(--bg-card); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); overflow: hidden; margin-bottom: 24px; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid var(--border); }
+.panel-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: var(--heading); margin: 0; }
+.panel-title svg { width: 18px; height: 18px; color: var(--primary); }
+
+/* Refresh */
+.btn-refresh { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
+.btn-refresh:hover:not(:disabled) { background: #F0F4F8; color: var(--primary); }
+.btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-refresh svg { width: 16px; height: 16px; }
+.spinning { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Selector */
+.selector-body { padding: 20px 24px; }
+.selector-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.company-select {
+  flex: 1; min-width: 260px; max-width: 480px;
+  padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px;
+  font-size: 14px; color: var(--text-primary); background: #fff;
+  outline: none; cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.company-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(74,111,165,0.12); }
+.company-count { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+
+/* State boxes */
+.state-box { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 48px 24px; color: var(--text-secondary); font-size: 14px; }
+.state-box svg { width: 36px; height: 36px; flex-shrink: 0; opacity: 0.4; }
+.state-error { color: var(--error); }
+.state-error svg { opacity: 1; }
+.state-initial svg { opacity: 0.3; }
+.state-title { font-weight: 600; margin: 0 0 4px; font-size: 15px; }
+.state-msg { margin: 0; font-size: 13px; opacity: 0.8; }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+
+/* Members table */
+.table-wrapper { overflow-x: auto; }
+.members-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.members-table th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; background: #F8FAFC; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.members-table td { padding: 12px 16px; border-bottom: 1px solid #F1F5F9; color: var(--text-primary); vertical-align: middle; }
+.members-table tbody tr:hover td { background: #F8FAFC; }
+.members-table tbody tr:last-child td { border-bottom: none; }
+.cell-name { font-weight: 500; }
+.cell-mono { font-family: monospace; font-size: 12px; }
+.cell-email { font-size: 12px; color: var(--text-secondary); }
+.cell-date { font-size: 12px; white-space: nowrap; color: var(--text-secondary); }
+.total-count { padding: 10px 16px; font-size: 12px; color: var(--text-secondary); text-align: right; margin: 0; border-top: 1px solid var(--border); }
+
+/* Badges */
+.badge-active { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #dcfce7; color: #15803d; }
+.badge-inactive { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #f1f5f9; color: #64748b; }
+
+/* Role badges */
+.role-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.role-admin { background: #dbeafe; color: #1d4ed8; }
+.role-company_admin { background: #dbeafe; color: #1d4ed8; }
+.role-manager { background: #ede9fe; color: #6d28d9; }
+.role-employee { background: #f1f5f9; color: #475569; }
+</style>

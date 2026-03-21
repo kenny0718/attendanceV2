@@ -63,6 +63,12 @@ const routes = [
     name: 'AdminOnboarding',
     component: () => import('@/views/admin/AdminOnboardingView.vue'),
     meta: { requiresAuth: true, requiresSuperAdmin: true }
+  },
+  {
+    path: '/admin/users',
+    name: 'AdminUsers',
+    component: () => import('@/views/admin/AdminUsersView.vue'),
+    meta: { requiresAuth: true, requiresSuperAdmin: true }
   }
 ]
 
