@@ -354,3 +354,81 @@ def list_company_members(
         members=members,
         total=len(members),
     )
+
+
+# ── WP-S1-10C: Membership active toggle endpoint ─────────────────────
+
+from app.modules.tenants.schemas import (
+    ToggleMembershipActiveRequest,
+    ToggleMembershipActiveResponse,
+)
+import uuid as _uuid
+
+
+@router.patch(
+    "/{company_id}/members/{membership_id}/active",
+    response_model=ToggleMembershipActiveResponse,
+    tags=["admin", "users"],
+)
+def toggle_membership_active(
+    company_id: str,
+    membership_id: str,
+    request: ToggleMembershipActiveRequest,
+    actor: Actor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+):
+    """
+    Toggle membership active state for a company member.
+
+    Permission: super_admin only
+    """
+    if not actor.is_super_admin():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin can toggle membership status"},
+        )
+
+    # Verify company exists
+    tenant_svc = get_tenant_service(db)
+    if not tenant_svc.tenant_exists(company_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"},
+        )
+
+    # Fetch membership by ID
+    try:
+        mem_uuid = _uuid.UUID(membership_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"},
+        )
+
+    membership = db.query(MembershipModel).filter(
+        MembershipModel.id == mem_uuid
+    ).first()
+
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "MEMBERSHIP_NOT_FOUND", "message": f"Membership '{membership_id}' not found"},
+        )
+
+    # Verify membership belongs to this company
+    if membership.company_id != company_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "MEMBERSHIP_COMPANY_MISMATCH", "message": "Membership does not belong to this company"},
+        )
+
+    # Apply toggle
+    membership.is_active = request.is_active
+    db.commit()
+    db.refresh(membership)
+
+    return ToggleMembershipActiveResponse(
+        membership_id=str(membership.id),
+        company_id=membership.company_id,
+        is_active=membership.is_active,
+    )

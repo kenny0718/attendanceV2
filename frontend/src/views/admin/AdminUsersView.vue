@@ -96,6 +96,13 @@
 
         <!-- success: table -->
         <div v-else class="table-wrapper">
+          <!-- toggle error banner -->
+          <div v-if="toggleError" class="toggle-error-bar">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>{{ toggleError }}</span>
+            <button class="toggle-error-close" @click="toggleError = null">✕</button>
+          </div>
+
           <table class="members-table">
             <thead>
               <tr>
@@ -106,6 +113,7 @@
                 <th>帳號狀態</th>
                 <th>成員狀態</th>
                 <th>加入時間</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -125,6 +133,26 @@
                   </span>
                 </td>
                 <td class="cell-date">{{ formatDate(m.membership_created_at) }}</td>
+                <td class="cell-action">
+                  <button
+                    v-if="m.membership_is_active"
+                    class="btn-toggle btn-deactivate"
+                    :disabled="togglingId === m.membership_id"
+                    @click="handleToggle(m, false)"
+                  >
+                    <span v-if="togglingId === m.membership_id" class="btn-spinner-sm"></span>
+                    <span v-else>停用</span>
+                  </button>
+                  <button
+                    v-else
+                    class="btn-toggle btn-activate"
+                    :disabled="togglingId === m.membership_id"
+                    @click="handleToggle(m, true)"
+                  >
+                    <span v-if="togglingId === m.membership_id" class="btn-spinner-sm"></span>
+                    <span v-else>啟用</span>
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -194,6 +222,29 @@ function onCompanyChange() {
   members.value = []
   membersError.value = null
   loadMembers()
+}
+
+// ── Toggle membership active ──────────────────────────────────────────
+const togglingId = ref(null)
+const toggleError = ref(null)
+
+async function handleToggle(member, newState) {
+  const action = newState ? '啟用' : '停用'
+  const confirmed = confirm(`確定要${action}「${member.display_name}（${member.login_username}）」的成員資格嗎？`)
+  if (!confirmed) return
+
+  togglingId.value = member.membership_id
+  toggleError.value = null
+  try {
+    await adminApi.toggleMembershipActive(selectedCompanyId.value, member.membership_id, newState)
+    // Local update to avoid full reload
+    const idx = members.value.findIndex(m => m.membership_id === member.membership_id)
+    if (idx !== -1) members.value[idx].membership_is_active = newState
+  } catch (err) {
+    toggleError.value = err.message || `${action}失敗，請稍後再試`
+  } finally {
+    togglingId.value = null
+  }
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────
@@ -299,4 +350,38 @@ function formatDate(isoStr) {
 .role-company_admin { background: #dbeafe; color: #1d4ed8; }
 .role-manager { background: #ede9fe; color: #6d28d9; }
 .role-employee { background: #f1f5f9; color: #475569; }
+
+/* ── Toggle action column ── */
+.cell-action { white-space: nowrap; }
+.btn-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 52px; padding: 4px 12px;
+  border: none; border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn-toggle:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-toggle:active:not(:disabled) { transform: scale(0.96); }
+.btn-deactivate { background: #fef2f2; color: #dc2626; }
+.btn-deactivate:hover:not(:disabled) { background: #fee2e2; }
+.btn-activate { background: #f0fdf4; color: #16a34a; }
+.btn-activate:hover:not(:disabled) { background: #dcfce7; }
+.btn-spinner-sm {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+}
+
+/* ── Toggle error bar ── */
+.toggle-error-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; background: #fef2f2;
+  border-bottom: 1px solid #fecaca; color: #dc2626; font-size: 13px;
+}
+.toggle-error-bar svg { width: 16px; height: 16px; flex-shrink: 0; }
+.toggle-error-bar span { flex: 1; }
+.toggle-error-close {
+  background: none; border: none; color: #dc2626;
+  cursor: pointer; font-size: 14px; padding: 0 4px;
+}
 </style>

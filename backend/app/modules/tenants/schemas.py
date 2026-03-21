@@ -162,3 +162,17 @@ class CompanyMembersResponse(BaseModel):
     company_id: str = Field(..., description="Company ID")
     members: List[CompanyMemberResponse] = Field(..., description="Members list")
     total: int = Field(..., description="Total member count")
+
+
+# ── WP-S1-10C: Membership toggle schemas ─────────────────────────────
+
+class ToggleMembershipActiveRequest(BaseModel):
+    """PATCH /api/admin/companies/{company_id}/members/{membership_id}/active"""
+    is_active: bool = Field(..., description="Target active state for membership")
+
+
+class ToggleMembershipActiveResponse(BaseModel):
+    """Response after toggling membership active state"""
+    membership_id: str = Field(..., description="Membership ID")
+    company_id: str = Field(..., description="Company ID")
+    is_active: bool = Field(..., description="New active state")

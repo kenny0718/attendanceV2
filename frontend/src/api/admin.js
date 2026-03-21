@@ -25,4 +25,10 @@ export const adminApi = {
   // GET /api/admin/companies/{company_id}/members
   listCompanyMembers: (companyId) =>
     apiClient.get(`/admin/companies/${companyId}/members`)
+,
+
+  // WP-S1-10C: Toggle membership active state (super_admin only)
+  // PATCH /api/admin/companies/{company_id}/members/{membership_id}/active
+  toggleMembershipActive: (companyId, membershipId, isActive) =>
+    apiClient.patch(`/admin/companies/${companyId}/members/${membershipId}/active`, { is_active: isActive })
 }
