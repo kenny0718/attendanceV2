@@ -245,3 +245,229 @@ class TestCreateCompany:
             json={"id": "unauth-co", "name": "Unauth Co"},
         )
         assert response.status_code == 401
+
+
+# ── S1-11A: GET /api/admin/companies/{company_id} ────────────────────
+
+class TestGetCompany:
+    """GET /api/admin/companies/{company_id}"""
+
+    def test_super_admin_can_get_company(self, db_session, client):
+        """super_admin 可讀取單一公司"""
+        db_session.add(Tenant(id="detail-co-1", name="Detail Co", timezone="Asia/Taipei", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.get("/api/admin/companies/detail-co-1")
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == "detail-co-1"
+        assert data["name"] == "Detail Co"
+        assert data["timezone"] == "Asia/Taipei"
+        assert data["is_active"] is True
+        assert "created_at" in data
+
+    def test_get_company_not_found(self, db_session, client):
+        """company 不存在 → 404"""
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.get("/api/admin/companies/nonexistent-xyz")
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["code"] == "COMPANY_NOT_FOUND"
+
+    def test_company_admin_cannot_get_company(self, db_session, client):
+        """company_admin → 403"""
+        db_session.add(Tenant(id="detail-co-2", name="Detail Co 2", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_company_admin_actor())
+        try:
+            response = client.get("/api/admin/companies/detail-co-2")
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+
+    def test_employee_cannot_get_company(self, db_session, client):
+        """employee → 403"""
+        db_session.add(Tenant(id="detail-co-3", name="Detail Co 3", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_employee_actor())
+        try:
+            response = client.get("/api/admin/companies/detail-co-3")
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 403
+
+    def test_unauthenticated_cannot_get_company(self, client):
+        """未驗證 → 401"""
+        response = client.get("/api/admin/companies/any-co")
+        assert response.status_code == 401
+
+
+# ── S1-11A: PATCH /api/admin/companies/{company_id} ──────────────────
+
+class TestUpdateCompany:
+    """PATCH /api/admin/companies/{company_id}"""
+
+    def test_super_admin_can_update_name(self, db_session, client):
+
+        """super_admin 可更新 name，DB 真的改變"""
+        db_session.add(Tenant(id="upd-co-1", name="Old Name", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.patch(
+                "/api/admin/companies/upd-co-1",
+                json={"name": "New Name"},
+            )
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 200
+        assert response.json()["name"] == "New Name"
+        db_session.expire_all()
+        tenant = db_session.query(Tenant).filter_by(id="upd-co-1").first()
+        assert tenant.name == "New Name"
+
+    def test_super_admin_can_update_timezone(self, db_session, client):
+        """super_admin 可更新 timezone，DB 真的改變"""
+        db_session.add(Tenant(id="upd-co-2", name="Tz Co", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.patch(
+                "/api/admin/companies/upd-co-2",
+                json={"timezone": "Asia/Tokyo"},
+            )
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 200
+        assert response.json()["timezone"] == "Asia/Tokyo"
+        db_session.expire_all()
+        tenant = db_session.query(Tenant).filter_by(id="upd-co-2").first()
+        assert tenant.timezone == "Asia/Tokyo"
+
+    def test_super_admin_can_deactivate_company(self, db_session, client):
+        """super_admin 可停用 company，DB is_active 變 False"""
+        db_session.add(Tenant(id="upd-co-3", name="Active Co", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.patch(
+                "/api/admin/companies/upd-co-3",
+                json={"is_active": False},
+            )
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 200
+        assert response.json()["is_active"] is False
+        db_session.expire_all()
+        tenant = db_session.query(Tenant).filter_by(id="upd-co-3").first()
+        assert tenant.is_active is False
+
+    def test_super_admin_can_reactivate_company(self, db_session, client):
+        """super_admin 可重新啟用 company"""
+        db_session.add(Tenant(id="upd-co-4", name="Inactive Co", timezone="UTC", is_active=False))
+        db_session.commit()
+
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.patch(
+                "/api/admin/companies/upd-co-4",
+                json={"is_active": True},
+            )
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 200
+        assert response.json()["is_active"] is True
+        db_session.expire_all()
+        tenant = db_session.query(Tenant).filter_by(id="upd-co-4").first()
+        assert tenant.is_active is True
+
+    def test_update_company_not_found(self, db_session, client):
+        """company 不存在 → 404"""
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.patch(
+                "/api/admin/companies/nonexistent-upd-xyz",
+                json={"name": "Ghost"},
+            )
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["code"] == "COMPANY_NOT_FOUND"
+
+    def test_update_company_empty_body_rejected(self, db_session, client):
+        """空 body → 422"""
+        db_session.add(Tenant(id="upd-co-5", name="Empty Body Co", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.patch(
+                "/api/admin/companies/upd-co-5",
+                json={},
+            )
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 422
+
+    def test_company_admin_cannot_update_company(self, db_session, client):
+        """company_admin → 403"""
+        db_session.add(Tenant(id="upd-co-6", name="Co Admin Target", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_company_admin_actor())
+        try:
+            response = client.patch(
+                "/api/admin/companies/upd-co-6",
+                json={"name": "Hacked"},
+            )
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+
+    def test_employee_cannot_update_company(self, db_session, client):
+        """employee → 403"""
+        db_session.add(Tenant(id="upd-co-7", name="Emp Target", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_employee_actor())
+        try:
+            response = client.patch(
+                "/api/admin/companies/upd-co-7",
+                json={"name": "Hacked"},
+            )
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 403
+
+    def test_unauthenticated_cannot_update_company(self, client):
+        """未驗證 → 401"""
+        response = client.patch(
+            "/api/admin/companies/any-co",
+            json={"name": "Ghost"},
+        )
+        assert response.status_code == 401

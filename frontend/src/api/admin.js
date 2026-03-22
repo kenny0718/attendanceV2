@@ -35,5 +35,15 @@ export const adminApi = {
   // WP-S1-10D: Create a new member in a company (super_admin only)
   // POST /api/admin/companies/{company_id}/members
   createCompanyMember: (companyId, payload) =>
-    apiClient.post(`/admin/companies/${companyId}/members`, payload)
+    apiClient.post(`/admin/companies/${companyId}/members`, payload),
+
+  // S1-11A: Get single company detail
+  // GET /api/admin/companies/{company_id}
+  getCompany: (companyId) =>
+    apiClient.get(`/admin/companies/${companyId}`),
+
+  // S1-11A: Update company basic info (name / timezone / is_active)
+  // PATCH /api/admin/companies/{company_id}
+  updateCompany: (companyId, payload) =>
+    apiClient.patch(`/admin/companies/${companyId}`, payload)
 }

@@ -39,7 +39,7 @@
             <table class="company-table">
               <thead><tr><th>ID</th><th>名稱</th><th>狀態</th><th>時區</th><th>建立時間</th></tr></thead>
               <tbody>
-                <tr v-for="co in companies" :key="co.id">
+                <tr v-for="co in companies" :key="co.id" class="company-row" :class="{selected: selectedCompany?.id === co.id}" @click="selectCompany(co)" style="cursor:pointer">
                   <td class="cell-id">{{ co.id }}</td>
                   <td class="cell-name">{{ co.name }}</td>
                   <td><span :class="co.is_active ? 'badge-active' : 'badge-inactive'">{{ co.is_active ? '啟用' : '停用' }}</span></td>
@@ -98,6 +98,67 @@
               {{ createLoading ? '建立中…' : '建立公司' }}
             </button>
           </form>
+        </section>
+
+        <!-- S1-11A: Company Detail / Edit Panel -->
+        <section class="panel panel-detail">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+              公司詳情 / 編輯
+            </h2>
+          </div>
+          <div v-if="!selectedCompany" class="detail-empty">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" /></svg>
+            <p>點擊左側列表選取公司以查看詳情</p>
+          </div>
+          <div v-else class="detail-body">
+            <div class="detail-meta">
+              <div class="detail-meta-item"><span class="detail-meta-label">ID</span><span class="detail-meta-val mono">{{ selectedCompany.id }}</span></div>
+              <div class="detail-meta-item"><span class="detail-meta-label">建立時間</span><span class="detail-meta-val">{{ formatDate(selectedCompany.created_at) }}</span></div>
+              <div class="detail-meta-item"><span class="detail-meta-label">狀態</span><span :class="selectedCompany.is_active ? 'badge-active' : 'badge-inactive'">{{ selectedCompany.is_active ? '啟用' : '停用' }}</span></div>
+            </div>
+
+            <div v-if="detailSuccess" class="alert alert-success" style="margin:0 0 12px">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <span>{{ detailSuccess }}</span>
+            </div>
+            <div v-if="detailError" class="alert alert-error" style="margin:0 0 12px">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <span>{{ detailError }}</span>
+            </div>
+
+            <form @submit.prevent="handleUpdate" class="detail-form" novalidate>
+              <div class="form-group">
+                <label class="form-label" for="d-name">公司名稱</label>
+                <input id="d-name" v-model.trim="editForm.name" type="text" class="form-input" maxlength="255" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="d-tz">時區</label>
+                <select id="d-tz" v-model="editForm.timezone" class="form-input">
+                  <option value="UTC">UTC</option>
+                  <option value="Asia/Taipei">Asia/Taipei（台北）</option>
+                  <option value="Asia/Tokyo">Asia/Tokyo（東京）</option>
+                  <option value="Asia/Shanghai">Asia/Shanghai（上海）</option>
+                  <option value="Asia/Singapore">Asia/Singapore（新加坡）</option>
+                  <option value="America/New_York">America/New_York（紐約）</option>
+                  <option value="America/Los_Angeles">America/Los_Angeles（洛杉磯）</option>
+                  <option value="Europe/London">Europe/London（倫敦）</option>
+                  <option value="Europe/Paris">Europe/Paris（巴黎）</option>
+                </select>
+              </div>
+              <div class="detail-actions">
+                <button type="submit" class="btn-submit" :disabled="detailLoading">
+                  <span v-if="detailLoading" class="btn-spinner"></span>
+                  <svg v-else fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  {{ detailLoading ? '儲存中…' : '儲存變更' }}
+                </button>
+                <button type="button" class="btn-toggle" :disabled="detailLoading" @click="handleToggleActive">
+                  {{ selectedCompany.is_active ? '停用公司' : '啟用公司' }}
+                </button>
+              </div>
+            </form>
+          </div>
         </section>
       </div>
     </div>
@@ -189,6 +250,67 @@ async function handleCreate() {
   } finally {
     createLoading.value = false
   }
+}
+
+// ── S1-11A: Company Detail / Edit ──────────────────────────────────
+const selectedCompany = ref(null)
+const editForm = reactive({ name: '', timezone: 'UTC' })
+const detailLoading = ref(false)
+const detailError = ref(null)
+const detailSuccess = ref(null)
+
+function selectCompany(co) {
+  selectedCompany.value = co
+  editForm.name = co.name
+  editForm.timezone = co.timezone
+  detailError.value = null
+  detailSuccess.value = null
+}
+
+async function handleUpdate() {
+  if (!selectedCompany.value) return
+  detailError.value = null
+  detailSuccess.value = null
+  detailLoading.value = true
+  try {
+    const updated = await adminApi.updateCompany(selectedCompany.value.id, {
+      name: editForm.name,
+      timezone: editForm.timezone
+    })
+    selectedCompany.value = updated
+    detailSuccess.value = '變更已儲存'
+    await loadCompanies()
+  } catch (err) {
+    detailError.value = err.message || '更新失敗，請稍後再試'
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+async function handleToggleActive() {
+  if (!selectedCompany.value) return
+  const target = !selectedCompany.value.is_active
+  const label = target ? '啟用' : '停用'
+  if (!confirm(`確認要${label}公司「${selectedCompany.value.name}」？`)) return
+  detailError.value = null
+  detailSuccess.value = null
+  detailLoading.value = true
+  try {
+    const updated = await adminApi.updateCompany(selectedCompany.value.id, { is_active: target })
+    selectedCompany.value = updated
+    detailSuccess.value = `公司已${label}`
+    await loadCompanies()
+  } catch (err) {
+    detailError.value = err.message || `${label}失敗，請稍後再試`
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function formatDate(val) {
+  if (!val) return '—'
+  const d = new Date(val)
+  return d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })
 }
 </script>
 
@@ -302,4 +424,33 @@ async function handleCreate() {
 .ob-col-title { font-size: 13px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 4px; padding-bottom: 8px; border-bottom: 2px solid #EFF3F8; }
 .btn-ob-submit { margin-top: 8px; align-self: flex-start; padding: 12px 28px; font-size: 15px; }
 .btn-ob-submit svg { width: 18px; height: 18px; }
+
+/* ── S1-11A: Company Detail Panel ── */
+.main-layout { grid-template-columns: 1fr; }
+@media (min-width: 1024px) { .main-layout { grid-template-columns: 1fr 380px 380px; } }
+
+.panel-detail { min-height: 200px; }
+
+.detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 48px 24px; color: var(--text-secondary); font-size: 13px; text-align: center; }
+.detail-empty svg { width: 32px; height: 32px; opacity: 0.35; }
+.detail-empty p { margin: 0; }
+
+.detail-body { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.detail-meta { display: flex; flex-direction: column; gap: 8px; background: #F8FAFC; border-radius: 10px; padding: 14px 16px; }
+.detail-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.detail-meta-label { font-weight: 600; color: var(--text-secondary); min-width: 72px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.detail-meta-val { color: var(--text-primary); }
+.mono { font-family: monospace; font-size: 12px; }
+
+.detail-form { display: flex; flex-direction: column; gap: 14px; }
+
+.detail-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+.btn-toggle { padding: 10px 16px; background: transparent; border: 1.5px solid var(--border-input); border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; transition: all 0.2s; }
+.btn-toggle:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: #F0F4F8; }
+.btn-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* selected row highlight */
+.company-row.selected td { background: #EBF2FB !important; }
 </style>
