@@ -9,6 +9,7 @@ export const authApi = {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     localStorage.removeItem('company')
+    localStorage.removeItem('role')
     return Promise.resolve()
   },
   
