@@ -202,6 +202,72 @@ class AuthRepository:
         
         return membership
     
+    def create_user_no_commit(
+        self,
+        display_name: str,
+        plain_password: str,
+        email: Optional[str] = None,
+        is_active: bool = True,
+        is_otp: bool = False,
+        must_change_password: bool = False
+    ) -> User:
+        """Create a new user WITHOUT committing.
+
+        Identical to create_user() but uses flush() instead of commit(),
+        so the caller controls the transaction boundary.
+        Use this for orchestration flows (onboarding, add-member) that
+        also create a Membership in the same transaction.
+
+        The caller MUST call db.commit() (or db.rollback()) after all
+        related objects are flushed.
+        """
+        password_hash = hash_password(plain_password)
+        user = User(
+            id=uuid.uuid4(),
+            display_name=display_name,
+            email=email,
+            password_hash=password_hash,
+            is_active=is_active,
+            is_otp=is_otp,
+            must_change_password=must_change_password,
+        )
+        self.db.add(user)
+        self.db.flush()  # write to DB but DO NOT commit
+        logger.info(f"Flushed user (no-commit): id={user.id}, display_name={display_name}")
+        return user
+
+    def create_membership_no_commit(
+        self,
+        user_id: uuid.UUID,
+        company_id: str,
+        role_id: str,
+        login_username: str,
+        login_email: Optional[str] = None,
+        is_active: bool = True
+    ) -> Membership:
+        """Create a Membership WITHOUT committing.
+
+        Identical to create_membership() but uses flush() instead of commit().
+        Use together with create_user_no_commit() so both objects live in
+        the same transaction and can be rolled back atomically on failure.
+
+        The caller MUST call db.commit() (or db.rollback()) after all
+        related objects are flushed.
+        """
+        membership = Membership(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            company_id=company_id,
+            role_id=role_id,
+            login_username=login_username,
+            login_email=login_email,
+            is_active=is_active,
+        )
+        self.db.add(membership)
+        self.db.flush()  # write to DB but DO NOT commit
+        logger.info(f"Flushed membership (no-commit): user_id={user_id}, company_id={company_id}, login_username={login_username}")
+        return membership
+
     def get_membership_by_login(self, company_id: str, login_username: str) -> Optional[Membership]:
         """Get membership by company_id + login_username (for login)
         

@@ -432,3 +432,94 @@ def toggle_membership_active(
         company_id=membership.company_id,
         is_active=membership.is_active,
     )
+
+
+
+# ── WP-S1-10D: Create Member endpoint ────────────────────────────────
+
+from app.modules.tenants.schemas import CreateMemberRequest, CreateMemberResponse
+from app.modules.auth.repo import AuthRepository
+from sqlalchemy.exc import IntegrityError as _IntegrityError
+
+
+@router.post(
+    "/{company_id}/members",
+    response_model=CreateMemberResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=['admin', 'users'],
+)
+def create_company_member(
+    company_id: str,
+    request: CreateMemberRequest,
+    actor: Actor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+):
+    if not actor.is_super_admin():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={'code': 'SCOPE_FORBIDDEN', 'message': 'Only super_admin can add company members'},
+        )
+
+    tenant_svc = get_tenant_service(db)
+    if not tenant_svc.tenant_exists(company_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={'code': 'COMPANY_NOT_FOUND', 'message': f"Company '{company_id}' not found"},
+        )
+
+    from app.modules.auth.models import Role as _Role
+    role = db.query(_Role).filter(_Role.id == request.role_id).first()
+    if role is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={'code': 'INVALID_ROLE', 'message': f"Role '{request.role_id}' does not exist"},
+        )
+
+    auth_repo = AuthRepository(db)
+    try:
+        # Use no-commit path so user + membership are in the same transaction.
+        # If membership flush fails, the rollback removes the user too — no orphan.
+        user = auth_repo.create_user_no_commit(
+            display_name=request.display_name,
+            plain_password=request.password,
+            email=request.email,
+        )
+        membership = auth_repo.create_membership_no_commit(
+            user_id=user.id,
+            company_id=company_id,
+            role_id=request.role_id,
+            login_username=request.login_username,
+            login_email=request.email,
+        )
+        # Single atomic commit — both user and membership persist together
+        db.commit()
+        db.refresh(user)
+        db.refresh(membership)
+    except _IntegrityError as e:
+        db.rollback()
+        err_str = str(e.orig) if hasattr(e, 'orig') else str(e)
+        if 'uq_memberships_company_login' in err_str:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={'code': 'DUPLICATE_LOGIN_USERNAME', 'message': 'Login username already exists in this company'},
+            )
+        if 'uq_memberships_user_company' in err_str:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={'code': 'DUPLICATE_MEMBERSHIP', 'message': 'User already has membership in this company'},
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={'code': 'INTEGRITY_ERROR', 'message': 'Data conflict: ' + err_str[:200]},
+        )
+
+    return CreateMemberResponse(
+        membership_id=str(membership.id),
+        user_id=str(user.id),
+        company_id=company_id,
+        role_id=membership.role_id,
+        login_username=membership.login_username,
+        display_name=user.display_name,
+        email=user.email,
+        is_active=membership.is_active,
+    )

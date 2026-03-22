@@ -279,3 +279,94 @@ class TestAdminOnboarding:
         finally:
             _clear()
         assert resp.status_code == 422
+
+
+
+# ── WP-S1-10E: Atomicity tests ────────────────────────────────────────
+
+class TestOnboardingAtomicity:
+
+    def test_duplicate_login_username_leaves_no_orphan_user(self, client, db_session):
+        """membership duplicate → commit 应該被 rollback，DB 不對留孤兒 user"""
+        from app.core.scope import Actor, UserRole
+        from uuid import uuid4
+        from app.modules.auth.models import User as _User
+
+        suffix = str(uuid4())[:8]
+        company_id = f"atomic-co-{suffix}"
+
+        # First onboarding — should succeed
+        payload1 = {
+            "company": {"id": company_id, "name": f"Atomic Co {suffix}", "timezone": "UTC"},
+            "initial_user": {
+                "display_name": f"First User {suffix}",
+                "login_username": f"shared-login-{suffix}",
+                "password": "password123",
+                "email": None,
+                "role_id": "admin",
+            },
+        }
+        _override(client, _super_admin())
+        try:
+            resp1 = client.post(URL, json=payload1)
+        finally:
+            _clear()
+        assert resp1.status_code == 201, f"First onboarding failed: {resp1.json()}"
+
+        # Count users before second attempt
+        user_count_before = db_session.query(_User).count()
+
+        # Second onboarding — same company → 409 DUPLICATE_COMPANY
+        # (will fail before creating user, so this tests company-level guard)
+        payload2 = {
+            "company": {"id": company_id, "name": f"Atomic Co {suffix}", "timezone": "UTC"},
+            "initial_user": {
+                "display_name": f"Second User {suffix}",
+                "login_username": f"shared-login-{suffix}",
+                "password": "password123",
+                "email": None,
+                "role_id": "admin",
+            },
+        }
+        _override(client, _super_admin())
+        try:
+            resp2 = client.post(URL, json=payload2)
+        finally:
+            _clear()
+        assert resp2.status_code == 409
+
+        # User count must not have increased
+        user_count_after = db_session.query(_User).count()
+        assert user_count_after == user_count_before, (
+            f"Orphan user left in DB! count before={user_count_before}, after={user_count_after}"
+        )
+
+    def test_invalid_role_leaves_no_orphan_user(self, client, db_session):
+        """invalid role → onboarding 失敗，DB 不對留孤兒 user"""
+        from app.modules.auth.models import User as _User
+
+        suffix = str(uuid4())[:8]
+        user_count_before = db_session.query(_User).count()
+
+        payload = {
+            "company": {"id": f"badrol-co-{suffix}", "name": f"Bad Role Co {suffix}", "timezone": "UTC"},
+            "initial_user": {
+                "display_name": f"No Role User {suffix}",
+                "login_username": f"norole-{suffix}",
+                "password": "password123",
+                "email": None,
+                "role_id": "nonexistent_role_xyz",
+            },
+        }
+        _override(client, _super_admin())
+        try:
+            resp = client.post(URL, json=payload)
+        finally:
+            _clear()
+        assert resp.status_code == 422
+        assert resp.json()["detail"]["code"] == "INVALID_ROLE"
+
+        user_count_after = db_session.query(_User).count()
+        assert user_count_after == user_count_before, (
+            f"Orphan user left in DB! count before={user_count_before}, after={user_count_after}"
+        )

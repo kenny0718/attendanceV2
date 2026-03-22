@@ -395,24 +395,28 @@ class OnboardingService:
             self.db.add(company)
             self.db.flush()  # write to DB but do NOT commit yet
 
-            # Step 2: create global user
-            user = self.auth_repo.create_user(
+            # Step 2: create global user (no-commit — stays in same transaction)
+            user = self.auth_repo.create_user_no_commit(
                 display_name=user_display_name,
                 plain_password=user_password,
                 email=user_email,
                 must_change_password=False,
             )
-            # create_user() calls commit internally; re-use the session
-            # so membership can see both company and user.
 
-            # Step 3: create membership
-            membership = self.auth_repo.create_membership(
+            # Step 3: create membership (no-commit — same transaction)
+            membership = self.auth_repo.create_membership_no_commit(
                 user_id=user.id,
                 company_id=company_id,
                 role_id=user_role_id,
                 login_username=user_login_username,
                 login_email=user_email,
             )
+
+            # Step 4: single atomic commit — if anything above failed, nothing is persisted
+            self.db.commit()
+            self.db.refresh(company)
+            self.db.refresh(user)
+            self.db.refresh(membership)
 
         except Exception:
             self.db.rollback()

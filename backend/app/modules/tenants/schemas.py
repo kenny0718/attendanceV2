@@ -176,3 +176,27 @@ class ToggleMembershipActiveResponse(BaseModel):
     membership_id: str = Field(..., description="Membership ID")
     company_id: str = Field(..., description="Company ID")
     is_active: bool = Field(..., description="New active state")
+
+
+
+# ── WP-S1-10D: Create Member schemas ─────────────────────────────────
+
+class CreateMemberRequest(BaseModel):
+    """POST /api/admin/companies/{company_id}/members — request body"""
+    display_name: str = Field(..., min_length=1, max_length=100, description="User display name")
+    email: Optional[str] = Field(None, max_length=255, description="Email for notifications (optional)")
+    login_username: str = Field(..., min_length=1, max_length=100, description="Per-company login username")
+    password: str = Field(..., min_length=6, max_length=255, description="Initial password (min 6 chars)")
+    role_id: str = Field(default="employee", max_length=50, description="Membership role (default: employee)")
+
+
+class CreateMemberResponse(BaseModel):
+    """POST /api/admin/companies/{company_id}/members — response body"""
+    membership_id: str = Field(..., description="Membership ID")
+    user_id: str = Field(..., description="User ID")
+    company_id: str = Field(..., description="Company ID")
+    role_id: str = Field(..., description="Role ID")
+    login_username: str = Field(..., description="Per-company login username")
+    display_name: str = Field(..., description="User display name")
+    email: Optional[str] = Field(None, description="User email")
+    is_active: bool = Field(..., description="Membership active status")
