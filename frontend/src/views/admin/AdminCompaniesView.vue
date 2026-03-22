@@ -160,6 +160,110 @@
             </form>
           </div>
         </section>
+
+        <!-- Members Panel -->
+        <section v-if="selectedCompany" class="members-section">
+          <div class="panel-header members-section-header">
+            <h2 class="panel-title">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              成員管理 — {{ selectedCompany.name }}
+            </h2>
+            <button class="btn-refresh" :disabled="membersLoading" @click="loadMembers" title="重新整理">
+              <svg :class="{ spinning: membersLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            </button>
+          </div>
+
+          <div class="members-body">
+            <div v-if="membersLoading" class="state-box"><div class="spinner"></div><span>載入中…</span></div>
+            <div v-else-if="membersError" class="state-box state-error">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <span>{{ membersError }}</span>
+            </div>
+            <div v-else-if="members.length === 0" class="state-box state-empty">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+              <span>尚無成員，使用下方表單新增</span>
+            </div>
+            <div v-else class="members-table-wrapper">
+              <table class="members-table">
+                <thead><tr><th>登入帳號</th><th>顯示名稱</th><th>角色</th><th>狀態</th><th>加入時間</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr v-for="m in members" :key="m.membership_id">
+                    <td class="cell-id">{{ m.login_username }}</td>
+                    <td>{{ m.display_name }}</td>
+                    <td><span class="role-badge">{{ m.role_id }}</span></td>
+                    <td>
+                      <span :class="m.membership_is_active ? 'badge-active' : 'badge-inactive'">
+                        {{ m.membership_is_active ? '啟用' : '停用' }}
+                      </span>
+                    </td>
+                    <td class="cell-date">{{ formatDate(m.membership_created_at) }}</td>
+                    <td>
+                      <button
+                        class="btn-mem-toggle"
+                        :disabled="memberActionLoading === m.membership_id"
+                        @click="handleToggleMembership(m)"
+                      >
+                        {{ m.membership_is_active ? '停用' : '啟用' }}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="total-count">共 {{ members.length }} 位成員</p>
+            </div>
+
+            <!-- Add member form -->
+            <div class="add-member-section">
+              <div class="add-member-header" @click="showAddMember = !showAddMember" style="cursor:pointer">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                <span>新增成員</span>
+                <svg class="chevron" :class="{open: showAddMember}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              <div v-if="showAddMember" class="add-member-body">
+                <div v-if="addMemberSuccess" class="alert alert-success" style="margin:0 0 12px">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span>{{ addMemberSuccess }}</span>
+                </div>
+                <div v-if="addMemberError" class="alert alert-error" style="margin:0 0 12px">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span>{{ addMemberError }}</span>
+                </div>
+                <form @submit.prevent="handleAddMember" class="add-member-form" novalidate>
+                  <div class="am-grid">
+                    <div class="form-group">
+                      <label class="form-label" for="am-dispname">顯示名稱 <span class="label-hint">必填</span></label>
+                      <input id="am-dispname" v-model.trim="addForm.display_name" type="text" class="form-input" maxlength="100" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="am-username">登入帳號 <span class="label-hint">必填</span></label>
+                      <input id="am-username" v-model.trim="addForm.login_username" type="text" class="form-input" maxlength="100" autocomplete="off" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="am-password">初始密碼 <span class="label-hint">最少 6 字</span></label>
+                      <input id="am-password" v-model="addForm.password" type="password" class="form-input" maxlength="255" autocomplete="new-password" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="am-email">Email <span class="label-hint">選填</span></label>
+                      <input id="am-email" v-model.trim="addForm.email" type="email" class="form-input" maxlength="255" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="am-role">角色</label>
+                      <select id="am-role" v-model="addForm.role_id" class="form-input">
+                        <option value="employee">employee（員工）</option>
+                        <option value="company_admin">company_admin（公司管理員）</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn-submit" style="margin-top:4px" :disabled="addMemberLoading">
+                    <span v-if="addMemberLoading" class="btn-spinner"></span>
+                    <svg v-else fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                    {{ addMemberLoading ? '新增中…' : '新增成員' }}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -265,6 +369,12 @@ function selectCompany(co) {
   editForm.timezone = co.timezone
   detailError.value = null
   detailSuccess.value = null
+  // reset members panel
+  members.value = []
+  showAddMember.value = false
+  addMemberSuccess.value = null
+  addMemberError.value = null
+  loadMembers()
 }
 
 async function handleUpdate() {
@@ -311,6 +421,84 @@ function formatDate(val) {
   if (!val) return '—'
   const d = new Date(val)
   return d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })
+}
+
+// ── Members Management ──────────────────────────────────────────────
+const members = ref([])
+const membersLoading = ref(false)
+const membersError = ref(null)
+const memberActionLoading = ref(null)
+
+const showAddMember = ref(false)
+const addForm = reactive({ display_name: '', login_username: '', password: '', email: '', role_id: 'employee' })
+const addMemberLoading = ref(false)
+const addMemberSuccess = ref(null)
+const addMemberError = ref(null)
+
+async function loadMembers() {
+  if (!selectedCompany.value) return
+  membersLoading.value = true
+  membersError.value = null
+  try {
+    const data = await adminApi.listCompanyMembers(selectedCompany.value.id)
+    members.value = data.members || []
+  } catch (err) {
+    membersError.value = err.message || '無法載入成員列表'
+  } finally {
+    membersLoading.value = false
+  }
+}
+
+async function handleToggleMembership(m) {
+  const target = !m.membership_is_active
+  const label = target ? '啟用' : '停用'
+  if (!confirm(`確認要${label}成員「${m.display_name}」的帳號？`)) return
+  memberActionLoading.value = m.membership_id
+  try {
+    await adminApi.toggleMembershipActive(selectedCompany.value.id, m.membership_id, target)
+    await loadMembers()
+  } catch (err) {
+    alert(err.message || `${label}失敗`)
+  } finally {
+    memberActionLoading.value = null
+  }
+}
+
+async function handleAddMember() {
+  addMemberSuccess.value = null
+  addMemberError.value = null
+  if (!addForm.display_name || !addForm.login_username || !addForm.password) {
+    addMemberError.value = '顯示名稱、登入帳號、初始密碼為必填'
+    return
+  }
+  addMemberLoading.value = true
+  try {
+    const created = await adminApi.createCompanyMember(selectedCompany.value.id, {
+      display_name: addForm.display_name,
+      login_username: addForm.login_username,
+      password: addForm.password,
+      email: addForm.email || undefined,
+      role_id: addForm.role_id,
+    })
+    addMemberSuccess.value = `成員「${created.display_name}」已新增`
+    addForm.display_name = ''
+    addForm.login_username = ''
+    addForm.password = ''
+    addForm.email = ''
+    addForm.role_id = 'employee'
+    await loadMembers()
+  } catch (err) {
+    const code = err.data?.detail?.code
+    if (code === 'DUPLICATE_LOGIN_USERNAME') {
+      addMemberError.value = `登入帳號「${addForm.login_username}」已存在於此公司`
+    } else if (code === 'INVALID_ROLE') {
+      addMemberError.value = '角色無效'
+    } else {
+      addMemberError.value = err.message || '新增失敗，請稍後再試'
+    }
+  } finally {
+    addMemberLoading.value = false
+  }
 }
 </script>
 
@@ -453,4 +641,33 @@ function formatDate(val) {
 
 /* selected row highlight */
 .company-row.selected td { background: #EBF2FB !important; }
+
+/* ── Members Panel ── */
+.members-section { background: var(--bg-card); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); overflow: hidden; margin-top: 24px; }
+.members-section-header { background: linear-gradient(135deg, #EFF6FF, #DBEAFE); border-bottom: 1px solid #BFDBFE; }
+.members-body { padding: 0; }
+
+.members-table-wrapper { overflow-x: auto; }
+.members-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.members-table th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; background: #F8FAFC; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.members-table td { padding: 11px 14px; border-bottom: 1px solid #F1F5F9; color: var(--text-primary); vertical-align: middle; }
+.members-table tbody tr:hover td { background: #F8FAFC; }
+.members-table tbody tr:last-child td { border-bottom: none; }
+
+.role-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+
+.btn-mem-toggle { padding: 4px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-input); background: transparent; color: var(--text-primary); cursor: pointer; transition: all 0.15s; }
+.btn-mem-toggle:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: #F0F4F8; }
+.btn-mem-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Add member section */
+.add-member-section { border-top: 1px solid var(--border); }
+.add-member-header { display: flex; align-items: center; gap: 8px; padding: 14px 20px; font-size: 13px; font-weight: 600; color: var(--primary); user-select: none; }
+.add-member-header svg { width: 16px; height: 16px; }
+.add-member-header .chevron { width: 14px; height: 14px; margin-left: auto; transition: transform 0.2s; }
+.add-member-header .chevron.open { transform: rotate(180deg); }
+.add-member-body { padding: 0 20px 20px; }
+.add-member-form { display: flex; flex-direction: column; gap: 12px; }
+.am-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 767px) { .am-grid { grid-template-columns: 1fr; } }
 </style>
