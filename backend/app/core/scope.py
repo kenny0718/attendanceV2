@@ -46,7 +46,7 @@ class Actor:
     WP-C1-02 Step 1 變更：
     - 新增 active_company_id：本次請求的公司範圍（來自 JWT claim company_id）
     - 新增 active_role_id：本次請求公司內部角色（來自 Membership.role_id）
-    - 新增 is_admin() / is_employee()：公司內部 RBAC 輔助方法
+    - is_admin(): company_admin / hr_manager (S1-11D normalized)
     - Actor 不儲存全局 company_id；active_company_id 僅代表此次請求的 scope
 
     SA v2.0 多公司設計：
@@ -91,10 +91,12 @@ class Actor:
     # ── 公司內部 RBAC（依 active_role_id）────────────────────────────
 
     def is_admin(self) -> bool:
-        """是否為所在公司的管理員
+        """是否為所在公司的管理員 (S1-11D)
 
-        判斷依據：active_role_id in ('admin', 'manager', 'hr')
-        Super Admin 一律視為 admin。
+        判斷依據：active_role_id in ('company_admin', 'hr_manager')
+        Super Admin（平台層）一律視為 admin。
+
+        Note: 舊相容角色 admin / manager / hr 已於 S1-11D 移除。
 
         Returns:
             bool
@@ -103,7 +105,7 @@ class Actor:
             return True
         if self.active_role_id is None:
             return False
-        return self.active_role_id.lower() in ("admin", "manager", "hr", "company_admin", "hr_manager")
+        return self.active_role_id.lower() in ("company_admin", "hr_manager")
 
     def is_employee(self) -> bool:
         """是否為一般員工（非管理員）
