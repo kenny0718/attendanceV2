@@ -66,7 +66,7 @@
         </div>
         <div class="add-member-body">
           <div v-if="addMemberSuccess" class="add-msg add-msg-success">
-            成員已成功建立！
+            ✓ 成員「{{ addMemberSuccessName }}」已成功建立！
             <button class="add-msg-close" @click="addMemberSuccess = false">✕</button>
           </div>
           <div v-if="addMemberError" class="add-msg add-msg-error">
@@ -132,6 +132,31 @@
           </button>
         </div>
 
+        <!-- Filter bar (S1-10F) -->
+        <div v-if="!membersLoading && !membersError && members.length > 0" class="filter-bar">
+          <div class="filter-search">
+            <svg class="filter-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              v-model="searchQuery"
+              class="filter-input"
+              type="text"
+              placeholder="搜尋名稱 / 帳號 / Email…"
+            />
+          </div>
+          <select v-model="filterStatus" class="filter-select">
+            <option value="all">全部狀態</option>
+            <option value="active">有效成員</option>
+            <option value="inactive">停用成員</option>
+          </select>
+          <select v-model="filterRole" class="filter-select">
+            <option value="all">全部角色</option>
+            <option v-for="r in uniqueRoles" :key="r" :value="r">{{ r }}</option>
+          </select>
+          <button v-if="isFiltered" class="filter-clear" @click="clearFilters" title="清除篩選">✕ 清除</button>
+        </div>
+
         <!-- loading -->
         <div v-if="membersLoading" class="state-box">
           <div class="spinner"></div><span>載入成員中…</span>
@@ -163,33 +188,44 @@
             <button class="toggle-error-close" @click="toggleError = null">✕</button>
           </div>
 
-          <table class="members-table">
+          <!-- no-result after filter -->
+          <div v-if="filteredMembers.length === 0" class="state-box">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <div>
+              <p class="state-title">沒有符合的成員</p>
+              <p class="state-msg">請調整搜尋條件或<button class="link-btn" @click="clearFilters">清除篩選</button></p>
+            </div>
+          </div>
+
+          <table v-else class="members-table">
             <thead>
               <tr>
-                <th>顯示名稱</th>
-                <th>登入帳號</th>
+                <th>成員</th>
                 <th>角色</th>
-                <th>Email</th>
-                <th>帳號狀態</th>
                 <th>成員狀態</th>
+                <th>帳號狀態</th>
                 <th>加入時間</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="m in members" :key="m.membership_id">
-                <td class="cell-name">{{ m.display_name }}</td>
-                <td class="cell-mono">{{ m.login_username }}</td>
-                <td><span class="role-badge" :class="'role-' + m.role_id">{{ m.role_id }}</span></td>
-                <td class="cell-email">{{ m.email || '—' }}</td>
-                <td>
-                  <span :class="m.user_is_active ? 'badge-active' : 'badge-inactive'">
-                    {{ m.user_is_active ? '啟用' : '停用' }}
-                  </span>
+              <tr v-for="m in filteredMembers" :key="m.membership_id">
+                <td class="cell-member">
+                  <span class="cell-name">{{ m.display_name }}</span>
+                  <span class="cell-sub">{{ m.login_username }}</span>
+                  <span v-if="m.email" class="cell-sub cell-email">{{ m.email }}</span>
                 </td>
+                <td><span class="role-badge" :class="'role-' + m.role_id">{{ m.role_id }}</span></td>
                 <td>
                   <span :class="m.membership_is_active ? 'badge-active' : 'badge-inactive'">
                     {{ m.membership_is_active ? '有效' : '停用' }}
+                  </span>
+                </td>
+                <td>
+                  <span :class="m.user_is_active ? 'badge-active' : 'badge-inactive'">
+                    {{ m.user_is_active ? '啟用' : '停用' }}
                   </span>
                 </td>
                 <td class="cell-date">{{ formatDate(m.membership_created_at) }}</td>
@@ -216,8 +252,12 @@
               </tr>
             </tbody>
           </table>
-          <p class="total-count">共 {{ members.length }} 名成員</p>
+          <p class="total-count">
+            <span v-if="isFiltered">篩選結果：{{ filteredMembers.length }} / {{ members.length }} 名成員</span>
+            <span v-else>共 {{ members.length }} 名成員</span>
+          </p>
         </div>
+      </div>
       </div>
 
       <!-- Initial state: no company selected -->
@@ -234,7 +274,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import Navbar from '@/components/Navbar.vue'
 import { adminApi } from '@/api/admin'
 
@@ -281,6 +321,9 @@ async function loadMembers() {
 function onCompanyChange() {
   members.value = []
   membersError.value = null
+  searchQuery.value = ''
+  filterStatus.value = 'all'
+  filterRole.value = 'all'
   loadMembers()
 }
 
@@ -325,8 +368,13 @@ async function handleAddMember() {
       password: newMember.value.password,
       role_id: newMember.value.role_id,
     })
+    addMemberSuccessName.value = newMember.value.display_name
     addMemberSuccess.value = true
     newMember.value = { display_name: '', email: '', login_username: '', password: '', role_id: 'employee' }
+    // Reset filters so new member is visible
+    searchQuery.value = ''
+    filterStatus.value = 'all'
+    filterRole.value = 'all' 
     await loadMembers()
   } catch (err) {
     const code = err?.response?.data?.detail?.code
@@ -340,6 +388,43 @@ async function handleAddMember() {
   } finally {
     addMemberLoading.value = false
   }
+}
+
+// ── S1-10F: Client-side search / filter ──────────────────────────────
+const searchQuery = ref('')
+const filterStatus = ref('all') // 'all' | 'active' | 'inactive'
+const filterRole = ref('all')   // 'all' | role_id string
+const addMemberSuccessName = ref('')
+
+const uniqueRoles = computed(() => {
+  const roles = new Set(members.value.map(m => m.role_id))
+  return [...roles].sort()
+})
+
+const filteredMembers = computed(() => {
+  let list = members.value
+  const q = searchQuery.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter(m =>
+      (m.display_name || '').toLowerCase().includes(q) ||
+      (m.login_username || '').toLowerCase().includes(q) ||
+      (m.email || '').toLowerCase().includes(q)
+    )
+  }
+  if (filterStatus.value === 'active') list = list.filter(m => m.membership_is_active)
+  if (filterStatus.value === 'inactive') list = list.filter(m => !m.membership_is_active)
+  if (filterRole.value !== 'all') list = list.filter(m => m.role_id === filterRole.value)
+  return list
+})
+
+const isFiltered = computed(() =>
+  searchQuery.value.trim() !== '' || filterStatus.value !== 'all' || filterRole.value !== 'all'
+)
+
+function clearFilters() {
+  searchQuery.value = ''
+  filterStatus.value = 'all'
+  filterRole.value = 'all'
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────
@@ -510,4 +595,49 @@ function formatDate(isoStr) {
 .add-msg-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 .add-msg-close { background: none; border: none; cursor: pointer; color: inherit; font-size: 14px; padding: 0 4px; }
 
+
+/* ── S1-10F: Filter bar ── */
+.filter-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 24px; border-bottom: 1px solid var(--border); background: #FAFBFC;
+}
+.filter-search {
+  position: relative; flex: 1; min-width: 200px;
+}
+.filter-search-icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  width: 15px; height: 15px; color: var(--text-secondary); pointer-events: none;
+}
+.filter-input {
+  width: 100%; padding: 7px 10px 7px 32px;
+  border: 1px solid #D1D5DB; border-radius: 8px;
+  font-size: 13px; color: var(--text-primary); background: #fff; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.filter-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(74,111,165,0.12); }
+.filter-select {
+  padding: 7px 10px; border: 1px solid #D1D5DB; border-radius: 8px;
+  font-size: 13px; color: var(--text-primary); background: #fff; outline: none;
+  cursor: pointer; transition: border-color 0.2s;
+}
+.filter-select:focus { border-color: var(--primary); }
+.filter-clear {
+  padding: 6px 12px; border: 1px solid #fecaca; border-radius: 8px;
+  background: #fef2f2; color: #dc2626; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: background 0.15s;
+}
+.filter-clear:hover { background: #fee2e2; }
+
+/* ── S1-10F: cell-member stacked layout ── */
+.cell-member { display: flex; flex-direction: column; gap: 2px; }
+.cell-name { font-weight: 600; color: var(--text-primary); font-size: 13px; }
+.cell-sub { font-size: 11px; color: var(--text-secondary); font-family: monospace; }
+.cell-email { font-family: inherit; }
+
+/* ── S1-10F: link-btn inline ── */
+.link-btn {
+  background: none; border: none; color: var(--primary);
+  cursor: pointer; font-size: 13px; padding: 0; text-decoration: underline;
+}
 </style>
