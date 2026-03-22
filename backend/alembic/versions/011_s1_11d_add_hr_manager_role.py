@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers
 revision = '011_s1_11d'
-down_revision = '010_wp_s1_02_create_schedule_tables'
+down_revision = '010_wp_s1_02'
 branch_labels = None
 depends_on = None
 
