@@ -39,10 +39,10 @@ def list_companies(
 
     權限：僅限 super_admin
     """
-    if not actor.is_super_admin():
+    if not (actor.is_super_admin() or actor.is_admin()):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin can list companies"}
+            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin or company_admin can list companies"}
         )
 
     service = get_tenant_service(db)
@@ -97,10 +97,10 @@ def get_company(
 
     權限：僅限 super_admin
     """
-    if not actor.is_super_admin():
+    if not (actor.is_super_admin() or actor.is_admin()):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin can view company details"}
+            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin or company_admin can view company details"}
         )
 
     service = get_tenant_service(db)
@@ -125,10 +125,10 @@ def update_company(
 
     權限：僅限 super_admin
     """
-    if not actor.is_super_admin():
+    if not (actor.is_super_admin() or actor.is_admin()):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin can update companies"}
+            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin or company_admin can update companies"}
         )
 
     service = get_tenant_service(db)

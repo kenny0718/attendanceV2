@@ -103,7 +103,7 @@ class Actor:
             return True
         if self.active_role_id is None:
             return False
-        return self.active_role_id.lower() in ("admin", "manager", "hr")
+        return self.active_role_id.lower() in ("admin", "manager", "hr", "company_admin", "hr_manager")
 
     def is_employee(self) -> bool:
         """是否為一般員工（非管理員）

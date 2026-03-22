@@ -39,10 +39,10 @@ def register_routes(router: APIRouter) -> None:
 
         Permission: super_admin only
         """
-        if not actor.is_super_admin():
+        if not (actor.is_super_admin() or actor.is_admin()):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin can view company members"},
+                detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin or company_admin can view company members"},
             )
 
         service = get_tenant_service(db)
@@ -99,10 +99,10 @@ def register_routes(router: APIRouter) -> None:
 
         Permission: super_admin only
         """
-        if not actor.is_super_admin():
+        if not (actor.is_super_admin() or actor.is_admin()):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin can toggle membership status"},
+                detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin or company_admin can toggle membership status"},
             )
 
         tenant_svc = get_tenant_service(db)
@@ -158,10 +158,10 @@ def register_routes(router: APIRouter) -> None:
         actor: Actor = Depends(get_current_actor),
         db: Session = Depends(get_db),
     ):
-        if not actor.is_super_admin():
+        if not (actor.is_super_admin() or actor.is_admin()):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin can add company members"},
+                detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin or company_admin can add company members"},
             )
 
         tenant_svc = get_tenant_service(db)

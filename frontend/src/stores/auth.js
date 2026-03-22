@@ -21,7 +21,10 @@ export const useAuthStore = defineStore('auth', {
     // WP-S1-08B: exact role checks for route guards
     // company_admin and super_admin are treated as distinct, non-equivalent roles
     isCompanyAdmin: (state) => state.role?.id === 'company_admin',
-    isSuperAdmin: (state) => state.role?.id === 'super_admin'
+    isSuperAdmin: (state) => state.role?.id === 'super_admin',
+
+    // S1-11C: admin access = company_admin or hr_manager
+    isAdminAccess: (state) => ['company_admin', 'hr_manager'].includes(state.role?.id)
   },
 
   actions: {

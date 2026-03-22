@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 
 // WP-S1-08B: Route access policy
 // /schedule  → company_admin only   (tenant-level admin)
-// /admin     → super_admin only      (system-level, NOT equivalent to company_admin)
+// /admin     → super_admin OR company_admin OR hr_manager (S1-11C)
 // All other requiresAuth routes → any authenticated user
 
 const routes = [
@@ -50,25 +50,25 @@ const routes = [
     path: '/admin',
     name: 'Admin',
     component: () => import('@/views/Admin.vue'),
-    meta: { requiresAuth: true, requiresSuperAdmin: true }
+    meta: { requiresAuth: true, requiresAdminAccess: true }
   },
   {
     path: '/admin/companies',
     name: 'AdminCompanies',
     component: () => import('@/views/admin/AdminCompaniesView.vue'),
-    meta: { requiresAuth: true, requiresSuperAdmin: true }
+    meta: { requiresAuth: true, requiresAdminAccess: true }
   },
   {
     path: '/admin/onboarding',
     name: 'AdminOnboarding',
     component: () => import('@/views/admin/AdminOnboardingView.vue'),
-    meta: { requiresAuth: true, requiresSuperAdmin: true }
+    meta: { requiresAuth: true, requiresAdminAccess: true }
   },
   {
     path: '/admin/users',
     name: 'AdminUsers',
     component: () => import('@/views/admin/AdminUsersView.vue'),
-    meta: { requiresAuth: true, requiresSuperAdmin: true }
+    meta: { requiresAuth: true, requiresAdminAccess: true }
   }
 ]
 
@@ -107,11 +107,11 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  // 4. /admin — requires exact super_admin role
-  //    Deny: company_admin, employee, unauthenticated
-  //    Allow: super_admin only
-  if (to.meta.requiresSuperAdmin) {
-    if (!authStore.isSuperAdmin) {
+  // 4. /admin — S1-11C: super_admin OR company_admin OR hr_manager
+  //    Deny: employee, unauthenticated
+  //    Allow: super_admin, company_admin, hr_manager
+  if (to.meta.requiresAdminAccess) {
+    if (!authStore.isSuperAdmin && !authStore.isAdminAccess) {
       next('/')
       return
     }
