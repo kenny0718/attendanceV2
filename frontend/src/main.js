@@ -18,11 +18,12 @@ const app = createApp(App)
 const pinia = createPinia()
 
 app.use(pinia)
-app.use(router)
 
-// 在應用啟動時恢復登入狀態
+// 在 router 掛載前先 restoreSession，確保 beforeEach guard 可讀到正確的 role
 import { useAuthStore } from './stores/auth'
 const authStore = useAuthStore()
 authStore.restoreSession()
+
+app.use(router)
 
 app.mount('#app')
