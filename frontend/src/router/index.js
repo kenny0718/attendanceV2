@@ -62,7 +62,7 @@ const routes = [
     path: '/admin/onboarding',
     name: 'AdminOnboarding',
     component: () => import('@/views/admin/AdminOnboardingView.vue'),
-    meta: { requiresAuth: true, requiresAdminAccess: true }
+    meta: { requiresAuth: true, requiresAdminAccess: true, requiresSuperAdmin: true }
   },
   {
     path: '/admin/users',
@@ -80,8 +80,10 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
 
-  // Restore session from localStorage if token exists but state is not hydrated
-  if (!authStore.isAuthenticated && localStorage.getItem('token')) {
+  // S1-11E.3 fix: restore session if token exists but state is not fully hydrated.
+  // Covers the edge case where main.js restoreSession() ran on a different pinia
+  // instance before app.use(router) completed, leaving state.role as null.
+  if (localStorage.getItem('token') && (!authStore.isAuthenticated || !authStore.userRole)) {
     authStore.restoreSession()
   }
 
@@ -107,7 +109,15 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  // 4. /admin — S1-11C: super_admin OR company_admin OR hr_manager
+  // 4. /admin onboarding — super_admin only
+  if (to.meta.requiresSuperAdmin) {
+    if (!authStore.isSuperAdmin) {
+      next('/admin')
+      return
+    }
+  }
+
+  // 5. /admin — S1-11C: super_admin OR company_admin OR hr_manager
   //    Deny: employee, unauthenticated
   //    Allow: super_admin, company_admin, hr_manager
   if (to.meta.requiresAdminAccess) {

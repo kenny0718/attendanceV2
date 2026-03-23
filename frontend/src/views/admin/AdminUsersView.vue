@@ -99,7 +99,7 @@
                 <label class="form-label">角色 <span class="required">*</span></label>
                 <select v-model="newMember.role_id" class="form-input">
                   <option value="employee">employee</option>
-                  <option value="manager">manager</option>
+                  <option value="hr_manager">hr_manager</option>
                   <option value="company_admin">company_admin</option>
                 </select>
               </div>
@@ -258,7 +258,6 @@
           </p>
         </div>
       </div>
-      </div>
 
       <!-- Initial state: no company selected -->
       <div v-else class="state-box state-initial">
@@ -377,13 +376,13 @@ async function handleAddMember() {
     filterRole.value = 'all' 
     await loadMembers()
   } catch (err) {
-    const code = err?.response?.data?.detail?.code
+    const code = err?.data?.detail?.code
     if (code === 'DUPLICATE_LOGIN_USERNAME') {
       addMemberError.value = '此公司已有相同的登入帳號，請更換。'
     } else if (code === 'INVALID_ROLE') {
       addMemberError.value = '角色不存在，請選擇有效角色。'
     } else {
-      addMemberError.value = err?.response?.data?.detail?.message || err.message || '建立失敗，請稍後再試'
+      addMemberError.value = err?.data?.detail?.message || err.message || '建立失敗，請稍後再試'
     }
   } finally {
     addMemberLoading.value = false
@@ -528,7 +527,7 @@ function formatDate(isoStr) {
 .role-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
 .role-admin { background: #dbeafe; color: #1d4ed8; }
 .role-company_admin { background: #dbeafe; color: #1d4ed8; }
-.role-manager { background: #ede9fe; color: #6d28d9; }
+.role-hr_manager { background: #ede9fe; color: #6d28d9; }
 .role-employee { background: #f1f5f9; color: #475569; }
 
 /* ── Toggle action column ── */

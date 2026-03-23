@@ -12,7 +12,7 @@
         </div>
         <div>
           <h1 class="admin-title">平台管理</h1>
-          <p class="admin-description">系統管理後台（super_admin 專用）</p>
+          <p class="admin-description">系統管理後台（依角色顯示可用功能）</p>
         </div>
       </div>
 
@@ -33,15 +33,15 @@
           </svg>
         </router-link>
 
-        <router-link to="/admin/onboarding" class="nav-card">
+        <router-link v-if="authStore.isSuperAdmin" to="/admin/onboarding" class="nav-card">
           <div class="nav-card-icon nav-card-icon--green">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round"
-                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                d="M3 21h18M9 8h6M9 12h6M9 16h6M4 21V7a1 1 0 011-1h3l2-2h4l2 2h3a1 1 0 011 1v14" />
             </svg>
           </div>
           <div class="nav-card-body">
-            <h2 class="nav-card-title">快速 Onboarding</h2>
+            <h2 class="nav-card-title">新公司開通</h2>
             <p class="nav-card-desc">一次建立公司 + 初始管理者帳號 + Membership</p>
           </div>
           <svg class="nav-card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -71,6 +71,9 @@
 
 <script setup>
 import Navbar from '@/components/Navbar.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 </script>
 
 <style scoped>

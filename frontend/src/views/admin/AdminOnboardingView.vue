@@ -5,27 +5,19 @@
       <div class="admin-header">
         <div class="admin-header-icon" style="background:linear-gradient(135deg,#86efac,#16a34a)">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M9 8h6M9 12h6M9 16h6M4 21V7a1 1 0 011-1h3l2-2h4l2 2h3a1 1 0 011 1v14" />
           </svg>
         </div>
         <div>
-          <h1 class="admin-title">快速 Onboarding</h1>
+          <h1 class="admin-title">新公司開通</h1>
           <p class="admin-description"><router-link to="/admin" class="back-link">← 平台管理</router-link></p>
         </div>
       </div>
       <!-- 區塊二：Onboarding（WP-S1-09D）-->
-      <div class="onboarding-section">
+      <div v-if="isSuperAdmin" class="onboarding-section">
         <div class="onboarding-header">
-          <div class="onboarding-header-icon">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-          </div>
-          <div>
-            <h2 class="onboarding-title">快速 Onboarding</h2>
-            <p class="onboarding-desc">一次建立公司 + 初始管理者帳號 + Membership（原子操作）</p>
-          </div>
-        </div>
+                     <h2 class="onboarding-title">公司資料與初始管理者</h2>
+                  </div>
         <div class="onboarding-body">
 
           <!-- 成功結果 -->
@@ -43,7 +35,15 @@
               <div class="ob-result-group">
                 <p class="ob-result-label">使用者</p>
                 <p class="ob-result-val">{{ obSuccess.user.display_name }}</p>
-                <p class="ob-result-sub">{{ obSuccess.user.email || '（無 email）' }}</p>\n              </div>\n              <div class="ob-result-group">\n                <p class="ob-result-label">登入帳號</p>\n                <p class="ob-result-val">{{ obSuccess.membership.login_username }}</p>\n                <p class="ob-result-sub">角色: {{ obSuccess.membership.role_id }}</p>\n              </div>\n            </div>\n            <button class="btn-ob-again" @click="resetOnboarding">再建立一個</button>
+                <p class="ob-result-sub">{{ obSuccess.user.email || '（無 email）' }}</p>
+              </div>
+              <div class="ob-result-group">
+                <p class="ob-result-label">登入帳號</p>
+                <p class="ob-result-val">{{ obSuccess.membership.login_username }}</p>
+                <p class="ob-result-sub">角色: {{ obSuccess.membership.role_id }}</p>
+              </div>
+            </div>
+            <button class="btn-ob-again" @click="resetOnboarding">再建立一個</button>
           </div>
 
           <!-- Onboarding 表單 -->
@@ -71,13 +71,6 @@
                     <select id="ob-co-tz" v-model="obForm.company.timezone" class="form-input">
                       <option value="UTC">UTC</option>
                       <option value="Asia/Taipei">Asia/Taipei（台北）</option>
-                      <option value="Asia/Tokyo">Asia/Tokyo（東京）</option>
-                      <option value="Asia/Shanghai">Asia/Shanghai（上海）</option>
-                      <option value="Asia/Singapore">Asia/Singapore（新加坡）</option>
-                      <option value="America/New_York">America/New_York（紐約）</option>
-                      <option value="America/Los_Angeles">America/Los_Angeles（洛杉磯）</option>
-                      <option value="Europe/London">Europe/London（倫敦）</option>
-                      <option value="Europe/Paris">Europe/Paris（巴黎）</option>
                     </select>
                   </div>
                 </div>
@@ -105,7 +98,7 @@
                   <div class="form-group">
                     <label class="form-label" for="ob-u-role">角色</label>
                     <select id="ob-u-role" v-model="obForm.initial_user.role_id" class="form-input">
-                      <option value="admin">admin（公司管理員）</option>
+                      <option value="company_admin">company_admin（公司管理員）</option>
                     </select>
                   </div>
                 </div>
@@ -113,10 +106,20 @@
               <button type="submit" class="btn-submit btn-ob-submit" :disabled="obLoading">
                 <span v-if="obLoading" class="btn-spinner"></span>
                 <svg v-else fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-                {{ obLoading ? '建立中…' : '執行 Onboarding' }}
+                {{ obLoading ? '建立中…' : '開通公司' }}
               </button>
             </form>
           </div>
+        </div>
+      </div>
+
+      <div v-else class="state-box state-error">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div>
+          <p class="state-title">權限不足</p>
+          <p class="state-msg">此頁僅開放 super_admin。</p>
         </div>
       </div>
     </div>
@@ -124,14 +127,18 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import Navbar from '@/components/Navbar.vue'
+import { useAuthStore } from '@/stores/auth'
 import { adminApi } from '@/api/admin'
+
+const authStore = useAuthStore()
+const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // ── Onboarding（WP-S1-09D）───────────────────────────────────────────
 const obForm = reactive({
   company: { id: '', name: '', timezone: 'UTC' },
-  initial_user: { display_name: '', login_username: '', email: '', password: '', role_id: 'admin' }
+  initial_user: { display_name: '', login_username: '', email: '', password: '', role_id: 'company_admin' }
 })
 const obErr = reactive({
   company_id: '', company_name: '',
@@ -179,7 +186,6 @@ async function handleOnboard() {
       }
     })
     obSuccess.value = result
-    await loadCompanies()
   } catch (err) {
     const detail = err.data?.detail
     const code = detail?.code
@@ -209,7 +215,7 @@ async function handleOnboard() {
     } else if (err.status === 401) {
       obError.value = '登入已過期，請重新登入'
     } else if (err.status === 403) {
-      obError.value = '權限不足：只有 super_admin 可執行 Onboarding'
+      obError.value = '權限不足：只有 super_admin 可執行 開通新公司'
     } else {
       obError.value = err.message || 'Onboarding 失敗，請稍後再試'
     }
@@ -228,7 +234,7 @@ function resetOnboarding() {
   obForm.initial_user.login_username = ''
   obForm.initial_user.email = ''
   obForm.initial_user.password = ''
-  obForm.initial_user.role_id = 'admin'
+  obForm.initial_user.role_id = 'company_admin'
 }
 
 // ── 工具函式 ──────────────────────────────────────────────────────────
@@ -351,6 +357,6 @@ function formatDate(isoStr) {
 @media (min-width: 768px) { .ob-cols { grid-template-columns: 1fr 1fr; } }
 .ob-col { display: flex; flex-direction: column; gap: 14px; }
 .ob-col-title { font-size: 13px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 4px; padding-bottom: 8px; border-bottom: 2px solid #EFF3F8; }
-.btn-ob-submit { margin-top: 8px; align-self: flex-start; padding: 12px 28px; font-size: 15px; }
+.btn-ob-submit { margin-top: 8px; align-self: flex-end; padding: 12px 28px; font-size: 15px; }
 .btn-ob-submit svg { width: 18px; height: 18px; }
 </style>

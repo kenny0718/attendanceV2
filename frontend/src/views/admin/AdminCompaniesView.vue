@@ -59,15 +59,15 @@
               建立新公司
             </h2>
           </div>
-          <div v-if="createSuccess" class="alert alert-success">
+          <div v-if="isSuperAdmin && createSuccess" class="alert alert-success">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span>公司 <strong>{{ createSuccess }}</strong> 建立成功！</span>
           </div>
-          <div v-if="createError" class="alert alert-error">
+          <div v-if="isSuperAdmin && createError" class="alert alert-error">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span>{{ createError }}</span>
           </div>
-          <form @submit.prevent="handleCreate" class="create-form" novalidate>
+          <form v-if="isSuperAdmin" @submit.prevent="handleCreate" class="create-form" novalidate>
             <div class="form-group">
               <label class="form-label" for="f-id">公司 ID <span class="label-hint">最多 50 字</span></label>
               <input id="f-id" v-model.trim="form.id" type="text" class="form-input" :class="{'input-error':fieldErrors.id}" placeholder="e.g. company-b" maxlength="50" autocomplete="off" />
@@ -88,6 +88,9 @@
               {{ createLoading ? '建立中…' : '建立公司' }}
             </button>
           </form>
+          <div v-else class="state-box">
+            <span>權限說明：只有 super_admin 可建立新公司。</span>
+          </div>
         </section>
 
         <!-- S1-11A: Company Detail / Edit Panel -->
@@ -260,9 +263,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import Navbar from '@/components/Navbar.vue'
+import { useAuthStore } from '@/stores/auth'
 import { adminApi } from '@/api/admin'
+
+const authStore = useAuthStore()
+const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // ── 公司列表 ──────────────────────────────────────────────────────────
 const companies = ref([])
