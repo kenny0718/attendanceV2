@@ -80,17 +80,7 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="f-tz">時區</label>
-              <select id="f-tz" v-model="form.timezone" class="form-input">
-                <option value="UTC">UTC</option>
-                <option value="Asia/Taipei">Asia/Taipei（台北）</option>
-                <option value="Asia/Tokyo">Asia/Tokyo（東京）</option>
-                <option value="Asia/Shanghai">Asia/Shanghai（上海）</option>
-                <option value="Asia/Singapore">Asia/Singapore（新加坡）</option>
-                <option value="America/New_York">America/New_York（紐約）</option>
-                <option value="America/Los_Angeles">America/Los_Angeles（洛杉磯）</option>
-                <option value="Europe/London">Europe/London（倫敦）</option>
-                <option value="Europe/Paris">Europe/Paris（巴黎）</option>
-              </select>
+              <div id="f-tz" class="form-input tz-fixed">Asia/Taipei（固定）</div>
             </div>
             <button type="submit" class="btn-submit" :disabled="createLoading">
               <span v-if="createLoading" class="btn-spinner"></span>
@@ -323,12 +313,12 @@ async function handleCreate() {
     const created = await adminApi.createCompany({
       id: form.id,
       name: form.name,
-      timezone: form.timezone || 'UTC'
+      timezone: 'Asia/Taipei'
     })
     createSuccess.value = created.name
     form.id = ''
     form.name = ''
-    form.timezone = 'UTC'
+    form.timezone = 'Asia/Taipei'
     await loadCompanies()
   } catch (err) {
     const detail = err.data?.detail
@@ -524,7 +514,6 @@ async function handleAddMember() {
 
 /* ── Section 1: main-layout ── */
 .main-layout { display: grid; grid-template-columns: 1fr; gap: 24px; margin-bottom: 40px; }
-@media (min-width: 1024px) { .main-layout { grid-template-columns: 1fr 380px; align-items: start; } }
 
 /* ── Panel ── */
 .panel { background: var(--bg-card); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); overflow: hidden; }
@@ -615,7 +604,6 @@ async function handleAddMember() {
 
 /* ── S1-11A: Company Detail Panel ── */
 .main-layout { grid-template-columns: 1fr; }
-@media (min-width: 1024px) { .main-layout { grid-template-columns: 1fr 380px 380px; } }
 
 .panel-detail { min-height: 200px; }
 
