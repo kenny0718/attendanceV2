@@ -289,7 +289,7 @@ def _map_role_id_to_user_role(role_id: str) -> UserRole:
     """
     將資料庫的 role_id 映射到平台層 UserRole enum
 
-    注意：admin / employee / manager / hr 均屬 COMPANY_USER（平台層）。
+    注意：employee / manager 均屬 COMPANY_USER（平台層）。
     公司內部的管理員 vs 員工區分，由 Actor.active_role_id 和
     Actor.is_admin() / Actor.is_employee() 處理，不在此層決定。
 
@@ -310,12 +310,10 @@ def _map_role_id_to_user_role(role_id: str) -> UserRole:
         "cs": UserRole.CUSTOMER_SERVICE,
 
         # 平台層：Company User（含所有公司內部角色）
-        # 公司內部角色區分（admin/employee/manager/hr）
+        # 公司內部角色區分（employee/manager）
         # 由 Membership.role_id → Actor.active_role_id → Actor.is_admin() 決定
-        "admin": UserRole.COMPANY_USER,
         "manager": UserRole.COMPANY_USER,
         "employee": UserRole.COMPANY_USER,
-        "hr": UserRole.COMPANY_USER,
     }
 
     mapped_role = role_mapping.get(role_id.lower())

@@ -712,10 +712,10 @@ async def get_sessions_reporting(
         )
 
     # --- User scope 解析（WP-C1-07: JWT Actor 模式）---
-    # actor.active_role_id 可用於 role 判斷（admin/manager 可查他人）
+    # actor.active_role_id 可用於 role 判斷（manager 可查他人）
     from uuid import UUID
     target_user_uuid: Optional[UUID] = None
-    is_admin = actor.active_role_id in ("admin", "manager", "hr")
+    is_admin = actor.active_role_id == "manager"
 
     if user_id is not None:
         try:
