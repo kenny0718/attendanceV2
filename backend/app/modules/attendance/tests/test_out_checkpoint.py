@@ -16,7 +16,7 @@ import pytest
 import time
 from uuid import uuid4
 
-from app.tests.utils.auth import create_test_actor, override_actor_dependency, override_all_auth_dependencies
+from app.tests.utils.auth import create_test_actor, override_actor_dependency
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ class TestOutCheckpointMultiSubmit:
     
     def test_multi_checkpoint_allowed(self, client, test_actor):
         """Test that multiple checkpoints can be created in succession"""
-        with override_all_auth_dependencies(test_actor):
+        with override_actor_dependency(test_actor):
             # Close any existing session first
             client.post("/api/v1/attendance/punch-out", json={})
             
@@ -75,7 +75,7 @@ class TestOutCheckpointGPSValidation:
     
     def test_mobile_requires_gps(self, client, test_actor):
         """Test that mobile device without GPS is rejected with 422"""
-        with override_all_auth_dependencies(test_actor):
+        with override_actor_dependency(test_actor):
             client.post("/api/v1/attendance/punch-in", json={})
             
             response = client.post(
@@ -91,7 +91,7 @@ class TestOutCheckpointGPSValidation:
     
     def test_pc_no_gps_allowed(self, client, test_actor):
         """Test that PC device without GPS is allowed"""
-        with override_all_auth_dependencies(test_actor):
+        with override_actor_dependency(test_actor):
             client.post("/api/v1/attendance/punch-in", json={})
             
             response = client.post(
@@ -110,7 +110,7 @@ class TestOutCheckpointDedup:
     
     def test_anti_spam_duplicate_checkpoint(self, client, test_actor):
         """Test that duplicate checkpoint within 30s and 50m is rejected"""
-        with override_all_auth_dependencies(test_actor):
+        with override_actor_dependency(test_actor):
             client.post("/api/v1/attendance/punch-in", json={})
             
             checkpoint_data = {
@@ -141,7 +141,7 @@ class TestOutCheckpointGPSCoordinates:
     
     def test_invalid_latitude(self, client, test_actor):
         """Test that invalid latitude is rejected"""
-        with override_all_auth_dependencies(test_actor):
+        with override_actor_dependency(test_actor):
             client.post("/api/v1/attendance/punch-in", json={})
             
             response = client.post(
@@ -160,7 +160,7 @@ class TestOutCheckpointList:
     
     def test_list_checkpoints_pagination(self, client, test_actor):
         """Test checkpoint list with pagination"""
-        with override_all_auth_dependencies(test_actor):
+        with override_actor_dependency(test_actor):
             client.post("/api/v1/attendance/punch-in", json={})
             
             # Create 2 checkpoints
@@ -187,7 +187,7 @@ class TestOutCheckpointWithoutSession:
     
     def test_checkpoint_without_session(self, client, test_actor):
         """Test checkpoint creation without open session (should be allowed)"""
-        with override_all_auth_dependencies(test_actor):
+        with override_actor_dependency(test_actor):
             response = client.post(
                 "/api/v1/attendance/out-checkpoint",
                 json={"device_type": "pc", "notes": "No session"}

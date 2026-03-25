@@ -1,7 +1,6 @@
 """Test authentication helpers for JWT Actor migration (WP-C1-05)
 
 用途：
-- 取代測試中的 X-Company-ID / X-User-ID Header
 - 透過 FastAPI dependency_overrides 注入測試用 Actor
 - 不需要產生 JWT token，不需要資料庫查詢
 
@@ -13,10 +12,8 @@
         response = client.get("/api/notifications")
         assert response.status_code == 200
 
-    # 對於仍使用舊 X-Company-ID/X-User-ID header dependency 的 router_v1 endpoints：
-    with override_all_auth_dependencies(actor):
-        response = client.post("/api/v1/attendance/punch-in", json={})
-        assert response.status_code == 201
+A1-3c: override_all_auth_dependencies removed — all production endpoints
+have migrated to JWT actor (get_actor_with_company). Use override_actor_dependency.
 """
 
 from contextlib import contextmanager
@@ -25,7 +22,6 @@ from typing import Optional
 
 from app.core.scope import Actor, UserRole
 from app.core.dependencies import get_actor_with_company
-from app.core.tenant_context import get_current_company_id, get_current_user_id
 from app.main import app
 
 
@@ -103,37 +99,3 @@ def override_actor_dependency(actor: Actor):
         yield actor
     finally:
         app.dependency_overrides.pop(get_actor_with_company, None)
-
-
-@contextmanager
-def override_all_auth_dependencies(actor: Actor):
-    """
-    Context manager：同時覆寫新舊兩組 auth dependency。
-
-    用途：
-    - router_v1 中的 punch-in/punch-out/out-checkpoint 等 endpoint
-      仍使用舊 get_current_company_id / get_current_user_id（X-Company-ID header）。
-    - 此 context manager 同時 override 新版 get_actor_with_company
-      與舊版 get_current_company_id / get_current_user_id，
-      讓測試無需帶 header 即可通過。
-
-    WP-C1-04 注意：
-    - 不修改任何 API 業務邏輯
-    - 僅在測試層提供 dependency override
-    - router_v1 的遷移屬 WP-C1-07 後續工作，不在 WP-C1-04 範圍
-
-    Args:
-        actor: 要注入的測試 Actor（active_company_id 作為 company_id，user_id 作為 user_id）
-    """
-    company_id = actor.active_company_id or ""
-    user_id_str = str(actor.user_id)
-
-    app.dependency_overrides[get_actor_with_company] = lambda: actor
-    app.dependency_overrides[get_current_company_id] = lambda: company_id
-    app.dependency_overrides[get_current_user_id] = lambda: user_id_str
-    try:
-        yield actor
-    finally:
-        app.dependency_overrides.pop(get_actor_with_company, None)
-        app.dependency_overrides.pop(get_current_company_id, None)
-        app.dependency_overrides.pop(get_current_user_id, None)
