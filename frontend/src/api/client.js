@@ -20,20 +20,6 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
     
-    // 添加 tenant headers (從 localStorage 取得)
-    const company = localStorage.getItem('company')
-    const user = localStorage.getItem('user')
-    
-    if (company) {
-      const companyData = JSON.parse(company)
-      config.headers['X-Company-ID'] = companyData.id
-    }
-    
-    if (user) {
-      const userData = JSON.parse(user)
-      config.headers['X-User-ID'] = userData.id
-    }
-    
     return config
   },
   (error) => {
