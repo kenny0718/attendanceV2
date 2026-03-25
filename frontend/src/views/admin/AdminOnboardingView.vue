@@ -17,6 +17,7 @@
       <div v-if="isSuperAdmin" class="onboarding-section">
         <div class="onboarding-header">
                      <h2 class="onboarding-title">公司資料與初始管理者</h2>
+                  <p class="onboarding-desc">建立新租戶的唯一入口，含初始管理員帳號與 Membership。</p>
                   </div>
         <div class="onboarding-body">
 

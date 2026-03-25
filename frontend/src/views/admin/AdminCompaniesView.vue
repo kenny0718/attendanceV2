@@ -20,11 +20,14 @@
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
               公司列表
             </h2>
-            <button class="btn-refresh" :disabled="listLoading" @click="loadCompanies" title="重新整理">
+            <div class="panel-header-actions">
+              <router-link to="/admin/onboarding" class="btn-goto-onboarding">前往新公司開通</router-link>
+              <button class="btn-refresh" :disabled="listLoading" @click="loadCompanies" title="重新整理">
               <svg :class="{ spinning: listLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
+            </div>
           </div>
           <div v-if="listLoading" class="state-box"><div class="spinner"></div><span>載入中…</span></div>
           <div v-else-if="listError" class="state-box state-error">
@@ -33,7 +36,11 @@
           </div>
           <div v-else-if="companies.length === 0" class="state-box state-empty">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-            <div><p class="state-title">尚無公司</p><p class="state-msg">使用下方 Onboarding 建立第一間公司。</p></div>
+            <div>
+              <p class="state-title">尚無公司</p>
+              <p class="state-msg">尚未建立任何公司。</p>
+              <router-link to="/admin/onboarding" class="btn-goto-onboarding">前往新公司開通</router-link>
+            </div>
           </div>
           <div v-else class="table-wrapper">
             <table class="company-table">
@@ -49,47 +56,6 @@
               </tbody>
             </table>
             <p class="total-count">共 {{ companies.length }} 間公司</p>
-          </div>
-        </section>
-
-        <section class="panel panel-form">
-          <div class="panel-header">
-            <h2 class="panel-title">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-              建立新公司
-            </h2>
-          </div>
-          <div v-if="isSuperAdmin && createSuccess" class="alert alert-success">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span>公司 <strong>{{ createSuccess }}</strong> 建立成功！</span>
-          </div>
-          <div v-if="isSuperAdmin && createError" class="alert alert-error">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span>{{ createError }}</span>
-          </div>
-          <form v-if="isSuperAdmin" @submit.prevent="handleCreate" class="create-form" novalidate>
-            <div class="form-group">
-              <label class="form-label" for="f-id">公司 ID <span class="label-hint">最多 50 字</span></label>
-              <input id="f-id" v-model.trim="form.id" type="text" class="form-input" :class="{'input-error':fieldErrors.id}" placeholder="e.g. company-b" maxlength="50" autocomplete="off" />
-              <p v-if="fieldErrors.id" class="field-error">{{ fieldErrors.id }}</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="f-name">公司名稱 <span class="label-hint">最多 255 字</span></label>
-              <input id="f-name" v-model.trim="form.name" type="text" class="form-input" :class="{'input-error':fieldErrors.name}" placeholder="e.g. Example Corp Ltd" maxlength="255" />
-              <p v-if="fieldErrors.name" class="field-error">{{ fieldErrors.name }}</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="f-tz">時區</label>
-              <div id="f-tz" class="form-input tz-fixed">Asia/Taipei（固定）</div>
-            </div>
-            <button type="submit" class="btn-submit" :disabled="createLoading">
-              <span v-if="createLoading" class="btn-spinner"></span>
-              <svg v-else fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-              {{ createLoading ? '建立中…' : '建立公司' }}
-            </button>
-          </form>
-          <div v-else class="state-box">
-            <span>權限說明：只有 super_admin 可建立新公司。</span>
           </div>
         </section>
 
@@ -263,13 +229,12 @@
 </template>
 
 <script setup>
-import { computed, ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import Navbar from '@/components/Navbar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { adminApi } from '@/api/admin'
 
 const authStore = useAuthStore()
-const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // ── 公司列表 ──────────────────────────────────────────────────────────
 const companies = ref([])
@@ -290,68 +255,6 @@ async function loadCompanies() {
 }
 
 onMounted(loadCompanies)
-
-// ── 快速建立公司（WP-S1-09B）─────────────────────────────────────────
-const form = reactive({ id: '', name: '', timezone: 'UTC' })
-const fieldErrors = reactive({ id: '', name: '' })
-const createLoading = ref(false)
-const createError = ref(null)
-const createSuccess = ref(null)
-
-function resetAlerts() {
-  createError.value = null
-  createSuccess.value = null
-  fieldErrors.id = ''
-  fieldErrors.name = ''
-}
-
-function validateForm() {
-  let valid = true
-  if (!form.id) { fieldErrors.id = '公司 ID 為必填'; valid = false }
-  if (!form.name) { fieldErrors.name = '公司名稱為必填'; valid = false }
-  return valid
-}
-
-async function handleCreate() {
-  resetAlerts()
-  if (!validateForm()) return
-  createLoading.value = true
-  try {
-    const created = await adminApi.createCompany({
-      id: form.id,
-      name: form.name,
-      timezone: 'Asia/Taipei'
-    })
-    createSuccess.value = created.name
-    form.id = ''
-    form.name = ''
-    form.timezone = 'Asia/Taipei'
-    await loadCompanies()
-  } catch (err) {
-    const detail = err.data?.detail
-    if (err.status === 409 || detail?.code === 'DUPLICATE_COMPANY') {
-      fieldErrors.id = `公司 ID「${form.id}」已存在，請使用其他 ID`
-    } else if (err.status === 422) {
-      const errors = detail
-      if (Array.isArray(errors)) {
-        errors.forEach(e => {
-          const loc = e.loc?.[e.loc.length - 1]
-          if (loc === 'id') fieldErrors.id = e.msg
-          else if (loc === 'name') fieldErrors.name = e.msg
-        })
-        createError.value = '輸入資料有誤，請確認後重試'
-      } else {
-        createError.value = '輸入資料驗證失敗，請確認後重試'
-      }
-    } else if (err.status === 403) {
-      createError.value = '權限不足：只有 super_admin 可建立公司'
-    } else {
-      createError.value = err.message || '建立失敗，請稍後再試'
-    }
-  } finally {
-    createLoading.value = false
-  }
-}
 
 // ── S1-11A: Company Detail / Edit ──────────────────────────────────
 const selectedCompany = ref(null)
@@ -654,6 +557,11 @@ async function handleAddMember() {
 .btn-mem-toggle { padding: 4px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-input); background: transparent; color: var(--text-primary); cursor: pointer; transition: all 0.15s; }
 .btn-mem-toggle:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: #F0F4F8; }
 .btn-mem-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Goto onboarding CTA */
+.btn-goto-onboarding { display: inline-flex; align-items: center; padding: 6px 14px; background: linear-gradient(135deg, #86efac, #16a34a); color: white; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; transition: opacity 0.2s; white-space: nowrap; }
+.btn-goto-onboarding:hover { opacity: 0.88; }
+.panel-header-actions { display: flex; align-items: center; gap: 8px; }
 
 /* Add member section */
 .add-member-section { border-top: 1px solid var(--border); }

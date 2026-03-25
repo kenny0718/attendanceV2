@@ -26,7 +26,7 @@
           </div>
           <div class="nav-card-body">
             <h2 class="nav-card-title">公司管理</h2>
-            <p class="nav-card-desc">查看所有公司、快速建立新公司</p>
+            <p class="nav-card-desc">查看與管理已建立的公司</p>
           </div>
           <svg class="nav-card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
