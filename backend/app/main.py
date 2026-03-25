@@ -2,7 +2,7 @@
 
 import logging
 from typing import Dict, Any
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 from app.core.event_bus import get_event_bus
 from app.core.config import settings
@@ -36,6 +36,25 @@ app = FastAPI(
 
 # 註冊統一錯誤處理
 register_exception_handlers(app)
+
+# A1-4: Legacy header reintroduction guard (log-only, never block)
+@app.middleware("http")
+async def legacy_header_guard(request: Request, call_next):
+    """A1-4: Warn if retired legacy headers reappear in any request.
+
+    X-Company-ID and X-User-ID were retired in A1-3.
+    All production endpoints use JWT actor exclusively.
+    This guard logs a warning to surface accidental reintroduction.
+    """
+    _RETIRED_HEADERS = ("x-company-id", "x-user-id")
+    for header in _RETIRED_HEADERS:
+        if header in request.headers:
+            logger.warning(
+                f"[A1-4] Legacy header detected: '{header}' — "
+                "retired in A1-3, ignored by all production endpoints. "
+                "Check for accidental reintroduction."
+            )
+    return await call_next(request)
 
 # 註冊路由
 app.include_router(attendance_router)
