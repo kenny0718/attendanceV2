@@ -47,6 +47,16 @@ def _employee(company_id="dev-tenant"):
     )
 
 
+def _hr_manager(company_id="dev-tenant"):
+    return Actor(
+        user_id=uuid4(),
+        role=UserRole.COMPANY_USER,
+        company_memberships={company_id},
+        active_company_id=company_id,
+        active_role_id="hr_manager",
+    )
+
+
 def _override(client, actor):
     app.dependency_overrides[get_current_actor] = lambda: actor
 
@@ -183,8 +193,8 @@ class TestListCompanyMembers:
         assert resp.status_code == 404
         assert resp.json()["detail"]["code"] == "COMPANY_NOT_FOUND"
 
-    def test_company_admin_forbidden(self, client, db_session):
-        """company_admin → 403"""
+    def test_company_admin_can_list_own_company_members(self, client, db_session):
+        """company_admin 可查詢 own company members (A1-1)"""
         suffix = str(uuid4())[:8]
         company_id = f"test-co-{suffix}"
         _seed_company(db_session, company_id)
@@ -195,8 +205,8 @@ class TestListCompanyMembers:
         finally:
             _clear()
 
-        assert resp.status_code == 403
-        assert resp.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+        assert resp.status_code == 200
+        assert resp.json()["company_id"] == company_id
 
     def test_employee_forbidden(self, client, db_session):
         """employee → 403"""
@@ -362,9 +372,9 @@ class TestCreateCompanyMember:
         assert resp.status_code == 404
         assert resp.json()["detail"]["code"] == "COMPANY_NOT_FOUND"
 
-    def test_company_admin_forbidden_403(self, client, db_session):
+    def test_company_admin_can_create_member_in_own_company(self, client, db_session):
         suffix = str(uuid4())[:8]
-        company_id = f"forbid-co-{suffix}"
+        company_id = f"allow-co-{suffix}"
         _seed_company(db_session, company_id)
 
         _override(client, _company_admin(company_id))
@@ -374,7 +384,7 @@ class TestCreateCompanyMember:
                 json={
                     "display_name": "Test",
                     "email": None,
-                    "login_username": "testuser",
+                    "login_username": f"testuser-{suffix}",
                     "password": "password123",
                     "role_id": TEST_ROLE_ID,
                 },
@@ -382,8 +392,7 @@ class TestCreateCompanyMember:
         finally:
             _clear()
 
-        assert resp.status_code == 403
-        assert resp.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+        assert resp.status_code == 201
 
     def test_employee_forbidden_403(self, client, db_session):
         suffix = str(uuid4())[:8]
@@ -548,3 +557,70 @@ class TestAddMemberAtomicity:
         assert mem is not None
         assert mem.company_id == company_id
         assert mem.user_id == _uuid.UUID(data["user_id"])
+
+
+
+class TestAuthorizationBoundaryA11:
+
+    def test_company_admin_cross_company_list_members_forbidden(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        own_company = f"own-co-{suffix}"
+        other_company = f"other-co-{suffix}"
+        _seed_company(db_session, own_company)
+        _seed_company(db_session, other_company)
+
+        _override(client, _company_admin(own_company))
+        try:
+            resp = client.get(f"/api/admin/companies/{other_company}/members")
+        finally:
+            _clear()
+
+        assert resp.status_code == 403
+        assert resp.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+
+    def test_hr_manager_cross_company_create_member_forbidden(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        own_company = f"own-co-{suffix}"
+        other_company = f"other-co-{suffix}"
+        _seed_company(db_session, own_company)
+        _seed_company(db_session, other_company)
+
+        _override(client, _hr_manager(own_company))
+        try:
+            resp = client.post(
+                f"/api/admin/companies/{other_company}/members",
+                json={
+                    "display_name": "HR Cross",
+                    "email": None,
+                    "login_username": f"hrcross-{suffix}",
+                    "password": "password123",
+                    "role_id": TEST_ROLE_ID,
+                },
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 403
+        assert resp.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+
+    def test_super_admin_can_create_member_cross_company(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        company_id = f"sa-cross-{suffix}"
+        _seed_company(db_session, company_id)
+
+        _override(client, _super_admin())
+        try:
+            resp = client.post(
+                f"/api/admin/companies/{company_id}/members",
+                json={
+                    "display_name": "SA Cross",
+                    "email": None,
+                    "login_username": f"sacross-{suffix}",
+                    "password": "password123",
+                    "role_id": TEST_ROLE_ID,
+                },
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 201

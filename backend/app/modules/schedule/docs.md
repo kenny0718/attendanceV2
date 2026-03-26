@@ -545,3 +545,80 @@ PLAN_DEFAULTS = {
 
 **文件版本:** v1.6 (WP-S1-06 Real JWT E2E COMPLETE)  
 **前次版本:** v1.5 (WP-S1-05 Integration Testing COMPLETE)
+
+## WP-S1-07B Template Edit UI Update (2026-03-25)
+
+### Scope
+- Frontend `/schedule` page新增 Template inline edit（單列編輯）
+- 使用既有 API：`PATCH /api/v1/schedule/shift-templates/{template_id}`
+- 不涉及 Assignment Edit、不涉及 backend API/schema/service/repo 變更
+
+### UI 行為
+- 每列模板新增「編輯」按鈕
+- 同一時間僅允許一列進入編輯狀態
+- 可編輯欄位：
+  - `name`
+  - `start_time`
+  - `end_time`
+  - `break_minutes`
+  - `is_overnight`
+- 取消編輯會還原原值
+- 儲存成功後刷新 template list，並顯示成功訊息
+
+### Payload（最小欄位）
+`updateTemplate()` 僅送以下欄位：
+- `name`
+- `start_time`
+- `end_time`
+- `break_minutes`
+- `is_overnight`
+
+未送出 `is_active`（由既有啟用/停用流程管理）。
+
+## WP-S1-07C Create Contract Alignment Fix (2026-03-25)
+
+### 背景
+`POST /api/v1/schedule/shift-templates` 曾有 contract 漂移：
+- 設計上 company scope 來自 JWT actor
+- create schema 卻要求 body.company_id
+- 導致前端（不送 company_id）回 422
+
+### 修正內容（最小）
+- `ShiftTemplateCreate` 不再要求 `company_id`
+- create service 不再依賴 `payload.company_id` 比對
+- create 寫入 company_id 仍完全來自 `actor.active_company_id`
+
+### Tenant Isolation
+- 來源不變：JWT actor scope
+- 不將 tenant boundary 責任轉移到 client payload
+
+### 影響範圍
+- 修正 Template create contract
+- update / activate / deactivate 行為不變
+- Assignment create 目前仍是舊型 contract（本票未調整）
+
+
+
+## WP-S1-08 Assignment Create Contract Alignment Fix (2026-03-26)
+
+### 背景
+`POST /api/v1/schedule/shift-assignments` 存在與 Template create 不一致的 contract：
+- create schema 要求 body.company_id
+- service.create_shift_assignment() 依賴 / 比對 payload.company_id
+- 與既定 tenant isolation（company scope 由 JWT actor 決定）不一致
+
+### 修正內容（最小）
+- `ShiftAssignmentCreate` 改為獨立 schema（不繼承 `ShiftAssignmentBase`）
+- `ShiftAssignmentCreate` 不包含 `company_id`
+- `create_shift_assignment(company_id, payload)` 移除 payload.company_id mismatch guard
+- create 寫入 `company_id` 仍完全來自 API 層 `actor.active_company_id`
+
+### Tenant Isolation
+- tenant boundary 來源維持 JWT actor scope
+- 不將 company scope 責任轉移到 client payload
+
+### 影響範圍
+- 僅調整 Assignment create contract
+- Assignment read response 仍保留 `company_id`
+- Assignment update/list/get/cancel flow 不變
+- Template flow 不變

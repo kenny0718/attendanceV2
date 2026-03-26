@@ -26,7 +26,6 @@ from app.modules.schedule.tests.conftest import (
 client = TestClient(app)
 
 TEMPLATE_BASE = {
-    "company_id": SCHEDULE_COMPANY_A,
     "code": "IT_DAY",
     "name": "Integration Day Shift",
     "start_time": "09:00:00",
@@ -76,11 +75,28 @@ class TestScheduleTemplateCRUD:
             return_value=type("FS", (), {"require_enabled": lambda self, *a: None})(),
         )
 
+    def test_create_without_company_id_uses_actor_scope(self, schedule_entitlement):
+        """Create request without company_id should persist under actor company scope."""
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        payload = {
+            **TEMPLATE_BASE,
+            "code": f"NOCID_{uuid4().hex[:6].upper()}",
+            "name": "No Company ID Payload",
+        }
+
+        with override_actor_dependency(actor):
+            with self._mock_feature_enabled():
+                r = client.post("/api/v1/schedule/shift-templates", json=payload)
+                assert r.status_code == 201, r.text
+                data = r.json()
+                assert data["company_id"] == SCHEDULE_COMPANY_A
+
+
     def test_full_template_crud_flow(self, schedule_entitlement):
         """Full CRUD flow: create -> get -> list -> update -> deactivate -> activate."""
         actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
         code = f"CRUD_{uuid4().hex[:6].upper()}"
-        payload = {**TEMPLATE_BASE, "code": code, "company_id": SCHEDULE_COMPANY_A}
+        payload = {**TEMPLATE_BASE, "code": code}
 
         with override_actor_dependency(actor):
             with self._mock_feature_enabled():
@@ -125,7 +141,7 @@ class TestScheduleTemplateCRUD:
         """Creating template with duplicate code -> 409 Conflict."""
         actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
         code = f"DUP_{uuid4().hex[:6].upper()}"
-        payload = {**TEMPLATE_BASE, "code": code, "company_id": SCHEDULE_COMPANY_A}
+        payload = {**TEMPLATE_BASE, "code": code}
 
         with override_actor_dependency(actor):
             with self._mock_feature_enabled():
@@ -151,7 +167,7 @@ class TestScheduleTemplateCRUD:
         actor_a = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
         actor_b_obj = create_test_actor(SCHEDULE_COMPANY_B, role_id="admin")
         code = f"ISO_{uuid4().hex[:6].upper()}"
-        payload = {**TEMPLATE_BASE, "code": code, "company_id": SCHEDULE_COMPANY_A}
+        payload = {**TEMPLATE_BASE, "code": code}
 
         with self._mock_feature_enabled():
             # Create as Company A

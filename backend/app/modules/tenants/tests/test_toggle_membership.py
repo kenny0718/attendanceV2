@@ -52,6 +52,16 @@ def _employee(company_id="dev-tenant"):
     )
 
 
+def _hr_manager(company_id="dev-tenant"):
+    return Actor(
+        user_id=uuid4(),
+        role=UserRole.COMPANY_USER,
+        company_memberships={company_id},
+        active_company_id=company_id,
+        active_role_id="hr_manager",
+    )
+
+
 def _override(client, actor):
     app.dependency_overrides[get_current_actor] = lambda: actor
 
@@ -159,8 +169,8 @@ class TestToggleMembershipActive:
         db_session.refresh(mem)
         assert mem.is_active is True
 
-    def test_company_admin_forbidden(self, client, db_session):
-        """company_admin → 403"""
+    def test_company_admin_can_toggle_own_company_membership(self, client, db_session):
+        """company_admin 可切換 own company membership (A1-1)"""
         suffix = str(uuid4())[:8]
         company_id = f"tog-co-{suffix}"
         _seed_company(db_session, company_id)
@@ -173,8 +183,8 @@ class TestToggleMembershipActive:
         finally:
             _clear()
 
-        assert resp.status_code == 403
-        assert resp.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+        assert resp.status_code == 200
+        assert resp.json()["is_active"] is False
 
     def test_employee_forbidden(self, client, db_session):
         """employee → 403"""
@@ -258,3 +268,59 @@ class TestToggleMembershipActive:
             _clear()
 
         assert resp.status_code == 422
+
+
+
+class TestAuthorizationBoundaryA11:
+
+    def test_company_admin_cross_company_toggle_forbidden(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        own_company = f"own-tog-{suffix}"
+        other_company = f"other-tog-{suffix}"
+        _seed_company(db_session, own_company)
+        _seed_company(db_session, other_company)
+        user = _seed_user(db_session, f"Cross {suffix}")
+        mem = _seed_membership(db_session, user.id, other_company, f"cross-{suffix}")
+
+        _override(client, _company_admin(own_company))
+        try:
+            resp = _patch(client, other_company, str(mem.id), False)
+        finally:
+            _clear()
+
+        assert resp.status_code == 403
+        assert resp.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+
+    def test_hr_manager_cross_company_toggle_forbidden(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        own_company = f"own-tog-{suffix}"
+        other_company = f"other-tog-{suffix}"
+        _seed_company(db_session, own_company)
+        _seed_company(db_session, other_company)
+        user = _seed_user(db_session, f"Cross HR {suffix}")
+        mem = _seed_membership(db_session, user.id, other_company, f"crosshr-{suffix}")
+
+        _override(client, _hr_manager(own_company))
+        try:
+            resp = _patch(client, other_company, str(mem.id), False)
+        finally:
+            _clear()
+
+        assert resp.status_code == 403
+        assert resp.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+
+    def test_super_admin_can_toggle_cross_company(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        company_id = f"sa-tog-{suffix}"
+        _seed_company(db_session, company_id)
+        user = _seed_user(db_session, f"SA Toggle {suffix}")
+        mem = _seed_membership(db_session, user.id, company_id, f"satog-{suffix}")
+
+        _override(client, _super_admin())
+        try:
+            resp = _patch(client, company_id, str(mem.id), False)
+        finally:
+            _clear()
+
+        assert resp.status_code == 200
+        assert resp.json()["is_active"] is False

@@ -1,7 +1,7 @@
 # Next WP Ticket
 
-**更新日期：** 2026-03-17（WP-C1-03 JWT Migration Batch 2 COMPLETE）  
-**當前狀態：** WP-C1-03 COMPLETE；當前 WP：WP-C1-04
+**更新日期：** 2026-03-24（S1-11E.2 + super_admin gating fix + legacy role cleanup phase 1 finalize）  
+**當前狀態：** S1-11A~S1-11E.2 主線已完成；當前 WP：S1-11 Stabilization / Audit / Cleanup Continuation
 
 ---
 
@@ -32,7 +32,7 @@
 
 ---
 
-## 當前完成狀態（截至 2026-03-17）
+## 當前完成狀態（截至 2026-03-24）
 
 | WP | 名稱 | 狀態 |
 |----|------|------|
@@ -54,6 +54,13 @@
 | **WP-C1-08 Phase 2** | Fixture Layer 修復 | **FIXTURE_COMPLETE（2026-03-12）** |
 | **WP-C1-09** | OUT Checkpoint API | **DONE（2026-03-12）** |
 | **WP-C1-03** | Auth 轉換 Batch 2（audit/notifications/backup JWT 遷移）| **COMPLETE（2026-03-17）** |
+| **S1-11A** | Company Basic Management | **COMPLETE** |
+| **S1-11B** | Member Management Panel | **COMPLETE** |
+| **S1-11C** | Admin Access Roles | **COMPLETE** |
+| **S1-11D** | Role Normalization | **COMPLETE** |
+| **S1-11E / S1-11E.2** | restoreSession / logout fixes | **COMPLETE** |
+| **S1-11 hotfix** | super_admin gating fix | **COMPLETE** |
+| **Legacy Role Cleanup Phase 1** | 1A/1B/1C（admin/hr path cleanup + tests/docs sync） | **FINALIZED（2026-03-24）** |
 
 ---
 
@@ -122,39 +129,39 @@
 
 ---
 
-## 當前 WP：WP-C1-04 — 8 個回歸測試（真實 DB）
+## 當前 WP：S1-11 Stabilization / Audit / Cleanup Continuation
 
 **Status：** CURRENT  
-**前置條件：** WP-C1-03 COMPLETE ✅  
-**內容：** attendance 模組 8 個回歸測試，使用真實 PostgreSQL `attendance_test` 資料庫  
-**範圍：** Backend regression tests
+**前置條件：** S1-11A~S1-11E.2、super_admin gating fix、Legacy Role Cleanup Phase 1 已完成 ✅  
+**內容：** 以 S1-11 主線為基準進行穩定化收斂、回歸審核與後續 cleanup 受控延伸（不回退到早期 schedule 初期票）  
+**範圍：** Stabilization / audit / controlled cleanup planning
 
 ---
 
 ## 後續 WP 順序
 
 ```
-WP-11-06（Reporting Backend）✅ COMPLETE 2026-03-14
+S1-11A（Company Basic Management）✅ COMPLETE
   ↓
-WP-11-07（Reporting UI Polish / QA）✅ COMPLETE 2026-03-15
+S1-11B（Member Management Panel）✅ COMPLETE
   ↓
-WP-11-08（Leave Request System）✅ COMPLETE 2026-03-15
+S1-11C（Admin Access Roles）✅ COMPLETE
   ↓
-WP-C1-03（Auth 轉換 Batch 2：audit/notifications/backup）✅ COMPLETE 2026-03-17
+S1-11D（Role Normalization）✅ COMPLETE
   ↓
-WP-C1-04（8 個回歸測試，真實 DB）← 當前 WP
+S1-11E / S1-11E.2（restoreSession / logout fixes）✅ COMPLETE
   ↓
-WP-C1-05（Tenant Isolation 真實 DB 測試）
+super_admin gating fix ✅ COMPLETE
   ↓
-WP-C1-06（Feature Gate 套用）
+Legacy Role Cleanup Phase 1（1A/1B/1C）✅ FINALIZED
   ↓
-[Phase 1 Complete — Gate 5 可宣告完成]
+S1-11 Stabilization / Audit / Cleanup Continuation ← 當前 WP
 ```
 
 ---
 
-**最後更新：** 2026-03-17  
-**更新原因：** WP-C1-03 JWT Migration Batch 2 COMPLETE（2026-03-17）；WP-C1-04 成為當前 WP
+**最後更新：** 2026-03-24  
+**更新原因：** 同步 branch 實際進度（S1-11A~S1-11E.2、super_admin gating fix、Legacy Role Cleanup Phase 1 finalize），並將當前 WP 對齊至 S1-11 stabilization / audit / cleanup continuation
 
 ---
 

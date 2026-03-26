@@ -76,6 +76,8 @@
           </div>
 
           <div class="section-body">
+            <div v-if="editError" class="form-msg form-msg--error">⚠ {{ editError }}</div>
+            <div v-if="editSuccess" class="form-msg form-msg--success">✓ 班別模板更新成功</div>
             <div v-if="tplLoading" class="state-box">
               <div class="spinner"></div>
               <span>載入中...</span>
@@ -99,33 +101,76 @@
                 <tbody>
                   <tr v-for="t in templates" :key="t.id">
                     <td><code class="code-chip">{{ t.code }}</code></td>
-                    <td>{{ t.name }}</td>
-                    <td>{{ t.start_time }}</td>
-                    <td>{{ t.end_time }}</td>
-                    <td>{{ t.break_minutes }}</td>
-                    <td>{{ t.is_overnight ? "是" : "否" }}</td>
+                    <td>
+                      <template v-if="editingTemplateId === t.id">
+                        <input v-model="editForm.name" class="field-input field-input--inline" type="text" maxlength="64" />
+                      </template>
+                      <template v-else>{{ t.name }}</template>
+                    </td>
+                    <td>
+                      <template v-if="editingTemplateId === t.id">
+                        <input v-model="editForm.start_time" class="field-input field-input--inline" type="time" />
+                      </template>
+                      <template v-else>{{ t.start_time }}</template>
+                    </td>
+                    <td>
+                      <template v-if="editingTemplateId === t.id">
+                        <input v-model="editForm.end_time" class="field-input field-input--inline" type="time" />
+                      </template>
+                      <template v-else>{{ t.end_time }}</template>
+                    </td>
+                    <td>
+                      <template v-if="editingTemplateId === t.id">
+                        <input v-model.number="editForm.break_minutes" class="field-input field-input--inline" type="number" min="0" />
+                      </template>
+                      <template v-else>{{ t.break_minutes }}</template>
+                    </td>
+                    <td>
+                      <template v-if="editingTemplateId === t.id">
+                        <label class="inline-check">
+                          <input v-model="editForm.is_overnight" type="checkbox" />
+                          過夜
+                        </label>
+                      </template>
+                      <template v-else>{{ t.is_overnight ? "是" : "否" }}</template>
+                    </td>
                     <td>
                       <span :class="t.is_active ? 'badge-active' : 'badge-inactive'">
                         {{ t.is_active ? "啟用" : "停用" }}
                       </span>
                     </td>
                     <td>
-                      <button
-                        v-if="t.is_active"
-                        class="btn-action btn-deactivate"
-                        :disabled="tplActionId === t.id"
-                        @click="toggleTemplateActive(t)"
-                      >
-                        {{ tplActionId === t.id ? "處理中..." : "停用" }}
-                      </button>
-                      <button
-                        v-else
-                        class="btn-action btn-activate"
-                        :disabled="tplActionId === t.id"
-                        @click="toggleTemplateActive(t)"
-                      >
-                        {{ tplActionId === t.id ? "處理中..." : "啟用" }}
-                      </button>
+                      <template v-if="editingTemplateId === t.id">
+                        <button class="btn-action btn-save" :disabled="editLoading" @click="submitEditTemplate(t)">
+                          {{ editLoading ? "儲存中..." : "儲存" }}
+                        </button>
+                        <button class="btn-action btn-inline-cancel" :disabled="editLoading" @click="cancelEditTemplate">取消</button>
+                      </template>
+                      <template v-else>
+                        <button
+                          class="btn-action btn-edit"
+                          :disabled="editLoading || (editingTemplateId && editingTemplateId !== t.id)"
+                          @click="startEditTemplate(t)"
+                        >
+                          編輯
+                        </button>
+                        <button
+                          v-if="t.is_active"
+                          class="btn-action btn-deactivate"
+                          :disabled="tplActionId === t.id || !!editingTemplateId"
+                          @click="toggleTemplateActive(t)"
+                        >
+                          {{ tplActionId === t.id ? "處理中..." : "停用" }}
+                        </button>
+                        <button
+                          v-else
+                          class="btn-action btn-activate"
+                          :disabled="tplActionId === t.id || !!editingTemplateId"
+                          @click="toggleTemplateActive(t)"
+                        >
+                          {{ tplActionId === t.id ? "處理中..." : "啟用" }}
+                        </button>
+                      </template>
                     </td>
                   </tr>
                 </tbody>
@@ -324,6 +369,83 @@ async function submitCreate() {
     }
   } finally {
     createLoading.value = false
+  }
+}
+
+// Template edit
+const editingTemplateId = ref(null)
+const editLoading = ref(false)
+const editError = ref(null)
+const editSuccess = ref(false)
+const editForm = ref({
+  name: '',
+  start_time: '',
+  end_time: '',
+  break_minutes: 0,
+  is_overnight: false,
+})
+
+function normalizeTimeInput(value) {
+  if (!value) return ''
+  return String(value).slice(0, 5)
+}
+
+function toApiTime(value) {
+  if (!value) return value
+  return value.length === 5 ? `${value}:00` : value
+}
+
+function startEditTemplate(t) {
+  editError.value = null
+  editSuccess.value = false
+  editingTemplateId.value = t.id
+  editForm.value = {
+    name: t.name || '',
+    start_time: normalizeTimeInput(t.start_time),
+    end_time: normalizeTimeInput(t.end_time),
+    break_minutes: Number(t.break_minutes ?? 0),
+    is_overnight: !!t.is_overnight,
+  }
+}
+
+function cancelEditTemplate() {
+  editingTemplateId.value = null
+  editError.value = null
+  editForm.value = {
+    name: '',
+    start_time: '',
+    end_time: '',
+    break_minutes: 0,
+    is_overnight: false,
+  }
+}
+
+async function submitEditTemplate(t) {
+  editError.value = null
+  editSuccess.value = false
+  editLoading.value = true
+  try {
+    await scheduleApi.updateTemplate(t.id, {
+      name: editForm.value.name,
+      start_time: toApiTime(editForm.value.start_time),
+      end_time: toApiTime(editForm.value.end_time),
+      break_minutes: Number(editForm.value.break_minutes ?? 0),
+      is_overnight: !!editForm.value.is_overnight,
+    })
+    await fetchTemplates()
+    editingTemplateId.value = null
+    editSuccess.value = true
+    setTimeout(() => {
+      editSuccess.value = false
+    }, 1500)
+  } catch (err) {
+    if (isFeatureDisabled(err)) {
+      featureDisabled.value = true
+    } else {
+      editError.value = err?.message || '更新失敗，請再試一次'
+    }
+  } finally {
+    editLoading.value = false
   }
 }
 
@@ -561,6 +683,7 @@ onMounted(() => {
   transition: border-color 0.15s;
 }
 .field-input:focus { border-color: var(--primary, #3b5bdb); }
+.field-input--inline { min-width: 110px; padding: 4px 8px; font-size: 0.8rem; }
 
 .field-label-check {
   display: flex; align-items: center; gap: 6px;
@@ -656,6 +779,13 @@ onMounted(() => {
 .btn-activate:hover:not(:disabled)   { background: #c8e6c9; }
 .btn-deactivate { color: #c62828; background: #fff3e0; }
 .btn-deactivate:hover:not(:disabled) { background: #ffe0b2; }
+.btn-edit { color: #1e40af; background: #e0e7ff; margin-right: 6px; }
+.btn-edit:hover:not(:disabled) { background: #c7d2fe; }
+.btn-save { color: #ffffff; background: #2563eb; margin-right: 6px; }
+.btn-save:hover:not(:disabled) { background: #1d4ed8; }
+.btn-inline-cancel { color: #4b5563; background: #f3f4f6; }
+.btn-inline-cancel:hover:not(:disabled) { background: #e5e7eb; }
+.inline-check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; }
 
 .btn-cancel-asg { color: #6d4c41; background: #fbe9e7; }
 .btn-cancel-asg:hover:not(:disabled) { background: #ffccbc; }

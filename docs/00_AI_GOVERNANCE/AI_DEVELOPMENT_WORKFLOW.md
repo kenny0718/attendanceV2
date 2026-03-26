@@ -255,6 +255,12 @@ UI / Manual QA（手動驗收）
 ✅ 更新 docs/NEXT_WP_TICKET.md
    - 當前 WP 標記為 COMPLETE
    - 下一個 WP 更新為 current
+   - 每次完成 WP / phase / fix 後必須同步更新（不可延後到下次補）
+
+⚠️ 禁止只改 code 不更新當前票據狀態（至少必須更新 NEXT_WP_TICKET.md）
+
+✅ 交付回報必填欄位
+   - `NEXT_WP_TICKET.md updated: YES/NO`
 
 ✅ 更新 docs/GATE_PROGRESS_TRACKER.md
    - WP 狀態 → COMPLETE

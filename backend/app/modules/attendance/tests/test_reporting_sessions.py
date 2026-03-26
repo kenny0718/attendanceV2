@@ -23,7 +23,7 @@ from app.core.database import get_db
 from app.modules.attendance.models import AttendanceSession
 from app.modules.tenants.models import Tenant
 from app.modules.auth.models import User
-from app.tests.utils.auth import create_test_actor, override_actor_dependency
+from app.tests.utils.auth import create_test_actor, create_super_admin_actor, override_actor_dependency
 
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 COMPANY_A = "company-sessions-a"
@@ -54,6 +54,16 @@ def make_open_session(db, company_id, user_id, punch_in_utc):
 def make_actor(company_id, user_id):
     """WP-C1-07: 建立 JWT Actor 取代 X-Company-ID / X-User-ID header"""
     return create_test_actor(company_id, user_id=user_id)
+
+
+def make_actor_with_role(company_id, user_id, role_id):
+    """建立指定公司內角色的測試 Actor。"""
+    return create_test_actor(company_id, user_id=user_id, role_id=role_id)
+
+
+def make_super_admin_actor(company_id, user_id):
+    """建立 super_admin 測試 Actor（帶 active company scope）。"""
+    return create_super_admin_actor(company_id=company_id, user_id=user_id)
 
 
 # --- fixtures ---
@@ -346,3 +356,66 @@ class TestSES11NaiveDatetimeRejected:
         # FastAPI parses naive ISO string as datetime without tz
         # Our endpoint rejects it with 422
         assert resp.status_code == 422
+
+
+# --- SES-12: Role branch alignment ---
+
+class TestSES12RoleBranchAlignment:
+    def test_company_admin_can_query_other_user_sessions(self, client_a, db, user_a, tenant_a):
+        other = User(id=uuid4(), display_name="Other Admin Scope", password_hash="x", is_active=True)
+        db.add(other); db.commit(); db.refresh(other)
+        now = datetime.now(timezone.utc)
+        make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=3))
+
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id.id, "company_admin")):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(other.id)})
+
+        assert resp.status_code == 200
+        assert resp.json()["total"] >= 1
+
+    def test_hr_manager_can_query_other_user_sessions(self, client_a, db, user_a, tenant_a):
+        other = User(id=uuid4(), display_name="Other HR Scope", password_hash="x", is_active=True)
+        db.add(other); db.commit(); db.refresh(other)
+        now = datetime.now(timezone.utc)
+        make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=4))
+
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id.id, "hr_manager")):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(other.id)})
+
+        assert resp.status_code == 200
+        assert resp.json()["total"] >= 1
+
+    def test_super_admin_can_query_other_user_sessions_in_active_company_scope(self, client_a, db, user_a, tenant_a):
+        other = User(id=uuid4(), display_name="Other Super Scope", password_hash="x", is_active=True)
+        db.add(other); db.commit(); db.refresh(other)
+        now = datetime.now(timezone.utc)
+        make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=2))
+
+        with override_actor_dependency(make_super_admin_actor(COMPANY_A, user_a.id.id)):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(other.id)})
+
+        assert resp.status_code == 200
+        assert resp.json()["total"] >= 1
+
+    def test_employee_cannot_query_other_user_sessions(self, client_a, db, user_a, tenant_a):
+        other = User(id=uuid4(), display_name="Other Employee Scope", password_hash="x", is_active=True)
+        db.add(other); db.commit(); db.refresh(other)
+        now = datetime.now(timezone.utc)
+        make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=5))
+
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id.id, "employee")):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(other.id)})
+
+        assert resp.status_code == 403
+
+    def test_company_admin_cross_company_target_user_returns_empty_under_company_scope(self, client_a, db, user_a, user_b):
+        now = datetime.now(timezone.utc)
+        make_closed_session(db, COMPANY_B, user_b.id, now - timedelta(hours=6))
+
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id.id, "company_admin")):
+            resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(user_b.id)})
+
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert payload["total"] == 0
+        assert payload["sessions"] == []

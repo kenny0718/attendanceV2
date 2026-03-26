@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 import uuid as _uuid
 
 from app.core.database import get_db
-from app.core.scope import Actor
+from app.core.scope import Actor, ScopeError, assert_company_scope
 from app.core.dependencies import get_current_actor
 from app.modules.tenants.service import get_tenant_service
 from app.modules.tenants.schemas_members import (
@@ -19,6 +19,30 @@ from app.modules.tenants.schemas_members import (
 )
 from app.modules.auth.models import Membership as MembershipModel, User as UserModel, Role as RoleModel
 from app.modules.auth.repo import AuthRepository
+
+
+def _assert_admin_company_access(actor: Actor, company_id: str, db: Session) -> None:
+    """Authorize members endpoints with company scope boundary.
+
+    - super_admin: any company
+    - company_admin/hr_manager: own active company only
+    """
+    if actor.is_super_admin():
+        return
+
+    if not actor.is_admin():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin, company_admin, or hr_manager can access members endpoints"},
+        )
+
+    try:
+        assert_company_scope(actor, company_id, db)
+    except ScopeError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "SCOPE_FORBIDDEN", "message": "company_admin/hr_manager can only operate members within their own company scope"},
+        )
 
 
 def register_routes(router: APIRouter) -> None:
@@ -37,13 +61,11 @@ def register_routes(router: APIRouter) -> None:
         """
         List all members (users + memberships) for a company.
 
-        Permission: super_admin only
+        Permission:
+        - super_admin: any company
+        - company_admin/hr_manager: own company only
         """
-        if not (actor.is_super_admin() or actor.is_admin()):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin, company_admin, or hr_manager can view company members"},
-            )
+        _assert_admin_company_access(actor, company_id, db)
 
         service = get_tenant_service(db)
         if not service.tenant_exists(company_id):
@@ -97,13 +119,11 @@ def register_routes(router: APIRouter) -> None:
         """
         Toggle membership active state for a company member.
 
-        Permission: super_admin only
+        Permission:
+        - super_admin: any company
+        - company_admin/hr_manager: own company only
         """
-        if not (actor.is_super_admin() or actor.is_admin()):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin, company_admin, or hr_manager can toggle membership status"},
-            )
+        _assert_admin_company_access(actor, company_id, db)
 
         tenant_svc = get_tenant_service(db)
         if not tenant_svc.tenant_exists(company_id):
@@ -158,11 +178,7 @@ def register_routes(router: APIRouter) -> None:
         actor: Actor = Depends(get_current_actor),
         db: Session = Depends(get_db),
     ):
-        if not (actor.is_super_admin() or actor.is_admin()):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin, company_admin, or hr_manager can add company members"},
-            )
+        _assert_admin_company_access(actor, company_id, db)
 
         tenant_svc = get_tenant_service(db)
         if not tenant_svc.tenant_exists(company_id):

@@ -1,194 +1,234 @@
-# Cursor Rule — Vue 頁面安全修改規則
+# Cursor Rule — Frontend Safe Edit Rules (Vue Focus)
 
 ## 適用範圍
-所有 `.vue` 檔案，特別是：
+所有前端檔案，特別是：
+
 - `frontend/src/views/**/*.vue`
 - `frontend/src/components/**/*.vue`
+- `frontend/src/api/**/*.js`
+- `frontend/src/stores/**/*.js`
 
-尤其是：
-- 含 `<template> + <script setup> + <style scoped>` 的 Vue SFC
-- 表單頁
-- dashboard / admin 頁
-- 含 SVG icon / 多段 card / 多區塊 header 的頁面
-
----
-
-## 核心原則
-
-### 1. 禁止整檔重寫
-對 `.vue` 檔案：
-- 不可整份覆蓋
-- 不可先清空再重建
-- 不可根據對話上下文重建整頁
-- 不可用「我推測原本內容」方式補檔
-
-只能做：
-- 局部修改
-- 精準替換
-- 小範圍 patch
+重點高風險：
+- Vue SFC（template + script + style）
+- API client（client.js）
+- admin / dashboard 頁面
 
 ---
 
-### 2. 禁止在空檔狀態下修復
-如果目標 `.vue` 檔案：
-- 0 bytes
-- 缺少 `<template>`
-- 缺少 `<script>` 或 `<script setup>`
-- 缺少 `<style>` / `<style scoped>`
+# 🔴 核心原則（最高優先）
 
-則：
-- 不可直接重建
-- 不可憑對話內容補完
-- 必須先停止並回報
-- 優先建議使用 git restore / backup restore
+## 1. 強制 Patch-Style（禁止整檔重寫）
+所有檔案修改必須：
+
+- 採「最小差異修改（patch-style edit）」
+- 禁止整檔覆蓋（full rewrite）
+- 禁止先清空再重建
+- 禁止重新生成整個檔案內容
+
+若任務需要大改：
+- 必須拆成多步驟
+- 每步保持可驗證狀態
 
 ---
 
-### 3. 先檢查，再修改
-每次修改 `.vue` 檔前，必須先檢查：
+## 2. 禁止在異常檔案上寫入
+若檔案為：
+
+- 0 byte
+- 結構缺失（Vue 缺 template/script/style）
+- 明顯被截斷
+
+👉 必須：
+
+- 停止
+- 回報
+- 建議 restore（git / backup）
+- 禁止自行重建
+
+---
+
+## 3. 寫入安全機制（強制）
+所有寫入必須：
+
+1. 寫入 `.tmp`
+2. 檢查檔案大小（不可 0 byte）
+3. rename 覆蓋
+4. 重新讀取確認內容存在
+
+任一步失敗 → **立即停止**
+
+---
+
+## 4. 不可使用對話內容當真實來源
+禁止：
+
+- 用 ChatGPT / Cursor 對話中的程式碼覆蓋檔案
+- 用「記憶中的版本」重建檔案
+
+必須以 **磁碟實際內容為準**
+
+---
+
+# 🟡 Vue 專用安全規則
+
+## 5. 修改前完整性檢查
+每次修改 `.vue` 前必須確認：
+
 - 檔案非空
-- 存在 `<template>`
-- 存在 `<script>` 或 `<script setup>`
-- 存在 `<style>` 或 `<style scoped>`
+- `<template>` 存在
+- `<script>` 或 `<script setup>` 存在
+- `<style>` 存在
 
-若任一不成立：
-- 停止修改
-- 先回報問題
-- 不可直接寫入
+否則：停止
 
 ---
 
-### 4. 一次只改一類事情
-對高風險 Vue 頁面，不可同時做多種不同層級變更。
-
+## 6. 一次只改一類事情
 允許：
-- 只改文字
-- 只改單一 icon path
-- 只改一個按鈕 class
-- 只移除一個已精準定位的小區塊
 
-禁止一次混做：
-- 改文字 + 改 layout + 改結構 + 改樣式 + 改 icon
-- 重構 + 視覺調整 同時進行
-- 多頁面大改後才驗證
+- 文案
+- 單一 class
+- 單一 icon
+- 單一小區塊
+
+禁止：
+
+- layout + style + logic 同時改
+- 多頁修改
+- 重構 + UI 同時做
 
 ---
 
-### 5. 結構修改前先做 Mapping Audit
-若需求涉及以下任一項：
-- 刪除某段 template
+## 7. 結構修改必須先 Audit
+若涉及：
+
+- 刪除 template 區塊
 - 移動區塊
-- 調整 card header / form 區塊 / CTA 區塊
-- 修改多個相似區塊中的其中一個
+- 調整 card / form / CTA
 
-必須先做：
-- 讀取檔案
-- 找出精準區塊
-- 回報位置與前後文
-- 不先修改
+必須：
 
-確認後才能進下一步。
+1. 先讀檔
+2. 定位區塊
+3. 回報
+4. 等確認
 
 ---
 
-### 6. 禁止把對話內容當磁碟真實來源
-不可將：
-- 使用者先前貼過的程式碼
-- 對話中的檔案片段
-- 模型自己的回憶內容
+## 8. 僅允許低風險直接修改
+可直接改：
 
-當成磁碟上真實檔案內容直接寫回。
+- 文字
+- class
+- icon path
 
-必須以目前實體檔案內容為準。
-若磁碟內容異常，先停止並回報，不可自行重建。
+不可直接改：
 
----
-
-### 7. 只允許低風險直接修改
-以下類型可以直接做局部修改：
-- 單行文字替換
-- 單一 SVG `<path d="...">` 替換
-- 單一 class 名稱調整
-- 單一按鈕文案修改
-- 單一標題修改
-
-以下類型不可直接做，必須先 audit：
-- 刪整段 header
-- 重新組 template
-- 調整大區塊 hierarchy
-- 拆 component
-- 重構 script / reactive state
-- 從空檔補整頁
+- 大區塊 template
+- reactive state
+- component 結構
 
 ---
 
-### 8. 修改後必須自我驗證
-每次修改 `.vue` 後，必須回報：
-- 目標檔案是否非空
-- `<template>` 是否仍存在
-- `<script>` / `<script setup>` 是否仍存在
-- `<style>` / `<style scoped>` 是否仍存在
-- 是否只修改指定檔案
-- 是否只改到指定區塊
+# 🟠 API / Core 檔案保護（新增）
+
+## 9. 高風險檔案禁止整檔操作
+以下檔案屬高風險：
+
+- `frontend/src/api/client.js`
+- auth / config / env 類檔案
+
+規則：
+
+- 禁止整檔重寫
+- 修改前必須：
+  - 檢查大小
+  - 確認 export 結構
+- 修改後必須：
+  - 確認關鍵 export 存在（如 `export default apiClient`）
 
 ---
 
-### 9. 高風險頁面優先建議拆分
-如果頁面同時包含：
-- header
-- form
-- submit area
-- 多個 icon
-- 多個 card
-- 多個重複區塊
+## 10. Import/Export 不可隨意改動
+禁止：
 
-則後續開發建議先拆分成較小 component，再繼續 UI 修改。
+- default ↔ named export 隨意切換
+- 修改 API client export 結構
 
-但拆分本身屬高風險任務，必須獨立執行，不可順手混做。
+除非：
+
+- 有明確 audit
+- 且為單一目標修復
 
 ---
 
-## 標準執行流程
+# 🧠 AI 行為限制（關鍵補強）
 
-### A. 純文字 / icon 小修改
-1. 檢查檔案完整性
-2. 局部修改
-3. 回報修改點
-4. 不做其他額外變更
+## 11. 禁止 fallback 重建策略
+當 AI 無法理解檔案時：
 
-### B. 結構修改
-1. 先做 mapping audit
-2. 等使用者確認
-3. 只改一個精準區塊
-4. 回報修改區塊與檔案完整性
+❌ 不可：
+- 重寫整個檔案
+- 自行補全缺失內容
 
-### C. 空檔 / 檔案損壞
+✅ 必須：
+- 停止
+- 回報「無法安全修改」
+
+---
+
+## 12. 強制最小影響原則
+每次修改必須：
+
+- 只動指定檔案
+- 只動指定區塊
+- 不影響其他 module
+
+---
+
+# 🧪 修改後驗證（強制）
+
+每次修改後必須回報：
+
+### File Integrity
+- non-empty: YES/NO
+- template exists: YES/NO
+- script exists: YES/NO
+- style exists: YES/NO
+
+### Scope Check
+- only target file modified: YES/NO
+- only target block modified: YES/NO
+
+### Additional Check（API 檔）
+- export structure intact: YES/NO
+
+---
+
+# 🧭 標準流程
+
+## A. 小修改
+1. 檢查
+2. patch
+3. 驗證
+
+## B. 結構修改
+1. audit
+2. 確認
+3. 單區塊修改
+
+## C. 檔案異常
 1. 停止
-2. 回報目前檔案異常
-3. 建議 restore
-4. 禁止自行重建
+2. 回報
+3. restore
 
 ---
 
-## 回報格式（固定）
-每次修改 Vue 檔後，必須輸出：
+# 🚨 禁止事項
 
-1. Files changed
-2. Exact changes made
-3. File integrity check
-   - non-empty: YES/NO
-   - template exists: YES/NO
-   - script exists: YES/NO
-   - style exists: YES/NO
-4. Risk note
-5. Whether next step is safe: YES/NO
-
----
-
-## 禁止事項（不可違反）
-- 不可整檔覆蓋 Vue 頁面
-- 不可在空檔上補內容
-- 不可用對話中的程式碼覆蓋磁碟檔案
-- 不可未經 audit 就刪除 template 大區塊
-- 不可同時做結構重組與樣式微調
-- 不可自行假設使用者要重構整頁
+- 整檔覆蓋
+- 空檔寫入
+- 用對話內容覆蓋
+- 未 audit 刪大區塊
+- 多類型修改混做
+- 自行重構

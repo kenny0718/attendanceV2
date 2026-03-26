@@ -109,15 +109,22 @@ class TestListCompanies:
         assert "created_at" in co
 
     def test_company_admin_can_list_companies_s11c(self, db_session, client):
-        """company_admin 可列出所有公司 (S1-11C)"""
-        _override_actor(client, _make_company_admin_actor())
+        """company_admin 僅可列出 own company 單筆 (A1-1)"""
+        db_session.add(Tenant(id="dev-tenant", name="Dev Tenant", timezone="UTC", is_active=True))
+        db_session.add(Tenant(id="other-tenant", name="Other Tenant", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_company_admin_actor("dev-tenant"))
         try:
             response = client.get("/api/admin/companies")
         finally:
             _clear_actor()
 
         assert response.status_code == 200
-        assert "companies" in response.json()
+        data = response.json()
+        assert data["total"] == 1
+        assert len(data["companies"]) == 1
+        assert data["companies"][0]["id"] == "dev-tenant"
 
     def test_employee_cannot_list_companies(self, db_session, client):
         """employee 不可列出所有公司 → 403"""
@@ -293,19 +300,20 @@ class TestGetCompany:
         assert response.status_code == 404
         assert response.json()["detail"]["code"] == "COMPANY_NOT_FOUND"
 
-    def test_company_admin_can_get_company_s11c(self, db_session, client):
-        """company_admin 可讀取單一公司 (S1-11C)"""
+    def test_company_admin_cross_company_get_forbidden_s11c(self, db_session, client):
+        """company_admin 跨公司讀取應被拒絕 (A1-1)"""
         db_session.add(Tenant(id="detail-co-2", name="Detail Co 2", timezone="UTC", is_active=True))
+        db_session.add(Tenant(id="dev-tenant", name="Dev Tenant", timezone="UTC", is_active=True))
         db_session.commit()
 
-        _override_actor(client, _make_company_admin_actor())
+        _override_actor(client, _make_company_admin_actor("dev-tenant"))
         try:
             response = client.get("/api/admin/companies/detail-co-2")
         finally:
             _clear_actor()
 
-        assert response.status_code == 200
-        assert response.json()["id"] == "detail-co-2"
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
 
     def test_employee_cannot_get_company(self, db_session, client):
         """employee → 403"""
@@ -442,12 +450,13 @@ class TestUpdateCompany:
 
         assert response.status_code == 422
 
-    def test_company_admin_can_update_company_s11c(self, db_session, client):
-        """company_admin 可更新公司 (S1-11C)"""
+    def test_company_admin_cross_company_update_forbidden_s11c(self, db_session, client):
+        """company_admin 跨公司更新應被拒絕 (A1-1)"""
         db_session.add(Tenant(id="upd-co-6", name="Co Admin Target", timezone="UTC", is_active=True))
+        db_session.add(Tenant(id="dev-tenant", name="Dev Tenant", timezone="UTC", is_active=True))
         db_session.commit()
 
-        _override_actor(client, _make_company_admin_actor())
+        _override_actor(client, _make_company_admin_actor("dev-tenant"))
         try:
             response = client.patch(
                 "/api/admin/companies/upd-co-6",
@@ -456,8 +465,8 @@ class TestUpdateCompany:
         finally:
             _clear_actor()
 
-        assert response.status_code == 200
-        assert response.json()["name"] == "Updated By CA"
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
 
     def test_employee_cannot_update_company(self, db_session, client):
         """employee → 403"""
@@ -492,102 +501,116 @@ class TestAdminAccessRoles:
     # ── company_admin allow ──
 
     def test_company_admin_can_list_companies(self, db_session, client):
-        """company_admin can list companies (S1-11C)"""
-        db_session.add(Tenant(id="ca-list-1", name="CA List Co", timezone="UTC", is_active=True))
+        """company_admin can list own company only (A1-1)"""
+        db_session.add(Tenant(id="ca-tenant", name="CA Tenant", timezone="UTC", is_active=True))
+        db_session.add(Tenant(id="ca-other", name="CA Other", timezone="UTC", is_active=True))
         db_session.commit()
-        _override_actor(client, _make_company_admin_actor())
+        _override_actor(client, _make_company_admin_actor("ca-tenant"))
         try:
             response = client.get("/api/admin/companies")
         finally:
             _clear_actor()
         assert response.status_code == 200
-        assert "companies" in response.json()
+        data = response.json()
+        assert data["total"] == 1
+        assert len(data["companies"]) == 1
+        assert data["companies"][0]["id"] == "ca-tenant"
 
-    def test_company_admin_can_get_company(self, db_session, client):
-        """company_admin can get single company detail (S1-11C)"""
+    def test_company_admin_cross_company_get_forbidden(self, db_session, client):
+        """company_admin cannot get other company detail (A1-1)"""
+        db_session.add(Tenant(id="ca-tenant", name="CA Tenant", timezone="UTC", is_active=True))
         db_session.add(Tenant(id="ca-detail-1", name="CA Detail Co", timezone="UTC", is_active=True))
         db_session.commit()
-        _override_actor(client, _make_company_admin_actor())
+        _override_actor(client, _make_company_admin_actor("ca-tenant"))
         try:
             response = client.get("/api/admin/companies/ca-detail-1")
         finally:
             _clear_actor()
-        assert response.status_code == 200
-        assert response.json()["id"] == "ca-detail-1"
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
 
-    def test_company_admin_can_update_company(self, db_session, client):
-        """company_admin can update company (S1-11C)"""
+    def test_company_admin_cross_company_update_forbidden(self, db_session, client):
+        """company_admin cannot update other company (A1-1)"""
+        db_session.add(Tenant(id="ca-tenant", name="CA Tenant", timezone="UTC", is_active=True))
         db_session.add(Tenant(id="ca-upd-1", name="CA Upd Co", timezone="UTC", is_active=True))
         db_session.commit()
-        _override_actor(client, _make_company_admin_actor())
+        _override_actor(client, _make_company_admin_actor("ca-tenant"))
         try:
             response = client.patch("/api/admin/companies/ca-upd-1", json={"name": "CA Updated"})
         finally:
             _clear_actor()
-        assert response.status_code == 200
-        assert response.json()["name"] == "CA Updated"
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
 
-    def test_company_admin_can_list_members(self, db_session, client):
-        """company_admin can list company members (S1-11C)"""
+    def test_company_admin_cross_company_list_members_forbidden(self, db_session, client):
+        """company_admin cannot list members of other company (A1-1)"""
+        db_session.add(Tenant(id="ca-tenant", name="CA Tenant", timezone="UTC", is_active=True))
         db_session.add(Tenant(id="ca-mem-co", name="CA Mem Co", timezone="UTC", is_active=True))
         db_session.commit()
-        _override_actor(client, _make_company_admin_actor())
+        _override_actor(client, _make_company_admin_actor("ca-tenant"))
         try:
             response = client.get("/api/admin/companies/ca-mem-co/members")
         finally:
             _clear_actor()
-        assert response.status_code == 200
-        assert "members" in response.json()
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
 
     # ── hr_manager allow ──
 
     def test_hr_manager_can_list_companies(self, db_session, client):
-        """hr_manager can list companies (S1-11C)"""
-        db_session.add(Tenant(id="hr-list-1", name="HR List Co", timezone="UTC", is_active=True))
+        """hr_manager can list own company only (A1-1)"""
+        db_session.add(Tenant(id="hr-tenant", name="HR Tenant", timezone="UTC", is_active=True))
+        db_session.add(Tenant(id="hr-other", name="HR Other", timezone="UTC", is_active=True))
         db_session.commit()
-        _override_actor(client, _make_hr_manager_actor())
+        _override_actor(client, _make_hr_manager_actor("hr-tenant"))
         try:
             response = client.get("/api/admin/companies")
         finally:
             _clear_actor()
         assert response.status_code == 200
-        assert "companies" in response.json()
+        data = response.json()
+        assert data["total"] == 1
+        assert len(data["companies"]) == 1
+        assert data["companies"][0]["id"] == "hr-tenant"
 
-    def test_hr_manager_can_get_company(self, db_session, client):
-        """hr_manager can get single company detail (S1-11C)"""
+    def test_hr_manager_cross_company_get_forbidden(self, db_session, client):
+        """hr_manager cannot get other company detail (A1-1)"""
+        db_session.add(Tenant(id="hr-tenant", name="HR Tenant", timezone="UTC", is_active=True))
         db_session.add(Tenant(id="hr-detail-1", name="HR Detail Co", timezone="UTC", is_active=True))
         db_session.commit()
-        _override_actor(client, _make_hr_manager_actor())
+        _override_actor(client, _make_hr_manager_actor("hr-tenant"))
         try:
             response = client.get("/api/admin/companies/hr-detail-1")
         finally:
             _clear_actor()
-        assert response.status_code == 200
-        assert response.json()["id"] == "hr-detail-1"
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
 
-    def test_hr_manager_can_update_company(self, db_session, client):
-        """hr_manager can update company (S1-11C)"""
+    def test_hr_manager_cross_company_update_forbidden(self, db_session, client):
+        """hr_manager cannot update other company (A1-1)"""
+        db_session.add(Tenant(id="hr-tenant", name="HR Tenant", timezone="UTC", is_active=True))
         db_session.add(Tenant(id="hr-upd-1", name="HR Upd Co", timezone="UTC", is_active=True))
         db_session.commit()
-        _override_actor(client, _make_hr_manager_actor())
+        _override_actor(client, _make_hr_manager_actor("hr-tenant"))
         try:
             response = client.patch("/api/admin/companies/hr-upd-1", json={"name": "HR Updated"})
         finally:
             _clear_actor()
-        assert response.status_code == 200
-        assert response.json()["name"] == "HR Updated"
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
 
-    def test_hr_manager_can_list_members(self, db_session, client):
-        """hr_manager can list company members (S1-11C)"""
+    def test_hr_manager_cross_company_list_members_forbidden(self, db_session, client):
+        """hr_manager cannot list members of other company (A1-1)"""
+        db_session.add(Tenant(id="hr-tenant", name="HR Tenant", timezone="UTC", is_active=True))
         db_session.add(Tenant(id="hr-mem-co", name="HR Mem Co", timezone="UTC", is_active=True))
         db_session.commit()
-        _override_actor(client, _make_hr_manager_actor())
+        _override_actor(client, _make_hr_manager_actor("hr-tenant"))
         try:
             response = client.get("/api/admin/companies/hr-mem-co/members")
         finally:
             _clear_actor()
-        assert response.status_code == 200
-        assert "members" in response.json()
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
 
     # ── employee deny ──
 
