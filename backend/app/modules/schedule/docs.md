@@ -281,9 +281,9 @@ migration 中直接使用 `sa.String(20)` + `sa.CheckConstraint("status IN (...)
 
 ### repo.py 現已支援（ShiftAssignment）
 - `get_by_id(assignment_id, company_id)` — 依 id + company_id 查詢（Tenant Isolation）
-- `list_by_user_date_range(company_id, user_id, start_date, end_date)` — 依使用者+日期範圍
-- `list_by_company_date(company_id, work_date)` — 依公司+單日
-- `list_by_company(company_id, start_date, end_date)` — 依公司+可選日期範圍
+- `list_by_user_date_range(company_id, user_id, start_date, end_date, template_id?, status?)` — 依使用者+日期範圍（S1-09B: +template_id/status filter）
+- `list_by_company_date(company_id, work_date, template_id?, status?)` — 依公司+單日（S1-09B: +template_id/status filter）
+- `list_by_company(company_id, start_date?, end_date?, template_id?, status?)` — 依公司+可選日期範圍（S1-09B: +template_id/status filter）
 - `create(obj)` — 建立並 commit
 - `update(obj)` — 更新並 commit
 - `cancel(assignment_id, company_id)` — 設定 status=cancelled
@@ -299,9 +299,9 @@ migration 中直接使用 `sa.String(20)` + `sa.CheckConstraint("status IN (...)
 ### service.py 現已支援（ShiftAssignment）
 - `create_shift_assignment(company_id, payload)` — 建立，含 template 同 company 驗證
 - `get_shift_assignment(company_id, assignment_id)` — 取得單筆，不存在 404
-- `list_assignments_for_user(company_id, user_id, start_date, end_date)` — 依使用者+日期
-- `list_assignments_for_date(company_id, work_date)` — 依單日
-- `list_assignments(company_id, start_date, end_date)` — 全公司+可選日期
+- `list_assignments_for_user(company_id, user_id, start_date, end_date, template_id?, status?)` — 依使用者+日期（S1-09B: +filter）
+- `list_assignments_for_date(company_id, work_date, template_id?, status?)` — 依單日（S1-09B: +filter）
+- `list_assignments(company_id, start_date?, end_date?, template_id?, status?)` — 全公司+可選日期（S1-09B: +filter）
 - `update_shift_assignment(company_id, assignment_id, payload)` — 部分更新（含 template 驗證）
 - `cancel_shift_assignment(company_id, assignment_id)` — 取消（已取消再取消 409）
 
@@ -343,7 +343,7 @@ migration 中直接使用 `sa.String(20)` + `sa.CheckConstraint("status IN (...)
 | Method | Path | 說明 |
 |--------|------|------|
 | POST | /api/v1/schedule/shift-assignments | 建立指派（跨 tenant template → 422）|
-| GET | /api/v1/schedule/shift-assignments | 列出指派（?user_id / ?start_date / ?end_date / ?work_date）|
+| GET | /api/v1/schedule/shift-assignments | 列出指派（?user_id / ?start_date / ?end_date / ?work_date / ?template_id / ?status）|
 | GET | /api/v1/schedule/shift-assignments/{id} | 取得單筆 |
 | PATCH | /api/v1/schedule/shift-assignments/{id} | 部分更新（已取消 → 409）|
 | POST | /api/v1/schedule/shift-assignments/{id}/cancel | 取消（已取消再取消 → 409）|
@@ -352,6 +352,30 @@ migration 中直接使用 `sa.String(20)` + `sa.CheckConstraint("status IN (...)
 - company_id 從 JWT actor 取得，不接受 payload 自填
 - list assignments 支援：work_date（單日）/ user_id+date_range / date_range / 全公司
 - status change 透過 PATCH update endpoint 處理（含 cancel 獨立端點）
+
+### Assignment List Optional Filters（S1-09B）
+
+**新增 optional query params：**
+
+| 參數 | 型別 | 行為 |
+|------|------|------|
+| `template_id` | `UUID`（optional）| 精確匹配 `shift_template_id`，不帶則不過濾 |
+| `status` | `string`（optional）| 精確匹配狀態值（`scheduled` / `confirmed` / `cancelled`）|
+
+**work_date precedence 規則（維持既有，不變）：**
+1. `work_date` 存在 → 單日優先，`template_id` / `status` 在此路徑疊加
+2. `user_id` 存在（無 `work_date`）→ 必須同時提供 `start_date` + `end_date`，`template_id` / `status` 在此路徑疊加
+3. 其他 → `list_by_company` 路徑，所有 optional filter 均生效
+
+**company scope 保證：**
+- repo 層第一條件固定 `WHERE company_id = actor.active_company_id`
+- `template_id` / `status` 只在 company scope 內做 AND 疊加
+- 任何 filter 不得稀釋 tenant isolation
+
+**invalid status 驗證：**
+- `status` query param 型別為 `AssignmentStatusSchema`（FastAPI enum）
+- 傳入非法值（如 `invalid_xyz`）→ FastAPI 自動回 `422 Unprocessable Entity`
+- 不需要應用層額外 guard
 
 ### Tenant Isolation
 - 所有 endpoint 透過 JWT actor 取得 company_id

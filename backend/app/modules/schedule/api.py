@@ -40,6 +40,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_actor_with_company
 from app.core.scope import Actor
 from app.modules.schedule.schemas import (
+    AssignmentStatusSchema,
     ShiftAssignmentCreate,
     ShiftAssignmentRead,
     ShiftAssignmentUpdate,
@@ -251,6 +252,8 @@ def list_shift_assignments(
     start_date: Optional[date] = Query(None, description="起始日期（inclusive）"),
     end_date: Optional[date] = Query(None, description="結束日期（inclusive）"),
     work_date: Optional[date] = Query(None, description="單一指定日期（優先於 date range）"),
+    template_id: Optional[UUID] = Query(None, description="依班別模板 UUID 過濾（S1-09B）"),
+    assignment_status: Optional[AssignmentStatusSchema] = Query(None, alias="status", description="依狀態過濾：scheduled / confirmed / cancelled（S1-09B）"),
     actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ) -> List[ShiftAssignmentRead]:
@@ -262,11 +265,16 @@ def list_shift_assignments(
     3. start_date / end_date（全公司日期範圍）
     4. 無條件（列出全公司）
 
+    可選 filter（各路徑均支援，S1-09B）：
+    - template_id：精確匹配班別模板
+    - status：精確匹配狀態（scheduled / confirmed / cancelled）
+
     Tenant Isolation: 強制 company scope
     """
     company_id = actor.active_company_id
     _require_schedule_feature(company_id, db)
     svc = get_schedule_service(db)
+    _status = assignment_status.value if assignment_status is not None else None
 
     # work_date 優先
     if work_date is not None:
@@ -275,8 +283,12 @@ def list_shift_assignments(
             return svc.list_assignments_for_user(
                 company_id, user_id,
                 start_date=work_date, end_date=work_date,
+                template_id=template_id, status=_status,
             )
-        return svc.list_assignments_for_date(company_id, work_date)
+        return svc.list_assignments_for_date(
+            company_id, work_date,
+            template_id=template_id, status=_status,
+        )
 
     # user + date range
     if user_id is not None:
@@ -288,10 +300,17 @@ def list_shift_assignments(
         return svc.list_assignments_for_user(
             company_id, user_id,
             start_date=start_date, end_date=end_date,
+            template_id=template_id, status=_status,
         )
 
     # 全公司（可選 date range）
-    return svc.list_assignments(company_id, start_date=start_date, end_date=end_date)
+    return svc.list_assignments(
+        company_id,
+        start_date=start_date,
+        end_date=end_date,
+        template_id=template_id,
+        status=_status,
+    )
 
 
 @router.get(

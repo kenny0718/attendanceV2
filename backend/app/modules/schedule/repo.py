@@ -192,12 +192,15 @@ class ShiftAssignmentRepo:
         user_id: UUID,
         start_date: date,
         end_date: date,
+        template_id: Optional[UUID] = None,
+        status: Optional[str] = None,
     ) -> List[ShiftAssignment]:
         """List all ShiftAssignments for a user within a date range.
 
         Tenant Isolation: enforces company_id in WHERE clause.
+        Optional filters: template_id, status (S1-09B).
         """
-        return (
+        q = (
             self.db.query(ShiftAssignment)
             .filter(
                 and_(
@@ -207,20 +210,26 @@ class ShiftAssignmentRepo:
                     ShiftAssignment.work_date <= end_date,
                 )
             )
-            .order_by(ShiftAssignment.work_date.asc())
-            .all()
         )
+        if template_id is not None:
+            q = q.filter(ShiftAssignment.shift_template_id == template_id)
+        if status is not None:
+            q = q.filter(ShiftAssignment.status == status)
+        return q.order_by(ShiftAssignment.work_date.asc()).all()
 
     def list_by_company_date(
         self,
         company_id: str,
         work_date: date,
+        template_id: Optional[UUID] = None,
+        status: Optional[str] = None,
     ) -> List[ShiftAssignment]:
         """List all ShiftAssignments for a company on a specific date.
 
         Tenant Isolation: enforces company_id in WHERE clause.
+        Optional filters: template_id, status (S1-09B).
         """
-        return (
+        q = (
             self.db.query(ShiftAssignment)
             .filter(
                 and_(
@@ -228,19 +237,25 @@ class ShiftAssignmentRepo:
                     ShiftAssignment.work_date == work_date,
                 )
             )
-            .order_by(ShiftAssignment.user_id.asc())
-            .all()
         )
+        if template_id is not None:
+            q = q.filter(ShiftAssignment.shift_template_id == template_id)
+        if status is not None:
+            q = q.filter(ShiftAssignment.status == status)
+        return q.order_by(ShiftAssignment.user_id.asc()).all()
 
     def list_by_company(
         self,
         company_id: str,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
+        template_id: Optional[UUID] = None,
+        status: Optional[str] = None,
     ) -> List[ShiftAssignment]:
         """List all ShiftAssignments for a company, optionally filtered by date range.
 
         Tenant Isolation: enforces company_id in WHERE clause.
+        Optional filters: template_id, status (S1-09B).
         """
         q = self.db.query(ShiftAssignment).filter(
             ShiftAssignment.company_id == company_id
@@ -249,6 +264,10 @@ class ShiftAssignmentRepo:
             q = q.filter(ShiftAssignment.work_date >= start_date)
         if end_date is not None:
             q = q.filter(ShiftAssignment.work_date <= end_date)
+        if template_id is not None:
+            q = q.filter(ShiftAssignment.shift_template_id == template_id)
+        if status is not None:
+            q = q.filter(ShiftAssignment.status == status)
         return q.order_by(
             ShiftAssignment.work_date.asc(),
             ShiftAssignment.user_id.asc(),

@@ -289,29 +289,41 @@ class ScheduleService:
         user_id: UUID,
         start_date: date,
         end_date: date,
+        template_id=None,
+        status: str = None,
     ) -> List[ShiftAssignmentRead]:
         """List ShiftAssignments for a specific user over a date range.
 
         Tenant Isolation: repo enforces company_id.
+        Optional filters: template_id, status (S1-09B).
         """
         objs = self.assignment_repo.list_by_user_date_range(
             company_id=company_id,
             user_id=user_id,
             start_date=start_date,
             end_date=end_date,
+            template_id=template_id,
+            status=status,
         )
         return [ShiftAssignmentRead.model_validate(o) for o in objs]
 
     def list_assignments_for_date(
-        self, company_id: str, work_date: date
+        self,
+        company_id: str,
+        work_date: date,
+        template_id=None,
+        status: str = None,
     ) -> List[ShiftAssignmentRead]:
         """List all ShiftAssignments for a company on a given date.
 
         Tenant Isolation: repo enforces company_id.
+        Optional filters: template_id, status (S1-09B).
         """
         objs = self.assignment_repo.list_by_company_date(
             company_id=company_id,
             work_date=work_date,
+            template_id=template_id,
+            status=status,
         )
         return [ShiftAssignmentRead.model_validate(o) for o in objs]
 
@@ -320,15 +332,20 @@ class ScheduleService:
         company_id: str,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
+        template_id=None,
+        status: str = None,
     ) -> List[ShiftAssignmentRead]:
         """List all ShiftAssignments for a company, optionally filtered by date range.
 
         Tenant Isolation: repo enforces company_id.
+        Optional filters: template_id, status (S1-09B).
         """
         objs = self.assignment_repo.list_by_company(
             company_id=company_id,
             start_date=start_date,
             end_date=end_date,
+            template_id=template_id,
+            status=status,
         )
         return [ShiftAssignmentRead.model_validate(o) for o in objs]
 
