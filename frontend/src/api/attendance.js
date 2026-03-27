@@ -45,5 +45,11 @@ export const attendanceApi = {
 
   // Reporting Step 3: User Summary
   fetchUserSummary: (params = {}) =>
-    apiClient.get('/v1/attendance/reports/user-summary', { params })
+    apiClient.get('/v1/attendance/reports/user-summary', { params }),
+
+  // ── S1-12: Admin Attendance View (read-only) ──────────────────────
+
+  // Admin: 查看所有員工打卡 sessions
+  getAdminAttendanceSessions: (params = {}) =>
+    apiClient.get('/v1/attendance/sessions', { params })
 }

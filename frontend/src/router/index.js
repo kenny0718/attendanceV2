@@ -69,6 +69,13 @@ const routes = [
     name: 'AdminUsers',
     component: () => import('@/views/admin/AdminUsersView.vue'),
     meta: { requiresAuth: true, requiresAdminAccess: true }
+  },
+  // S1-12: Admin Attendance View (read-only)
+  {
+    path: '/admin/attendance',
+    name: 'AdminAttendance',
+    component: () => import('@/views/admin/AdminAttendanceView.vue'),
+    meta: { requiresAuth: true, requiresAdminAccess: true }
   }
 ]
 

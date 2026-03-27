@@ -85,6 +85,7 @@ class SessionResponse(BaseModel):
     duration_minutes: Optional[int] = Field(None, description="Duration in minutes (null if open)")
     status: str = Field(..., description="Session status (open/closed/pending/approved/rejected/missing_punch_out)")
     punches: Optional[list] = Field(default_factory=list, description="All punches in this session (including break_start/break_end)")
+    display_name: Optional[str] = Field(None, description="Employee display name (admin view only)")
     
     class Config:
         from_attributes = True

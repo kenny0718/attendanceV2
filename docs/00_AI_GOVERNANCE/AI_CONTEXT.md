@@ -4,7 +4,21 @@
 
 **最後更新：** 2026-03-04
 
----
+所有實際開發行為控制：
+→ 必須依 CURSOR_EXECUTION_CONTROL.md
+→ 並遵守 CURSOR_READ_ORDER.md
+
+AI 必讀規則（最高優先）
+
+所有開發任務必須：
+
+先讀 CURSOR_READ_ORDER.md
+再讀 CURSOR_EXECUTION_CONTROL.md
+再依任務選擇 frontend / backend rules
+
+未完成上述流程：
+
+❌ 禁止進行任何修改
 
 ## 📋 文件優先級
 

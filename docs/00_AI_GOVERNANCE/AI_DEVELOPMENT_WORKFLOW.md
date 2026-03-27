@@ -1,4 +1,30 @@
 # AI DEVELOPMENT WORKFLOW
+# 🔴 Execution Gate（最高優先）
+
+在任何 Step 之前，必須先完成：
+
+1. 讀 CURSOR_READ_ORDER.md
+2. 讀 CURSOR_EXECUTION_CONTROL.md
+3. 判斷 Risk Level（LOW / MEDIUM / HIGH）
+4. 回報：
+   - Risk Level
+   - 是否需要停止 frontend dev server
+   - 修改計畫
+
+❌ 未經確認：
+禁止進入 Step 3 Implementation
+
+---
+
+# 標準開發流程（強制）
+
+1. Step 0 — Confirm Position
+2. Step 1 — Spec / Planning
+3. Step 2 — Pre-Execution
+4. Step 3 — Implementation
+5. Step 4 — Audit
+6. Step 5 — QA
+7. Step 6 — Close
 
 > **⚠️ 每次開始任何 WP 前必讀本文件**
 > 本文件定義 Attendance 專案中 Cursor / GPT / Claude 協作開發的標準流程。

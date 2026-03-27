@@ -1,5 +1,11 @@
 Goal
 
+?? 本文件為補充規則
+
+實際寫檔與風險控制：
+→ 以 CURSOR_EXECUTION_CONTROL.md 為準
+
+
 # AI_DEVELOPMENT_RULES.md
 
 Scope
