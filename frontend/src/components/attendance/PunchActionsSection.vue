@@ -4,7 +4,7 @@
     <div class="punch-grid-main">
       <!-- 上班打卡 -->
       <div 
-        @click="$emit('punch-in')"
+        @click="canPunchIn && !isLoading && $emit('punch-in')"
         :class="[
           'punch-card',
           { 'disabled': !canPunchIn || isLoading },
@@ -22,7 +22,7 @@
 
       <!-- 下班打卡 -->
       <div 
-        @click="$emit('punch-out')"
+        @click="canPunchOut && !isLoading && $emit('punch-out')"
         :class="[
           'punch-card',
           { 'disabled': !canPunchOut || isLoading },

@@ -69,7 +69,9 @@ apiClient.interceptors.response.use(
       
       return Promise.reject({
         status,
-        message: data?.detail || data?.message || '請求失敗',
+        message: typeof data?.detail === 'string'
+          ? data.detail
+          : (data?.detail?.error || data?.message || '請求失敗'),
         data
       })
     } else if (error.request) {

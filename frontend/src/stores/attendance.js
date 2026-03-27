@@ -365,6 +365,8 @@ export const useAttendanceStore = defineStore('attendance', {
               errorMessage = '已經在外出狀態，請先返回打卡' // WP-11-XX: 此錯誤已廢棄（允許連續外出）
             } else if (error.data?.detail?.error_code === 'NOT_ON_BREAK') {
               errorMessage = '目前不在外出狀態，請先外出打卡'
+            } else if (error.data?.detail?.error_code === 'ALREADY_OPEN_SESSION') {
+              errorMessage = '今天已打上班卡，請勿重複打卡'
             } else {
               errorMessage = error.message || '已有打開的打卡記錄，請勿重複打卡'
             }
@@ -379,7 +381,11 @@ export const useAttendanceStore = defineStore('attendance', {
             break
             
           case 404:
-            errorMessage = error.message || '找不到打開的打卡記錄，請先打上班卡'
+            if (error.data?.detail?.error_code === 'NO_OPEN_SESSION') {
+              errorMessage = '找不到開啟中的打卡記錄，請先打上班卡'
+            } else {
+              errorMessage = error.message || '找不到打開的打卡記錄，請先打上班卡'
+            }
             break
             
           case 403:
