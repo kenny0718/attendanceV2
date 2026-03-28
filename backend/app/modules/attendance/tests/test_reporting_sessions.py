@@ -240,7 +240,7 @@ class TestSES05StatusFilter:
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=30))
         make_open_session(db, COMPANY_A, user_a.id, now - timedelta(hours=1))
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
             resp = client_a.get("/api/v1/attendance/sessions", params={"status": "closed"})
         assert resp.status_code == 200
         for s in resp.json()["sessions"]:
@@ -249,7 +249,7 @@ class TestSES05StatusFilter:
     def test_status_open(self, client_a, db, user_a):
         now = datetime.now(timezone.utc)
         make_open_session(db, COMPANY_A, user_a.id, now - timedelta(minutes=30))
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
             resp = client_a.get("/api/v1/attendance/sessions", params={"status": "open"})
         assert resp.status_code == 200
         assert resp.json()["total"] >= 1
@@ -263,7 +263,7 @@ class TestSES06TenantIsolation:
     def test_company_a_cannot_see_company_b_sessions(self, client_a, db, user_a, user_b):
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_B, user_b.id, now - timedelta(hours=5))
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
                 resp = client_a.get("/api/v1/attendance/sessions")
         assert resp.status_code == 200
         for s in resp.json()["sessions"]:
@@ -278,7 +278,7 @@ class TestSES07UserScope:
         db.add(other); db.commit(); db.refresh(other)
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=5))
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
                 resp = client_a.get("/api/v1/attendance/sessions",
                     params={"user_id": str(other.id)})
         assert resp.status_code == 403
@@ -286,7 +286,7 @@ class TestSES07UserScope:
     def test_employee_can_query_own_sessions(self, client_a, db, user_a):
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=5))
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
                 resp = client_a.get("/api/v1/attendance/sessions",
                     params={"user_id": str(user_a.id)})
         assert resp.status_code == 200
@@ -299,7 +299,7 @@ class TestSES08NullDuration:
     def test_open_session_null_duration_does_not_crash(self, client_a, db, user_a):
         now = datetime.now(timezone.utc)
         make_open_session(db, COMPANY_A, user_a.id, now - timedelta(hours=1))
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
             resp = client_a.get("/api/v1/attendance/sessions", params={"status": "open"})
         assert resp.status_code == 200
         for s in resp.json()["sessions"]:
@@ -311,17 +311,17 @@ class TestSES08NullDuration:
 
 class TestSES09LimitBoundary:
     def test_limit_zero_returns_400(self, client_a, user_a):
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
             resp = client_a.get("/api/v1/attendance/sessions", params={"limit": 0})
         assert resp.status_code == 400
 
     def test_limit_101_returns_400(self, client_a, user_a):
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
             resp = client_a.get("/api/v1/attendance/sessions", params={"limit": 101})
         assert resp.status_code == 400
 
     def test_limit_100_is_valid(self, client_a, user_a):
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
             resp = client_a.get("/api/v1/attendance/sessions", params={"limit": 100})
         assert resp.status_code == 200
 
@@ -350,7 +350,7 @@ class TestSES10TotalCount:
 class TestSES11NaiveDatetimeRejected:
     def test_naive_start_date_returns_422(self, client_a, user_a):
         """API must reject naive datetime (no tzinfo) with 422"""
-        with override_actor_dependency(make_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
                 resp = client_a.get("/api/v1/attendance/sessions",
                     params={"start_date": "2026-03-01T00:00:00"})
         # FastAPI parses naive ISO string as datetime without tz
@@ -367,7 +367,7 @@ class TestSES12RoleBranchAlignment:
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=3))
 
-        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id.id, "company_admin")):
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id, "company_admin")):
             resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(other.id)})
 
         assert resp.status_code == 200
@@ -379,7 +379,7 @@ class TestSES12RoleBranchAlignment:
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=4))
 
-        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id.id, "hr_manager")):
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id, "hr_manager")):
             resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(other.id)})
 
         assert resp.status_code == 200
@@ -391,7 +391,7 @@ class TestSES12RoleBranchAlignment:
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=2))
 
-        with override_actor_dependency(make_super_admin_actor(COMPANY_A, user_a.id.id)):
+        with override_actor_dependency(make_super_admin_actor(COMPANY_A, user_a.id)):
             resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(other.id)})
 
         assert resp.status_code == 200
@@ -403,7 +403,7 @@ class TestSES12RoleBranchAlignment:
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, other.id, now - timedelta(hours=5))
 
-        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id.id, "employee")):
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id, "employee")):
             resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(other.id)})
 
         assert resp.status_code == 403
@@ -412,7 +412,7 @@ class TestSES12RoleBranchAlignment:
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_B, user_b.id, now - timedelta(hours=6))
 
-        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id.id, "company_admin")):
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id, "company_admin")):
             resp = client_a.get("/api/v1/attendance/sessions", params={"user_id": str(user_b.id)})
 
         assert resp.status_code == 200
