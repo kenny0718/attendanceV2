@@ -49,7 +49,14 @@
             </svg>
           </button>
         </div>
-        <div v-if="loading" class="state-box"><div class="spinner"></div><span>載入中…</span></div>
+        <!-- RISK-03 S1-12E: super_admin 無 company scope 限制提示 -->
+        <div v-if="isSuperAdminNoScope" class="state-box state-notice">
+          <div>
+            <p class="state-title">需要公司範圍才能查詢</p>
+            <p class="state-msg">目前帳號未選定公司範圍，無法查詢打卡資料。請先切換至特定公司後再使用此功能。</p>
+          </div>
+        </div>
+        <div v-else-if="loading" class="state-box"><div class="spinner"></div><span>載入中…</span></div>
         <div v-else-if="error" class="state-box state-error"><div><p class="state-title">載入失敗</p><p class="state-msg">{{ error }}</p></div></div>
         <div v-else-if="!queried" class="state-box"><div><p class="state-title">請選擇日期範圍後查詢</p><p class="state-msg">設定開始與結束日期，按下「查詢」開始查看打卡紀錄。</p></div></div>
         <div v-else-if="sessions.length === 0" class="state-box"><div><p class="state-title">此期間無打卡紀錄</p><p class="state-msg">請調整日期範圍後重新查詢。</p></div></div>
@@ -73,7 +80,8 @@
   </div>
 </template>
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import Navbar from '@/components/Navbar.vue'
 import { attendanceApi } from '@/api/attendance'
 
@@ -85,6 +93,10 @@ function getTaipeiDateStr(offsetDays = 0) {
 
 const today = getTaipeiDateStr(0)
 const sevenDaysAgo = getTaipeiDateStr(-6)
+
+const authStore = useAuthStore()
+// RISK-03 (S1-12E): super_admin 無 company scope 時顯示限制提示
+const isSuperAdminNoScope = computed(() => authStore.isSuperAdmin && !authStore.companyId)
 
 const filters = ref({ start_date: sevenDaysAgo, end_date: today, user_id: '' })
 const sessions = ref([])
@@ -183,6 +195,7 @@ function statusClass(s) {
 @keyframes spin{to{transform:rotate(360deg)}}
 .state-box{display:flex;align-items:center;justify-content:center;gap:12px;padding:48px 24px;color:var(--text-secondary);font-size:14px}
 .state-error{color:var(--error)}
+.state-notice{color:#92400e;background:#fffbeb;border-radius:12px;border:1px solid #fde68a}
 .state-title{font-weight:600;margin:0 0 4px;font-size:15px}
 .state-msg{margin:0;font-size:13px;opacity:.8}
 .spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
