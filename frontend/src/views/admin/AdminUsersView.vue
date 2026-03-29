@@ -496,7 +496,7 @@ function formatDate(isoStr) {
 .role-employee { background: #f1f5f9; color: #475569; }
 
 /* ── Toggle action column ── */
-.cell-action { white-space: nowrap; }
+.cell-action { white-space: nowrap; display: flex; align-items: center; gap: 8px; }
 .btn-toggle {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 52px; padding: 4px 12px;
@@ -578,17 +578,17 @@ function formatDate(isoStr) {
 
 /* S1-13A1/S1-13A3: Action buttons (remain in parent table, modals extracted to components) */
 .btn-edit {
-  padding: 4px 12px; font-size: 12px; font-weight: 600;
+  padding: 6px 12px; font-size: 13px; font-weight: 600; line-height: 1.2; min-width: 52px;
   border: 1px solid var(--primary); border-radius: 6px;
   background: transparent; color: var(--primary); cursor: pointer;
-  transition: all 0.15s; margin-right: 6px;
+  transition: all 0.15s;
 }
 .btn-edit:hover { background: var(--primary); color: #fff; }
 .btn-pwd {
-  padding: 4px 10px; font-size: 12px; font-weight: 600;
+  padding: 6px 12px; font-size: 13px; font-weight: 600; line-height: 1.2; min-width: 52px;
   border: 1px solid #f97316; border-radius: 6px;
   background: transparent; color: #f97316; cursor: pointer;
-  transition: all 0.15s; margin-left: 4px;
+  transition: all 0.15s;
 }
 .btn-pwd:hover { background: #f97316; color: #fff; }
 </style>
