@@ -273,83 +273,30 @@
     </div>
   </div>
 
-  <!-- S1-13A1: Edit Member Modal -->
-  <div v-if="editModal.open" class="modal-overlay" @click.self="closeEdit">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3 class="modal-title">編輯成員資料</h3>
-        <button class="modal-close" @click="closeEdit">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label class="form-label">顯示名稱</label>
-          <input v-model="editModal.display_name" class="form-input" type="text" maxlength="100" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email（選填）</label>
-          <input v-model="editModal.email" class="form-input" type="email" maxlength="255" placeholder="留空表示不更改"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">角色</label>
-          <select v-model="editModal.role_id" class="form-input">
-            <option value="employee">employee</option>
-            <option value="hr_manager">hr_manager</option>
-            <option value="company_admin">company_admin</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">登入帳號</label>
-          <input v-model="editModal.login_username" class="form-input" type="text" maxlength="100" placeholder="不修改請留原帳號" />
-          <p class="form-hint">修改後，該成員下次登入需使用新的登入帳號</p>
-        </div>
-        <div v-if="editModal.error" class="modal-error">{{ editModal.error }}</div>
-        <div v-if="editModal.success" class="modal-success">已儲存</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" @click="closeEdit" :disabled="editModal.loading">取消</button>
-        <button class="btn-save" @click="saveEdit" :disabled="editModal.loading || !editModal.display_name">
-          <span v-if="editModal.loading" class="btn-spinner-sm"></span>
-          <span v-else>儲存</span>
-        </button>
-      </div>
-    </div>
-  </div>
+  <!-- WP-TECHDEBT-VUE-01: Edit Member Modal (extracted component) -->
+  <MemberEditModal
+    :open="editModalOpen"
+    :member="editModalMember"
+    :companyId="selectedCompanyId"
+    @close="editModalOpen = false"
+    @saved="onMemberSaved"
+  />
 
-  <!-- S1-13A3: Reset Password Modal -->
-  <div v-if="pwdModal.open" class="modal-overlay" @click.self="closePwd">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3 class="modal-title">重設密碼</h3>
-        <button class="modal-close" @click="closePwd">✕</button>
-      </div>
-      <div class="modal-body">
-        <p class="pwd-member-name">為「{{ pwdModal.display_name }}」重設登入密碼</p>
-        <div class="form-group">
-          <label class="form-label">新密碼</label>
-          <input v-model="pwdModal.new_password" class="form-input" type="password" maxlength="255" placeholder="至少6個字元" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">確認新密碼</label>
-          <input v-model="pwdModal.confirm_password" class="form-input" type="password" maxlength="255" placeholder="再輸入一次" />
-        </div>
-        <div v-if="pwdModal.error" class="modal-error">{{ pwdModal.error }}</div>
-        <div v-if="pwdModal.success" class="modal-success">密碼已成功重設</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" @click="closePwd" :disabled="pwdModal.loading">取消</button>
-        <button class="btn-save" @click="savePwd" :disabled="pwdModal.loading">
-          <span v-if="pwdModal.loading" class="btn-spinner-sm"></span>
-          <span v-else>確認重設</span>
-        </button>
-      </div>
-    </div>
-  </div>
+  <!-- WP-TECHDEBT-VUE-01: Reset Password Modal (extracted component) -->
+  <MemberPasswordModal
+    :open="pwdModalOpen"
+    :member="pwdModalMember"
+    :companyId="selectedCompanyId"
+    @close="pwdModalOpen = false"
+  />
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import Navbar from '@/components/Navbar.vue'
 import { adminApi } from '@/api/admin'
+import MemberEditModal from '@/components/admin/MemberEditModal.vue'
+import MemberPasswordModal from '@/components/admin/MemberPasswordModal.vue'
 
 // ── Companies ─────────────────────────────────────────────────────────
 const companies = ref([])
@@ -501,135 +448,32 @@ function clearFilters() {
 }
 
 
-// ── S1-13A1: Edit Member Modal ──────────────────────────────────────────────
-const editModal = ref({
-  open: false,
-  membershipId: null,
-  display_name: '',
-  email: '',
-  role_id: 'employee',
-  login_username: '',
-  loading: false,
-  error: null,
-  success: false,
-})
+// ── WP-TECHDEBT-VUE-01: Edit Member Modal (extracted to MemberEditModal.vue) ──
+const editModalOpen = ref(false)
+const editModalMember = ref(null)
 
 function openEdit(member) {
-  editModal.value = {
-    open: true,
-    membershipId: member.membership_id,
-    display_name: member.display_name || '',
-    email: member.email || '',
-    role_id: member.role_id || 'employee',
-    login_username: member.login_username || '',
-    loading: false,
-    error: null,
-    success: false,
+  editModalMember.value = member
+  editModalOpen.value = true
+}
+
+function onMemberSaved(updatedMember) {
+  const idx = members.value.findIndex(m => m.membership_id === updatedMember.membership_id)
+  if (idx !== -1) {
+    members.value[idx].display_name = updatedMember.display_name
+    members.value[idx].email = updatedMember.email
+    members.value[idx].role_id = updatedMember.role_id
+    members.value[idx].login_username = updatedMember.login_username
   }
 }
 
-function closeEdit() {
-  editModal.value.open = false
-}
-
-// ── S1-13A3: Reset Password Modal ────────────────────────────────────────
-const pwdModal = ref({
-  open: false,
-  membershipId: null,
-  display_name: '',
-  new_password: '',
-  confirm_password: '',
-  loading: false,
-  error: null,
-  success: false,
-})
+// ── WP-TECHDEBT-VUE-01: Reset Password Modal (extracted to MemberPasswordModal.vue) ──
+const pwdModalOpen = ref(false)
+const pwdModalMember = ref(null)
 
 function openPwd(member) {
-  pwdModal.value = {
-    open: true,
-    membershipId: member.membership_id,
-    display_name: member.display_name || '',
-    new_password: '',
-    confirm_password: '',
-    loading: false,
-    error: null,
-    success: false,
-  }
-}
-
-function closePwd() {
-  pwdModal.value.open = false
-}
-
-async function savePwd() {
-  const pwd = pwdModal.value.new_password
-  const confirm = pwdModal.value.confirm_password
-  // Client-side validation
-  if (!pwd || pwd.length < 6) {
-    pwdModal.value.error = '密碼至少6個字元'
-    return
-  }
-  if (pwd !== confirm) {
-    pwdModal.value.error = '兩次密碼輸入不一致'
-    return
-  }
-  pwdModal.value.loading = true
-  pwdModal.value.error = null
-  pwdModal.value.success = false
-  try {
-    await adminApi.resetMemberPassword(
-      selectedCompanyId.value,
-      pwdModal.value.membershipId,
-      pwd
-    )
-    pwdModal.value.success = true
-    setTimeout(() => { pwdModal.value.open = false }, 1000)
-  } catch (err) {
-    const code = err?.data?.detail?.code
-    if (code === 'PASSWORD_TOO_SHORT') {
-      pwdModal.value.error = '密碼至少6個字元'
-    } else {
-      pwdModal.value.error = err.message || '重設失敗，請稍後再試'
-    }
-  } finally {
-    pwdModal.value.loading = false
-  }
-}
-
-async function saveEdit() {
-  if (!editModal.value.display_name.trim()) return
-  editModal.value.loading = true
-  editModal.value.error = null
-  editModal.value.success = false
-  try {
-    const payload = {
-      display_name: editModal.value.display_name.trim(),
-      role_id: editModal.value.role_id,
-      email: editModal.value.email.trim() || null,
-    }
-    // S1-13A2: only include login_username if changed
-    const newUsername = editModal.value.login_username.trim()
-    if (newUsername) payload.login_username = newUsername
-    const result = await adminApi.updateMember(
-      selectedCompanyId.value,
-      editModal.value.membershipId,
-      payload
-    )
-    // Local update to avoid full reload
-    const idx = members.value.findIndex(m => m.membership_id === editModal.value.membershipId)
-    if (idx !== -1) {
-      members.value[idx].display_name = result.display_name
-      members.value[idx].email = result.email
-      members.value[idx].role_id = result.role_id
-      members.value[idx].login_username = result.login_username
-    }
-    editModal.value.success = true
-    setTimeout(() => { editModal.value.open = false }, 800)
-  } catch (err) {
-    editModal.value.error = err.message || '儲存失敗，請稍後再試'
-  } finally {
-    editModal.value.loading = false
-  }
+  pwdModalMember.value = member
+  pwdModalOpen.value = true
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────
@@ -846,7 +690,7 @@ function formatDate(isoStr) {
   cursor: pointer; font-size: 13px; padding: 0; text-decoration: underline;
 }
 
-/* S1-13A1: Edit button */
+/* S1-13A1/S1-13A3: Action buttons (remain in parent table, modals extracted to components) */
 .btn-edit {
   padding: 4px 12px; font-size: 12px; font-weight: 600;
   border: 1px solid var(--primary); border-radius: 6px;
@@ -854,48 +698,6 @@ function formatDate(isoStr) {
   transition: all 0.15s; margin-right: 6px;
 }
 .btn-edit:hover { background: var(--primary); color: #fff; }
-
-/* S1-13A1: Modal overlay */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-  display: flex; align-items: center; justify-content: center; z-index: 9999;
-}
-.modal-box {
-  background: #fff; border-radius: 16px; width: 100%; max-width: 440px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18); overflow: hidden;
-}
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 24px 14px; border-bottom: 1px solid var(--border);
-}
-.modal-title { font-size: 16px; font-weight: 700; color: var(--heading); margin: 0; }
-.modal-close {
-  background: none; border: none; font-size: 16px;
-  color: var(--text-secondary); cursor: pointer; line-height: 1;
-}
-.modal-close:hover { color: var(--error); }
-.modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
-.modal-footer {
-  display: flex; justify-content: flex-end; gap: 10px;
-  padding: 14px 24px; border-top: 1px solid var(--border);
-}
-.modal-error { color: var(--error); font-size: 13px; }
-.modal-success { color: #15803d; font-size: 13px; font-weight: 600; }
-.btn-cancel {
-  padding: 8px 20px; border: 1px solid var(--border); border-radius: 8px;
-  background: #fff; color: var(--text-secondary); font-size: 14px; cursor: pointer;
-}
-.btn-cancel:hover:not(:disabled) { background: #F0F4F8; }
-.btn-save {
-  padding: 8px 20px; border: none; border-radius: 8px;
-  background: var(--primary); color: #fff; font-size: 14px;
-  font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-}
-.btn-save:hover:not(:disabled) { opacity: 0.88; }
-.btn-save:disabled, .btn-cancel:disabled { opacity: 0.55; cursor: not-allowed; }
-/* S1-13A2: form hint */
-.form-hint { font-size: 11px; color: var(--text-secondary); margin: 3px 0 0; opacity: 0.85; }
-/* S1-13A3: Reset pwd button */
 .btn-pwd {
   padding: 4px 10px; font-size: 12px; font-weight: 600;
   border: 1px solid #f97316; border-radius: 6px;
@@ -903,5 +705,4 @@ function formatDate(isoStr) {
   transition: all 0.15s; margin-left: 4px;
 }
 .btn-pwd:hover { background: #f97316; color: #fff; }
-.pwd-member-name { font-size: 14px; font-weight: 600; color: var(--heading); margin: 0 0 12px; }
 </style>
