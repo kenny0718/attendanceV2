@@ -139,6 +139,135 @@ class TenantService:
         """
         return self.repo.is_active(tenant_id)
 
+    def update_member(self, membership_id: str, company_id: str, **fields) -> dict:
+        """Update member display_name / email / role_id (S1-13A1)
+
+        Business rules:
+        - Only updates User.display_name / User.email and/or Membership.role_id
+        - Does NOT touch login_username / password (separate flow)
+        - Validates role_id exists before commit
+        - Returns dict with updated user and membership objects
+        - Raises ValueError for invalid role_id or not-found membership
+
+        Args:
+            membership_id: UUID string of the membership
+            company_id: Company scope (for tenant isolation guard)
+            **fields: Any of display_name, email, role_id
+        """
+        from app.modules.auth.models import Membership as MembershipModel, User as UserModel, Role as RoleModel
+        import uuid as _uuid
+        db = self.repo.db  # TenantService stores db via self.repo
+
+        try:
+            mem_uuid = _uuid.UUID(membership_id)
+        except ValueError:
+            raise ValueError("INVALID_MEMBERSHIP_ID")
+
+        membership = db.query(MembershipModel).filter(
+            MembershipModel.id == mem_uuid,
+            MembershipModel.company_id == company_id,
+        ).first()
+
+        if membership is None:
+            raise ValueError("MEMBERSHIP_NOT_FOUND")
+
+        user = db.query(UserModel).filter(UserModel.id == membership.user_id).first()
+        if user is None:
+            raise ValueError("USER_NOT_FOUND")
+
+        # Validate role_id before any write
+        if "role_id" in fields and fields["role_id"] is not None:
+            role = db.query(RoleModel).filter(RoleModel.id == fields["role_id"]).first()
+            if role is None:
+                raise ValueError(f"INVALID_ROLE: role '{fields['role_id']}' does not exist")
+            membership.role_id = fields["role_id"]
+
+        if "display_name" in fields and fields["display_name"] is not None:
+            user.display_name = fields["display_name"]
+
+        if "email" in fields:
+            user.email = fields["email"]  # allows None to clear
+
+        # S1-13A2: login_username update with pre-check + IntegrityError fallback
+        if "login_username" in fields and fields["login_username"] is not None:
+            new_username = fields["login_username"]
+            # Pre-check: query for duplicates BEFORE writing (avoids relying solely on DB exception)
+            conflict = db.query(MembershipModel).filter(
+                MembershipModel.company_id == company_id,
+                MembershipModel.login_username == new_username,
+                MembershipModel.id != mem_uuid,  # exclude self
+            ).first()
+            if conflict is not None:
+                raise ValueError("DUPLICATE_LOGIN_USERNAME")
+            membership.login_username = new_username
+
+        from sqlalchemy.exc import IntegrityError as _IntegrityError
+        try:
+            db.commit()
+        except _IntegrityError as e:
+            db.rollback()
+            err_str = str(e.orig) if hasattr(e, "orig") else str(e)
+            if "uq_memberships_company_login" in err_str:
+                raise ValueError("DUPLICATE_LOGIN_USERNAME")
+            raise  # re-raise unexpected IntegrityError
+
+        db.refresh(user)
+        db.refresh(membership)
+
+        return {"user": user, "membership": membership}
+
+
+    def reset_member_password(self, membership_id: str, company_id: str, new_plain_password: str) -> dict:
+        """Reset a member password (S1-13A3)
+
+        Password policy (minimum):
+        - Must be non-empty
+        - Length >= 6 characters
+
+        Security:
+        - Uses AuthRepository.update_password() which calls bcrypt hash_password()
+        - Does NOT log or return the plain password or hash
+        - Existing JWT sessions remain valid until expiry (no token blacklist)
+
+        Args:
+            membership_id: UUID string of the membership
+            company_id: Company scope (for tenant isolation guard)
+            new_plain_password: New plain-text password (will be hashed)
+
+        Raises:
+            ValueError: MEMBERSHIP_NOT_FOUND / INVALID_MEMBERSHIP_ID / PASSWORD_TOO_SHORT
+        """
+        from app.modules.auth.models import Membership as MembershipModel, User as UserModel
+        from app.modules.auth.repo import AuthRepository
+        import uuid as _uuid
+        db = self.repo.db
+
+        # Server-side password policy validation
+        if not new_plain_password or len(new_plain_password) < 6:
+            raise ValueError("PASSWORD_TOO_SHORT: password must be at least 6 characters")
+
+        try:
+            mem_uuid = _uuid.UUID(membership_id)
+        except ValueError:
+            raise ValueError("INVALID_MEMBERSHIP_ID")
+
+        membership = db.query(MembershipModel).filter(
+            MembershipModel.id == mem_uuid,
+            MembershipModel.company_id == company_id,
+        ).first()
+        if membership is None:
+            raise ValueError("MEMBERSHIP_NOT_FOUND")
+
+        user = db.query(UserModel).filter(UserModel.id == membership.user_id).first()
+        if user is None:
+            raise ValueError("USER_NOT_FOUND")
+
+        auth_repo = AuthRepository(db)
+        auth_repo.update_password(user, new_plain_password)  # bcrypt hash, commit, refresh
+        # Note: plain password is NOT logged or returned
+
+        return {"membership_id": str(membership.id), "user_id": str(user.id)}
+
 
 class CompanyEntitlementService:
     """Company Entitlement business logic layer (WP-11-04A)"""

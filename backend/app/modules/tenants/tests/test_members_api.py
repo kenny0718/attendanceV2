@@ -624,3 +624,376 @@ class TestAuthorizationBoundaryA11:
             _clear()
 
         assert resp.status_code == 201
+
+
+# ── S1-13A1: PATCH /{company_id}/members/{membership_id} ──────────────────────────────────────────────
+
+def _seed_role(db, role_id: str) -> None:
+    """Ensure role exists (required by FK constraint)"""
+    from app.modules.auth.models import Role
+    existing = db.query(Role).filter(Role.id == role_id).first()
+    if not existing:
+        r = Role(id=role_id, name=role_id.replace("_", " ").title())
+        db.add(r)
+        db.flush()
+
+
+class TestUpdateMember:
+    """PATCH /api/admin/companies/{company_id}/members/{membership_id} (S1-13A1)"""
+
+    def test_super_admin_can_update_display_name(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        company_id = f"upd-co-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"OldName {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"user-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}",
+                json={"display_name": "NewName"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()["display_name"] == "NewName"
+        assert resp.json()["membership_id"] == str(membership.id)
+
+    def test_super_admin_can_update_role_id(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        company_id = f"upd-role-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        _seed_role(db_session, "hr_manager")
+        user = _seed_user(db_session, f"RoleUser {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"roleuser-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}",
+                json={"display_name": f"RoleUser {suffix}", "role_id": "hr_manager"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()["role_id"] == "hr_manager"
+
+    def test_invalid_role_id_returns_422(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        company_id = f"upd-inv-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"InvRole {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"inv-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}",
+                json={"display_name": "x", "role_id": "nonexistent_role_xyz"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 422, resp.json()
+        assert resp.json()["detail"]["code"] == "INVALID_ROLE"
+
+    def test_membership_not_found_returns_404(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        company_id = f"upd-nf-{suffix}"
+        _seed_company(db_session, company_id)
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            import uuid as _u
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{_u.uuid4()}",
+                json={"display_name": "x"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 404, resp.json()
+        assert resp.json()["detail"]["code"] == "MEMBERSHIP_NOT_FOUND"
+
+    def test_no_fields_returns_422(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        company_id = f"upd-empty-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"Empty {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"empty-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}",
+                json={},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 422, resp.json()
+        assert resp.json()["detail"]["code"] == "NO_FIELDS_TO_UPDATE"
+
+    def test_company_admin_cross_company_forbidden(self, client, db_session):
+        suffix = str(uuid4())[:8]
+        company_id = f"upd-other-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"OtherUser {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"other-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _company_admin("dev-tenant"))
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}",
+                json={"display_name": "Hacked"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 403, resp.json()
+        assert resp.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
+
+
+# ── S1-13A2: login_username edit ──────────────────────────────────────────────
+
+class TestUpdateMemberUsername:
+    """PATCH /{company_id}/members/{membership_id} — login_username (S1-13A2)
+
+    Covers:
+    - success: can update login_username
+    - same company duplicate -> 409 DUPLICATE_LOGIN_USERNAME
+    - different company same name -> allowed (200)
+    - display_name only (no login_username) still works (A1 regression)
+    """
+
+    def test_super_admin_can_update_login_username(self, client, db_session):
+        """super_admin can update login_username to a new unique value"""
+        suffix = str(uuid4())[:8]
+        company_id = f"uname-ok-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"UsernameUser {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"oldname-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}",
+                json={"display_name": f"UsernameUser {suffix}", "login_username": f"newname-{suffix}"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()["login_username"] == f"newname-{suffix}"
+
+    def test_same_company_duplicate_username_returns_409(self, client, db_session):
+        """Duplicate login_username within same company -> 409 DUPLICATE_LOGIN_USERNAME"""
+        suffix = str(uuid4())[:8]
+        company_id = f"uname-dup-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        # user1: will try to take user2's username
+        user1 = _seed_user(db_session, f"User1 {suffix}")
+        mem1 = _seed_membership(db_session, user1.id, company_id, f"user1-{suffix}", role_id="employee")
+        # user2: existing username
+        user2 = _seed_user(db_session, f"User2 {suffix}")
+        _seed_membership(db_session, user2.id, company_id, f"user2-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{mem1.id}",
+                json={"display_name": f"User1 {suffix}", "login_username": f"user2-{suffix}"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 409, resp.json()
+        assert resp.json()["detail"]["code"] == "DUPLICATE_LOGIN_USERNAME"
+
+    def test_different_company_same_username_allowed(self, client, db_session):
+        """Same login_username in different company should be allowed"""
+        suffix = str(uuid4())[:8]
+        company_a = f"uname-ca-{suffix}"
+        company_b = f"uname-cb-{suffix}"
+        _seed_company(db_session, company_a)
+        _seed_company(db_session, company_b)
+        _seed_role(db_session, "employee")
+        shared_name = f"shared-{suffix}"
+
+        # user in company_b already has the shared name
+        user_b = _seed_user(db_session, f"UserB {suffix}")
+        _seed_membership(db_session, user_b.id, company_b, shared_name, role_id="employee")
+
+        # user in company_a wants to use the same login_username
+        user_a = _seed_user(db_session, f"UserA {suffix}")
+        mem_a = _seed_membership(db_session, user_a.id, company_a, f"old-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_a}/members/{mem_a.id}",
+                json={"display_name": f"UserA {suffix}", "login_username": shared_name},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()["login_username"] == shared_name
+
+    def test_display_name_only_no_login_username_regression(self, client, db_session):
+        """A1 regression: display_name only patch still works without login_username"""
+        suffix = str(uuid4())[:8]
+        company_id = f"uname-reg-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"OldDisplay {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"reguser-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}",
+                json={"display_name": "NewDisplay"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 200, resp.json()
+        data = resp.json()
+        assert data["display_name"] == "NewDisplay"
+        # login_username must remain unchanged
+        assert data["login_username"] == f"reguser-{suffix}"
+
+
+# ── S1-13A3: PATCH /{company_id}/members/{membership_id}/password ─────────────
+
+class TestResetMemberPassword:
+    """PATCH /api/admin/companies/{company_id}/members/{membership_id}/password (S1-13A3)
+
+    Covers:
+    - super_admin success: password updated and hash is valid
+    - short password (<6 chars) rejected with 422
+    - non-admin (employee) forbidden (403)
+    - cross-company forbidden (403)
+    - verify new hash with verify_password
+    - A1/A2 update flow not affected (checked implicitly by TestUpdateMember passing)
+    """
+
+    def test_super_admin_can_reset_password(self, client, db_session):
+        """super_admin can reset a member password; new hash verifies correctly"""
+        from app.core.security.password import verify_password
+        suffix = str(uuid4())[:8]
+        company_id = f"pwd-ok-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"PwdUser {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"pwduser-{suffix}", role_id="employee")
+        db_session.commit()
+
+        old_hash = user.password_hash
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}/password",
+                json={"new_password": "newpass123"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 200, resp.json()
+        data = resp.json()
+        # Response must NOT contain password or hash
+        assert "password" not in data
+        assert "password_hash" not in data
+        assert "hash" not in str(data)
+        assert data["membership_id"] == str(membership.id)
+
+        # Verify hash actually changed and new password verifies
+        db_session.refresh(user)
+        assert user.password_hash != old_hash, "password_hash should have changed"
+        assert verify_password("newpass123", user.password_hash), "new password should verify"
+
+    def test_short_password_rejected(self, client, db_session):
+        """Password shorter than 6 chars must be rejected (422)"""
+        suffix = str(uuid4())[:8]
+        company_id = f"pwd-short-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"ShortPwd {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"short-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _super_admin())
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}/password",
+                json={"new_password": "abc"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 422, resp.json()
+
+    def test_employee_cannot_reset_password(self, client, db_session):
+        """Regular employee must be forbidden (403)"""
+        suffix = str(uuid4())[:8]
+        company_id = f"pwd-emp-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"EmpUser {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"emp-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _employee(company_id))
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}/password",
+                json={"new_password": "newpass123"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 403, resp.json()
+
+    def test_company_admin_cross_company_forbidden(self, client, db_session):
+        """company_admin cannot reset password of member in different company"""
+        suffix = str(uuid4())[:8]
+        company_id = f"pwd-cross-{suffix}"
+        _seed_company(db_session, company_id)
+        _seed_role(db_session, "employee")
+        user = _seed_user(db_session, f"CrossUser {suffix}")
+        membership = _seed_membership(db_session, user.id, company_id, f"cross-{suffix}", role_id="employee")
+        db_session.commit()
+
+        _override(client, _company_admin("dev-tenant"))
+        try:
+            resp = client.patch(
+                f"/api/admin/companies/{company_id}/members/{membership.id}/password",
+                json={"new_password": "newpass123"},
+            )
+        finally:
+            _clear()
+
+        assert resp.status_code == 403, resp.json()
+        assert resp.json()["detail"]["code"] == "SCOPE_FORBIDDEN"

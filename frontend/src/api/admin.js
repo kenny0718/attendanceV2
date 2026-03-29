@@ -32,6 +32,16 @@ export const adminApi = {
   toggleMembershipActive: (companyId, membershipId, isActive) =>
     apiClient.patch(`/admin/companies/${companyId}/members/${membershipId}/active`, { is_active: isActive }),
 
+  // S1-13A1: Update member display_name / email / role_id
+  // PATCH /api/admin/companies/{company_id}/members/{membership_id}
+  updateMember: (companyId, membershipId, payload) =>
+    apiClient.patch(`/admin/companies/${companyId}/members/${membershipId}`, payload),
+
+  // S1-13A3: Admin reset member password
+  // PATCH /api/admin/companies/{company_id}/members/{membership_id}/password
+  resetMemberPassword: (companyId, membershipId, newPassword) =>
+    apiClient.patch(`/admin/companies/${companyId}/members/${membershipId}/password`, { new_password: newPassword }),
+
   // WP-S1-10D: Create a new member in a company (super_admin only)
   // POST /api/admin/companies/{company_id}/members
   createCompanyMember: (companyId, payload) =>

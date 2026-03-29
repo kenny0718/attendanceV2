@@ -16,6 +16,10 @@ from app.modules.tenants.schemas_members import (
     ToggleMembershipActiveResponse,
     CreateMemberRequest,
     CreateMemberResponse,
+    UpdateMemberRequest,
+    UpdateMemberResponse,
+    ResetMemberPasswordRequest,
+    ResetMemberPasswordResponse,
 )
 from app.modules.auth.models import Membership as MembershipModel, User as UserModel, Role as RoleModel
 from app.modules.auth.repo import AuthRepository
@@ -238,4 +242,148 @@ def register_routes(router: APIRouter) -> None:
             display_name=user.display_name,
             email=user.email,
             is_active=membership.is_active,
+        )
+
+    @router.patch(
+        "/{company_id}/members/{membership_id}",
+        response_model=UpdateMemberResponse,
+        tags=["admin", "users"],
+    )
+    def update_company_member(
+        company_id: str,
+        membership_id: str,
+        request: UpdateMemberRequest,
+        actor: Actor = Depends(get_current_actor),
+        db: Session = Depends(get_db),
+    ):
+        """
+        Update member display_name / email / role_id (S1-13A1).
+        login_username and password are NOT editable here.
+
+        Permission:
+        - super_admin: any company
+        - company_admin/hr_manager: own company only
+        """
+        _assert_admin_company_access(actor, company_id, db)
+
+        tenant_svc = get_tenant_service(db)
+        if not tenant_svc.tenant_exists(company_id):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"},
+            )
+
+        # Build kwargs — only include fields that were explicitly provided
+        update_fields = {}
+        if request.display_name is not None:
+            update_fields["display_name"] = request.display_name
+        if request.role_id is not None:
+            update_fields["role_id"] = request.role_id
+        # email can be explicitly set to None to clear it, so check model_fields_set
+        if "email" in request.model_fields_set:
+            update_fields["email"] = request.email
+        # S1-13A2: login_username
+        if request.login_username is not None:
+            update_fields["login_username"] = request.login_username
+
+        if not update_fields:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "NO_FIELDS_TO_UPDATE", "message": "At least one field must be provided"},
+            )
+
+        try:
+            result = tenant_svc.update_member(
+                membership_id=membership_id,
+                company_id=company_id,
+                **update_fields,
+            )
+        except ValueError as e:
+            err = str(e)
+            if "MEMBERSHIP_NOT_FOUND" in err:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                    detail={"code": "MEMBERSHIP_NOT_FOUND", "message": f"Membership '{membership_id}' not found in company '{company_id}'"})
+            if "INVALID_ROLE" in err:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={"code": "INVALID_ROLE", "message": str(e)})
+            if "INVALID_MEMBERSHIP_ID" in err:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
+            if "DUPLICATE_LOGIN_USERNAME" in err:  # S1-13A2
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                    detail={"code": "DUPLICATE_LOGIN_USERNAME", "message": "此登入帳號在該公司已被使用，請換一個"})
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"code": "INTERNAL_ERROR", "message": str(e)})
+
+        user = result["user"]
+        membership = result["membership"]
+
+        return UpdateMemberResponse(
+            membership_id=str(membership.id),
+            user_id=str(user.id),
+            company_id=membership.company_id,
+            role_id=membership.role_id,
+            display_name=user.display_name,
+            email=user.email,
+            login_username=membership.login_username,
+            membership_is_active=membership.is_active,
+        )
+
+    @router.patch(
+        "/{company_id}/members/{membership_id}/password",
+        response_model=ResetMemberPasswordResponse,
+        tags=["admin", "users"],
+    )
+    def reset_member_password(
+        company_id: str,
+        membership_id: str,
+        request: ResetMemberPasswordRequest,
+        actor: Actor = Depends(get_current_actor),
+        db: Session = Depends(get_db),
+    ):
+        """
+        Admin resets a member password (S1-13A3).
+
+        Security:
+        - Response does NOT contain password or hash
+        - Existing JWT sessions remain valid until natural expiry
+        - Password is hashed server-side using bcrypt
+
+        Permission:
+        - super_admin: any company
+        - company_admin/hr_manager: own company only
+        """
+        _assert_admin_company_access(actor, company_id, db)
+
+        tenant_svc = get_tenant_service(db)
+        if not tenant_svc.tenant_exists(company_id):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"},
+            )
+
+        try:
+            result = tenant_svc.reset_member_password(
+                membership_id=membership_id,
+                company_id=company_id,
+                new_plain_password=request.new_password,
+            )
+        except ValueError as e:
+            err = str(e)
+            if "MEMBERSHIP_NOT_FOUND" in err:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                    detail={"code": "MEMBERSHIP_NOT_FOUND", "message": f"Membership '{membership_id}' not found in company '{company_id}'"})
+            if "PASSWORD_TOO_SHORT" in err:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={"code": "PASSWORD_TOO_SHORT", "message": "Password must be at least 6 characters"})
+            if "INVALID_MEMBERSHIP_ID" in err:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"code": "INTERNAL_ERROR", "message": "An unexpected error occurred"})
+
+        return ResetMemberPasswordResponse(
+            membership_id=result["membership_id"],
+            user_id=result["user_id"],
+            message="密碼已成功重設",
         )
