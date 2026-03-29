@@ -499,9 +499,9 @@ function formatDate(isoStr) {
 .cell-action { white-space: nowrap; display: flex; align-items: center; gap: 8px; }
 .btn-toggle {
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 52px; padding: 4px 12px;
+  min-width: 52px; padding: 6px 12px;
   border: none; border-radius: 6px;
-  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-size: 13px; font-weight: 600; line-height: 1.2; cursor: pointer;
   transition: opacity 0.15s, transform 0.1s;
 }
 .btn-toggle:disabled { opacity: 0.55; cursor: not-allowed; }
