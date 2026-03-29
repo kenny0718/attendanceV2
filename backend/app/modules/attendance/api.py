@@ -763,7 +763,7 @@ async def get_sessions_reporting(
 
     # S1-12C: batch-fetch display_name from users table for admin view
     display_name_map = {}
-    if is_admin and sessions:
+    if sessions:
         from app.modules.auth.models import User
         user_ids = list({s.user_id for s in sessions})
         users = db.query(User.id, User.display_name).filter(User.id.in_(user_ids)).all()
