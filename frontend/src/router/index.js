@@ -76,6 +76,13 @@ const routes = [
     name: 'AdminAttendance',
     component: () => import('@/views/admin/AdminAttendanceView.vue'),
     meta: { requiresAuth: true, requiresAdminAccess: true }
+  },
+  // S1-14A: Leave Request (employee)
+  {
+    path: '/leave',
+    name: 'LeaveRequest',
+    component: () => import('@/views/LeaveRequestView.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
