@@ -139,7 +139,7 @@ def _run(
 ):
     """
     Execute punch_out with all dependencies mocked.
-    Phase 2D: also mocks get_audit_log_repository.
+    Phase 2D: mocks get_audit_log_repository inside anomaly_audit module.
     Returns (close_session_call_args, mock_warn, mock_err, mock_audit_repo).
     """
     session = _make_session()
@@ -152,9 +152,6 @@ def _run(
     mock_repo.get_session_punches.return_value = session_punches
     mock_repo.get_user_policy.return_value = None
     mock_repo.close_session.return_value = closed_session
-
-    mock_policy_engine_instance = MagicMock()
-    mock_policy_engine_instance.evaluate.return_value = _make_policy_evaluation()
 
     mock_audit_repo = MagicMock()
     if audit_create_log_side_effect is not None:
@@ -172,12 +169,11 @@ def _run(
 
     with patch.object(
         punch_module, "get_attendance_session_repository", return_value=mock_repo
+    ), patch(
+        "app.modules.attendance.api.anomaly_audit.get_audit_log_repository",
+        return_value=mock_audit_repo,
     ), patch.object(
-        punch_module, "get_audit_log_repository", return_value=mock_audit_repo
-    ), patch.object(
-        punch_module, "AttendancePolicyEngine", return_value=mock_policy_engine_instance
-    ), patch.object(
-        punch_module, "calculate_break_deduction", return_value=deduction_result
+        punch_module, "resolve_break_deduction", return_value=deduction_result
     ), patch.object(
         punch_module, "_require_attendance_feature"
     ), patch.object(

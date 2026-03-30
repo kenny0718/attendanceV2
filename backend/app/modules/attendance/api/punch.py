@@ -40,11 +40,8 @@ from app.modules.attendance.schemas import (
 )
 from app.modules.attendance.policy_engine import AttendancePolicyEngine
 from app.modules.attendance.api.helpers import _require_attendance_feature
-from app.modules.attendance.work_hour_engine import (
-    calculate_break_deduction,
-    BreakPunchDTO,
-)
-from app.modules.audit.repo import get_audit_log_repository
+from app.modules.attendance.api.break_deduction import resolve_break_deduction
+from app.modules.attendance.api.anomaly_audit import write_break_anomaly_audit
 
 logger = logging.getLogger(__name__)
 
@@ -182,55 +179,29 @@ async def punch_out(
     # Phase 2C-A: Break deduction (derived only -- NOT written to DB)
     # Phase 2C-C: Defensive guard -- engine failure falls back to gross, punch-out never blocked
     session_punches = repo.get_session_punches(session.id)
-    break_punches = [
-        p for p in session_punches
-        if p.punch_type in ("break_start", "break_end")
-    ]
-    break_punch_dtos = [
-        BreakPunchDTO(
-            punch_type=p.punch_type,
-            punch_time=p.punch_time,
-            punch_id=str(p.id),
-        )
-        for p in break_punches
-    ]
-    try:
-        deduction_result = calculate_break_deduction(
-            session.punch_in_time,
-            punch_out_time,
-            break_punch_dtos,
-        )
-    except Exception:
-        logger.error("Break deduction failed, fallback to gross", exc_info=True)
-
-        class _FallbackResult:
-            gross_minutes = gross_minutes
-            break_minutes = 0
-            net_work_minutes = gross_minutes
-            valid_break_pair_count = 0
-            anomaly_count = 0
-            anomalies = []
-            was_clamped = False
-            pairing_strategy = "fallback"
-            rounding_strategy = "floor"
-
-        deduction_result = _FallbackResult()
+    deduction_result = resolve_break_deduction(
+        session_punches=session_punches,
+        punch_in_time=session.punch_in_time,
+        punch_out_time=punch_out_time,
+        gross_minutes=gross_minutes,
+        logger=logger,
+    )
 
     # Note: deduction_result.net_work_minutes is derived/informational only.
     # session.duration_minutes must remain gross_minutes.
 
-    # WP-11-05C: Get user's policy and evaluate
+    # WP-11-05C: Get user policy and evaluate
     policy = repo.get_user_policy(company_id, user_uuid)
-    
+
     # Temporarily set session fields for evaluation
     session.punch_out_time = punch_out_time
     session.duration_minutes = gross_minutes
     session.status = 'closed'
-    
+
     # Evaluate policy
     policy_engine = AttendancePolicyEngine()
     evaluation = policy_engine.evaluate(session, policy)
-    
+
     # Close session with policy info -- duration_minutes MUST be gross_minutes
     session = repo.close_session(
         session=session,
@@ -239,76 +210,16 @@ async def punch_out(
         policy_id=policy.id if policy else None
     )
 
-    # Phase 2D: Anomaly persistence -- non-blocking, isolated try/except
-    # Strategy: single AuditLog record per punch-out, meta.anomalies=[...]
-    # status='success' means the anomaly audit record was written successfully
-    #   (NOT that there are no anomalies -- anomaly_count > 0 is the anomaly indicator)
-    # Failure path: AuditLog write failure -> fallback per-anomaly logger.warning
-    #               fallback logger.warning failure -> logger.error
-    #               punch-out is never blocked by any failure in this block.
-    if deduction_result.anomaly_count > 0:
-        # Build anomaly payload list (reuse same fields as Phase 2C-C logger.warning format)
-        anomaly_payloads = [
-            {
-                "event": "break_anomaly",
-                "session_id": str(session.id),
-                "company_id": str(company_id),
-                "user_id": str(session.user_id),
-                "anomaly_type": a.anomaly_type,
-                "gross_minutes": deduction_result.gross_minutes,
-                "break_minutes": deduction_result.break_minutes,
-                "net_work_minutes": deduction_result.net_work_minutes,
-                "was_clamped": deduction_result.was_clamped,
-                "anomaly_count": deduction_result.anomaly_count,
-                "related_punch_ids": a.related_punch_ids,
-                "message": a.message,
-                "pairing_strategy": getattr(deduction_result, "pairing_strategy", None),
-                "rounding_strategy": getattr(deduction_result, "rounding_strategy", None),
-            }
-            for a in deduction_result.anomalies
-        ]
+    # Phase 2D: Anomaly persistence -- delegated to helper (non-blocking)
+    # write_break_anomaly_audit() never raises; punch-out is never blocked.
+    write_break_anomaly_audit(
+        db=db,
+        session=session,
+        company_id=str(company_id),
+        deduction_result=deduction_result,
+        logger=logger,
+    )
 
-        _audit_write_ok = False
-        try:
-            # Phase 2D: Primary path -- write single AuditLog record
-            # Uses get_audit_log_repository factory (not manual instantiation)
-            audit_repo = get_audit_log_repository(db)
-            audit_repo.create_log(
-                company_id=str(company_id),
-                action="attendance.break_anomaly",
-                status="success",  # 'success' = audit record written OK; anomaly_count signals the anomaly
-                actor=str(session.user_id),
-                meta={
-                    "session_id": str(session.id),
-                    "anomaly_count": deduction_result.anomaly_count,
-                    "gross_minutes": deduction_result.gross_minutes,
-                    "break_minutes": deduction_result.break_minutes,
-                    "net_work_minutes": deduction_result.net_work_minutes,
-                    "was_clamped": deduction_result.was_clamped,
-                    "pairing_strategy": getattr(deduction_result, "pairing_strategy", None),
-                    "rounding_strategy": getattr(deduction_result, "rounding_strategy", None),
-                    "anomalies": anomaly_payloads,
-                },
-            )
-            _audit_write_ok = True
-            logger.info(
-                "break_anomaly audit record written: session_id=%s anomaly_count=%d",
-                str(session.id),
-                deduction_result.anomaly_count,
-            )
-        except Exception:
-            logger.error("Failed to write break anomaly audit log", exc_info=True)
-
-        if not _audit_write_ok:
-            # Phase 2D: Fallback path -- AuditLog write failed, revert to per-anomaly logger.warning
-            # This preserves the non-blocking behaviour from Phase 2C-A/C.
-            try:
-                for payload in anomaly_payloads:
-                    logger.warning(payload)
-            except Exception:
-                logger.error("Failed to log break anomaly (fallback)", exc_info=True)
-
-    # Build response with policy evaluation
     policy_eval_response = PolicyEvaluationResponse(
         is_late=evaluation.is_late,
         late_minutes=evaluation.late_minutes,

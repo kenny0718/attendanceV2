@@ -103,6 +103,28 @@ class BreakDeductionResult:
     rounding_strategy: str = "floor_per_segment"
 
 
+
+
+@dataclass
+class FallbackDeductionResult:
+    """Duck-type fallback for BreakDeductionResult when calculate_break_deduction() raises.
+
+    Used exclusively in the punch-out except block to ensure downstream code
+    (write_break_anomaly_audit, response shaping) receives a valid result object.
+
+    anomaly_count=0 guarantees write_break_anomaly_audit() early-returns (no-op).
+    anomalies uses default_factory=list to avoid shared-list class attribute risk.
+    """  
+    gross_minutes: int
+    net_work_minutes: int
+    break_minutes: int = 0
+    valid_break_pair_count: int = 0
+    anomaly_count: int = 0
+    anomalies: List[BreakAnomaly] = field(default_factory=list)
+    was_clamped: bool = False
+    pairing_strategy: str = "fallback"
+    rounding_strategy: str = "floor"
+
 # ============================================================
 # Phase 2B: Break Deduction Engine
 # ============================================================
