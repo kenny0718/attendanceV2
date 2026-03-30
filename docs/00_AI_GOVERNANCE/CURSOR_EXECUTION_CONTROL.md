@@ -1,6 +1,8 @@
 # Cursor Execution Control（強制）
 
-本檔為所有修改的「最高優先規則」
+> **[GOVERNANCE OVERRIDE]** `STOP_GATES.md` has the highest priority across all governance rules. If any conflict exists between this document and `STOP_GATES.md`, **STOP_GATES.md takes precedence**. MUST read `STOP_GATES.md` before this document.
+
+本檔為所有修改的「最高優先規則」（次於 STOP_GATES.md）
 
 ---
 

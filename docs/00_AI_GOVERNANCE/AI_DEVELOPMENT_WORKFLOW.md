@@ -1,7 +1,11 @@
 # AI DEVELOPMENT WORKFLOW
+> **[GOVERNANCE OVERRIDE]** `docs/00_AI_GOVERNANCE/STOP_GATES.md` has the highest priority across all governance rules. All execution decisions MUST follow STOP_GATES.md. If any conflict exists between this document and STOP_GATES.md, **STOP_GATES.md takes precedence**.
+
 # 🔴 Execution Gate（最高優先）
 
 在任何 Step 之前，必須先完成：
+
+> *(For reference only — overridden by STOP_GATES.md if conflict exists)*
 
 1. 讀 CURSOR_READ_ORDER.md
 2. 讀 CURSOR_EXECUTION_CONTROL.md

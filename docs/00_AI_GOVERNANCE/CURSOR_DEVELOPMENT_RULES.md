@@ -1,4 +1,6 @@
 
+> **[GOVERNANCE OVERRIDE]** `docs/00_AI_GOVERNANCE/STOP_GATES.md` has the highest priority across all governance rules. All execution decisions MUST follow STOP_GATES.md. If any conflict exists between this document and STOP_GATES.md, **STOP_GATES.md takes precedence**.
+
 # CURSOR_DEVELOPMENT_RULES.md
 
 > **Purpose**
@@ -12,6 +14,8 @@
 ---
 
 # 1. Mandatory Pre‑Read (Before Any Coding)
+
+> *(For reference only — overridden by STOP_GATES.md if conflict exists)*
 
 Before implementing any feature, Cursor **MUST read**:
 

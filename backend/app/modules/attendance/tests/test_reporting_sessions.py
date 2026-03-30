@@ -21,11 +21,35 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.core.database import get_db
 from app.modules.attendance.models import AttendanceSession
-from app.modules.tenants.models import Tenant
+from app.modules.tenants.models import Tenant, CompanyEntitlement
+from app.core.features import FeatureKeys
 from app.modules.auth.models import User
 from app.tests.utils.auth import create_test_actor, create_super_admin_actor, override_actor_dependency
 
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
+
+
+def hdr(company_id, user_id):
+    """Legacy header helper stub (WP-C1-07: JWT actor migration).
+    Returns empty dict; actual auth handled by override_actor_dependency.
+    """
+    return {}
+
+
+def make_entitlement(db, company_id):
+    """Ensure attendance.core feature is enabled for company_id."""
+    existing = db.query(CompanyEntitlement).filter(
+        CompanyEntitlement.company_id == company_id,
+        CompanyEntitlement.feature_key == FeatureKeys.ATTENDANCE_CORE
+    ).first()
+    if not existing:
+        db.add(CompanyEntitlement(
+            id=uuid4(),
+            company_id=company_id,
+            feature_key=FeatureKeys.ATTENDANCE_CORE,
+            enabled=True,
+        ))
+        db.commit()
 COMPANY_A = "company-sessions-a"
 COMPANY_B = "company-sessions-b"
 
@@ -82,6 +106,7 @@ def tenant_a(db):
     if not t:
         t = Tenant(id=COMPANY_A, name="Reporting Test Co A", is_active=True)
         db.add(t); db.commit()
+    make_entitlement(db, COMPANY_A)
     return t
 
 @pytest.fixture
@@ -90,6 +115,7 @@ def tenant_b(db):
     if not t:
         t = Tenant(id=COMPANY_B, name="Reporting Test Co B", is_active=True)
         db.add(t); db.commit()
+    make_entitlement(db, COMPANY_B)
     return t
 
 @pytest.fixture
@@ -114,9 +140,9 @@ class TestSES01BasicPagination:
         now = datetime.now(timezone.utc)
         make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=10))
         make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=5))
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"limit": 10, "offset": 0},
-            headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
+            resp = client_a.get("/api/v1/attendance/sessions",
+                params={"limit": 10, "offset": 0})
         assert resp.status_code == 200, resp.text
         data = resp.json()
         assert "sessions" in data
@@ -129,10 +155,11 @@ class TestSES01BasicPagination:
         now = datetime.now(timezone.utc)
         for i in range(4):
             make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=50+i))
-        r1 = client_a.get("/api/v1/attendance/sessions",
-            params={"limit": 2, "offset": 0}, headers=hdr(COMPANY_A, user_a.id))
-        r2 = client_a.get("/api/v1/attendance/sessions",
-            params={"limit": 2, "offset": 2}, headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
+            r1 = client_a.get("/api/v1/attendance/sessions",
+                params={"limit": 2, "offset": 0})
+            r2 = client_a.get("/api/v1/attendance/sessions",
+                params={"limit": 2, "offset": 2})
         ids1 = {s["session_id"] for s in r1.json()["sessions"]}
         ids2 = {s["session_id"] for s in r2.json()["sessions"]}
         assert ids1.isdisjoint(ids2)
@@ -148,9 +175,9 @@ class TestSES02DateFilter:
         make_closed_session(db, COMPANY_A, user_a.id, punch_apr)
         start = datetime(2026, 3, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
         end   = datetime(2026, 4, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"start_date": start.isoformat(), "end_date": end.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
+            resp = client_a.get("/api/v1/attendance/sessions",
+                params={"start_date": start.isoformat(), "end_date": end.isoformat()})
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] >= 1
@@ -173,22 +200,20 @@ class TestSES03TaipeiMidnightOwnership:
         # Query 2026-03-12 Taipei day range -> should find it
         day_start = datetime(2026, 3, 12, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
         day_end   = datetime(2026, 3, 13, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
-        resp = client_a.get("/api/v1/attendance/sessions",
-            params={"start_date": day_start.isoformat(), "end_date": day_end.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
+            resp = client_a.get("/api/v1/attendance/sessions",
+                params={"start_date": day_start.isoformat(), "end_date": day_end.isoformat()})
+            # Query 2026-03-11 Taipei day range -> should NOT find it
+            prev_start = datetime(2026, 3, 11, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
+            prev_end   = datetime(2026, 3, 12, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
+            resp2 = client_a.get("/api/v1/attendance/sessions",
+                params={"start_date": prev_start.isoformat(), "end_date": prev_end.isoformat()})
         assert resp.status_code == 200
         found = any(
             abs((datetime.fromisoformat(s["punch_in_time"]).astimezone(timezone.utc) - punch_in_utc).total_seconds()) < 5
             for s in resp.json()["sessions"]
         )
         assert found, "punch_in 00:30 Taipei should appear in 2026-03-12 Taipei date query"
-
-        # Query 2026-03-11 Taipei day range -> should NOT find it
-        prev_start = datetime(2026, 3, 11, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
-        prev_end   = datetime(2026, 3, 12, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
-        resp2 = client_a.get("/api/v1/attendance/sessions",
-            params={"start_date": prev_start.isoformat(), "end_date": prev_end.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
         assert resp2.status_code == 200
         found2 = any(
             abs((datetime.fromisoformat(s["punch_in_time"]).astimezone(timezone.utc) - punch_in_utc).total_seconds()) < 5
@@ -210,21 +235,17 @@ class TestSES04CrossMonthOwnership:
         apr_start = datetime(2026, 4, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
         may_start = datetime(2026, 5, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
 
-        # March range: should find
-        resp_mar = client_a.get("/api/v1/attendance/sessions",
-            params={"start_date": mar_start.isoformat(), "end_date": apr_start.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
+            resp_mar = client_a.get("/api/v1/attendance/sessions",
+                params={"start_date": mar_start.isoformat(), "end_date": apr_start.isoformat()})
+            resp_apr = client_a.get("/api/v1/attendance/sessions",
+                params={"start_date": apr_start.isoformat(), "end_date": may_start.isoformat()})
         assert resp_mar.status_code == 200
         found = any(
             abs((datetime.fromisoformat(s["punch_in_time"]).astimezone(timezone.utc) - punch_in_utc).total_seconds()) < 5
             for s in resp_mar.json()["sessions"]
         )
         assert found, "punch_in 3/31 23:50 Taipei should be in March query"
-
-        # April range: should NOT find
-        resp_apr = client_a.get("/api/v1/attendance/sessions",
-            params={"start_date": apr_start.isoformat(), "end_date": may_start.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
         assert resp_apr.status_code == 200
         found2 = any(
             abs((datetime.fromisoformat(s["punch_in_time"]).astimezone(timezone.utc) - punch_in_utc).total_seconds()) < 5
@@ -333,15 +354,16 @@ class TestSES10TotalCount:
         now = datetime.now(timezone.utc)
         for i in range(5):
             make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=100+i))
-        r_all = client_a.get("/api/v1/attendance/sessions",
-            params={"limit": 100, "offset": 0}, headers=hdr(COMPANY_A, user_a.id))
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
+            r_all = client_a.get("/api/v1/attendance/sessions",
+                params={"limit": 100, "offset": 0})
+            r_p1 = client_a.get("/api/v1/attendance/sessions",
+                params={"limit": 2, "offset": 0})
         assert r_all.status_code == 200
         total = r_all.json()["total"]
         sessions_count = len(r_all.json()["sessions"])
         assert total >= 5
         # total should match count when limit is large enough
-        r_p1 = client_a.get("/api/v1/attendance/sessions",
-            params={"limit": 2, "offset": 0}, headers=hdr(COMPANY_A, user_a.id))
         assert r_p1.json()["total"] == total
 
 
@@ -351,11 +373,11 @@ class TestSES11NaiveDatetimeRejected:
     def test_naive_start_date_returns_422(self, client_a, user_a):
         """API must reject naive datetime (no tzinfo) with 422"""
         with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
-                resp = client_a.get("/api/v1/attendance/sessions",
-                    params={"start_date": "2026-03-01T00:00:00"})
-        # FastAPI parses naive ISO string as datetime without tz
-        # Our endpoint rejects it with 422
-        assert resp.status_code == 422
+            resp = client_a.get("/api/v1/attendance/sessions",
+                params={"start_date": "2026-03-01T00:00:00"})
+            # FastAPI parses naive ISO string as datetime without tz
+            # Our endpoint rejects it with 422
+            assert resp.status_code == 422
 
 
 # --- SES-12: Role branch alignment ---
@@ -419,3 +441,72 @@ class TestSES12RoleBranchAlignment:
         payload = resp.json()
         assert payload["total"] == 0
         assert payload["sessions"] == []
+
+
+# --- SES-13: display_name enrich (FIX-DISPLAY-NAME) ---
+
+class TestSES13DisplayNameEnrich:
+    """FIX-DISPLAY-NAME: /sessions response must include display_name for all actors.
+
+    Regression guard: before the fix, display_name was only filled when
+    actor.is_admin() == True. This caused AdminAttendanceView to fall back
+    to showing user_id (UUID) in the employee name column.
+
+    These tests verify that display_name is populated regardless of actor role.
+    """
+
+    def test_admin_actor_gets_display_name(self, client_a, db, user_a):
+        """company_admin actor: display_name must be populated."""
+        now = datetime.now(timezone.utc)
+        make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=5))
+
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id, "company_admin")):
+            resp = client_a.get("/api/v1/attendance/sessions")
+
+        assert resp.status_code == 200, resp.text
+        sessions = resp.json()["sessions"]
+        assert len(sessions) >= 1
+        for s in sessions:
+            assert s["display_name"] is not None, (
+                f"display_name is None for session {s['session_id']} — "
+                "AdminAttendanceView would show UUID instead of name"
+            )
+            assert s["display_name"] == "Rpt User A"
+
+    def test_employee_actor_gets_own_display_name(self, client_a, db, user_a):
+        """employee actor querying own sessions: display_name must be populated."""
+        now = datetime.now(timezone.utc)
+        make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=3))
+
+        with override_actor_dependency(make_actor_with_role(COMPANY_A, user_a.id, "employee")):
+            resp = client_a.get("/api/v1/attendance/sessions")
+
+        assert resp.status_code == 200, resp.text
+        sessions = resp.json()["sessions"]
+        assert len(sessions) >= 1
+        for s in sessions:
+            assert s["display_name"] is not None, (
+                "display_name must be populated even for employee actor"
+            )
+            assert s["display_name"] == "Rpt User A"
+
+    def test_display_name_not_uuid(self, client_a, db, user_a):
+        """Regression: display_name must not be a UUID string."""
+        now = datetime.now(timezone.utc)
+        make_closed_session(db, COMPANY_A, user_a.id, now - timedelta(hours=2))
+
+        with override_actor_dependency(make_actor(COMPANY_A, user_a.id)):
+            resp = client_a.get("/api/v1/attendance/sessions")
+
+        assert resp.status_code == 200
+        sessions = resp.json()["sessions"]
+        assert len(sessions) >= 1
+        for s in sessions:
+            display = s.get("display_name")
+            assert display is not None, "display_name must not be None"
+            # UUID format check: must NOT look like xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+            import re
+            uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            assert not re.match(uuid_pattern, display, re.IGNORECASE), (
+                f"display_name looks like a UUID: {display!r} — fix not applied"
+            )

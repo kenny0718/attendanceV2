@@ -21,7 +21,8 @@ from app.modules.attendance.service import get_attendance_service
 from app.core.scope import Actor
 from app.core.dependencies import get_actor_with_company
 from app.core.database import get_db
-from app.modules.attendance.repo import get_attendance_session_repository, get_reporting_repository, get_out_checkpoint_repository
+from app.modules.attendance.repo import get_attendance_session_repository
+from app.modules.attendance.checkpoint_repo import get_out_checkpoint_repository
 from app.modules.attendance.schemas import (
     BreakOutRequest,
     BreakInRequest,
@@ -58,4 +59,5 @@ router_v1 = APIRouter(prefix="/api/v1/attendance", tags=["attendance-v1"])
 # ============================================
 # 新的 API (WP-11-02, WP-11-05C)
 # ============================================
+
 

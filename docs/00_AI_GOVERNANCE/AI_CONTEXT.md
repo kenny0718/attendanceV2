@@ -1,5 +1,8 @@
 # AI Context Guide
 
+> **[GOVERNANCE OVERRIDE]** `docs/00_AI_GOVERNANCE/STOP_GATES.md` has the highest priority across all governance rules. All execution decisions MUST follow STOP_GATES.md. If any conflict exists between this document and STOP_GATES.md, **STOP_GATES.md takes precedence**.
+
+
 **目的：** 指引 AI（Cursor / GPT / Claude）在分析專案時優先讀取的核心文件
 
 **最後更新：** 2026-03-04
@@ -9,6 +12,8 @@
 → 並遵守 CURSOR_READ_ORDER.md
 
 AI 必讀規則（最高優先）
+
+> *(For reference only — overridden by STOP_GATES.md if conflict exists)*
 
 所有開發任務必須：
 
