@@ -38,7 +38,7 @@ from app.modules.attendance.schemas import (
     SessionResponse,
     PolicyEvaluationResponse,
 )
-from app.modules.attendance.policy_engine import AttendancePolicyEngine
+from app.modules.attendance.api.punch_close_flow import build_policy_evaluation
 from app.modules.attendance.api.helpers import _require_attendance_feature
 from app.modules.attendance.api.break_deduction import resolve_break_deduction
 from app.modules.attendance.api.anomaly_audit import write_break_anomaly_audit
@@ -190,24 +190,22 @@ async def punch_out(
     # Note: deduction_result.net_work_minutes is derived/informational only.
     # session.duration_minutes must remain gross_minutes.
 
-    # WP-11-05C: Get user policy and evaluate
-    policy = repo.get_user_policy(company_id, user_uuid)
-
-    # Temporarily set session fields for evaluation
-    session.punch_out_time = punch_out_time
-    session.duration_minutes = gross_minutes
-    session.status = 'closed'
-
-    # Evaluate policy
-    policy_engine = AttendancePolicyEngine()
-    evaluation = policy_engine.evaluate(session, policy)
+    # WP-11-05C: Policy evaluation
+    policy_eval = build_policy_evaluation(
+        session=session,
+        repo=repo,
+        company_id=company_id,
+        user_id=user_uuid,
+        punch_out_time=punch_out_time,
+        gross_minutes=gross_minutes,
+    )
 
     # Close session with policy info -- duration_minutes MUST be gross_minutes
     session = repo.close_session(
         session=session,
         punch_out_time=punch_out_time,
         duration_minutes=gross_minutes,
-        policy_id=policy.id if policy else None
+        policy_id=policy_eval.policy_id,
     )
 
     # Phase 2D: Anomaly persistence -- delegated to helper (non-blocking)
@@ -221,14 +219,14 @@ async def punch_out(
     )
 
     policy_eval_response = PolicyEvaluationResponse(
-        is_late=evaluation.is_late,
-        late_minutes=evaluation.late_minutes,
-        is_early_leave=evaluation.is_early_leave,
-        early_leave_minutes=evaluation.early_leave_minutes,
-        is_overtime=evaluation.is_overtime,
-        overtime_minutes=evaluation.overtime_minutes,
-        work_minutes=evaluation.work_minutes,
-        policy_name=evaluation.policy_name
+        is_late=policy_eval.evaluation.is_late,
+        late_minutes=policy_eval.evaluation.late_minutes,
+        is_early_leave=policy_eval.evaluation.is_early_leave,
+        early_leave_minutes=policy_eval.evaluation.early_leave_minutes,
+        is_overtime=policy_eval.evaluation.is_overtime,
+        overtime_minutes=policy_eval.evaluation.overtime_minutes,
+        work_minutes=policy_eval.evaluation.work_minutes,
+        policy_name=policy_eval.evaluation.policy_name
     )
     
     return PunchOutResponse(
