@@ -1,4 +1,4 @@
-"""Attendance API — Punch 層 (WP-11-02, WP-11-05C)
+"""Attendance API — Punch 層 (WP-11-02, WP-11-05C, Phase 2C-A)
 
 Punch endpoints:
 - POST /api/v1/attendance/punch-in
@@ -9,6 +9,7 @@ Punch endpoints:
 WP-11-02: Punch In/Out API
 WP-11-05C: Policy Engine Integration
 WP-C1-07: JWT Actor Migration
+Phase 2C-A: Break Deduction Integration + Anomaly Logging (Option C)
 """
 
 import logging
@@ -34,6 +35,10 @@ from app.modules.attendance.schemas import (
 )
 from app.modules.attendance.policy_engine import AttendancePolicyEngine
 from app.modules.attendance.api.helpers import _require_attendance_feature
+from app.modules.attendance.work_hour_engine import (
+    calculate_break_deduction,
+    BreakPunchDTO,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +124,9 @@ async def punch_out(
     http_request: Request = None,
     db: Session = Depends(get_db)
 ):
-    """Punch out (打卡下班) - WP-11-02, WP-11-05C: with policy engine, WP-C1-07: JWT Actor"""
+    """Punch out (打卡下班) - WP-11-02, WP-11-05C: with policy engine, WP-C1-07: JWT Actor
+    Phase 2C-A: break deduction integrated (gross only written to DB).
+    """
     company_id = actor.active_company_id
     user_id = str(actor.user_id)
     # --- Feature Gate (WP-C1-06) ---
@@ -160,30 +167,73 @@ async def punch_out(
         notes=request.notes
     )
     
-    # Calculate duration
+    # Calculate gross duration (canonical value -- written to DB)
     duration = punch_out_time - session.punch_in_time
-    duration_minutes = int(duration.total_seconds() / 60)
-    
+    gross_minutes = int(duration.total_seconds() / 60)
+
+    # Phase 2C-A: Break deduction (derived only -- NOT written to DB)
+    session_punches = repo.get_session_punches(session.id)
+    break_punches = [
+        p for p in session_punches
+        if p.punch_type in ("break_start", "break_end")
+    ]
+    break_punch_dtos = [
+        BreakPunchDTO(
+            punch_type=p.punch_type,
+            punch_time=p.punch_time,
+            punch_id=str(p.id),
+        )
+        for p in break_punches
+    ]
+    deduction_result = calculate_break_deduction(
+        session.punch_in_time,
+        punch_out_time,
+        break_punch_dtos,
+    )
+    # Note: deduction_result.net_work_minutes is derived/informational only.
+    # session.duration_minutes must remain gross_minutes.
+
     # WP-11-05C: Get user's policy and evaluate
     policy = repo.get_user_policy(company_id, user_uuid)
     
     # Temporarily set session fields for evaluation
     session.punch_out_time = punch_out_time
-    session.duration_minutes = duration_minutes
+    session.duration_minutes = gross_minutes
     session.status = 'closed'
     
     # Evaluate policy
     policy_engine = AttendancePolicyEngine()
     evaluation = policy_engine.evaluate(session, policy)
     
-    # Close session with policy info
+    # Close session with policy info -- duration_minutes MUST be gross_minutes
     session = repo.close_session(
         session=session,
         punch_out_time=punch_out_time,
-        duration_minutes=duration_minutes,
+        duration_minutes=gross_minutes,
         policy_id=policy.id if policy else None
     )
-    
+
+    # Phase 2C-A: Anomaly logging (Option C) -- non-blocking, isolated try/except
+    if deduction_result.anomaly_count > 0:
+        try:
+            for a in deduction_result.anomalies:
+                logger.warning(str({
+                    "event": "break_anomaly",
+                    "session_id": str(session.id),
+                    "company_id": str(company_id),
+                    "user_id": str(session.user_id),
+                    "anomaly_type": a.anomaly_type,
+                    "gross_minutes": deduction_result.gross_minutes,
+                    "break_minutes": deduction_result.break_minutes,
+                    "net_work_minutes": deduction_result.net_work_minutes,
+                    "was_clamped": deduction_result.was_clamped,
+                    "anomaly_count": deduction_result.anomaly_count,
+                    "related_punch_ids": a.related_punch_ids,
+                    "message": a.message,
+                }))
+        except Exception:
+            logger.error("Failed to log break anomaly", exc_info=True)
+
     # Build response with policy evaluation
     policy_eval_response = PolicyEvaluationResponse(
         is_late=evaluation.is_late,
