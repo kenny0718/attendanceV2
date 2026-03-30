@@ -1,4 +1,4 @@
-"""Attendance API — Punch 層 (WP-11-02, WP-11-05C, Phase 2C-A)
+"""Attendance API — Punch 層 (WP-11-02, WP-11-05C, Phase 2C-A, Phase 2C-C, Phase 2D)
 
 Punch endpoints:
 - POST /api/v1/attendance/punch-in
@@ -10,6 +10,11 @@ WP-11-02: Punch In/Out API
 WP-11-05C: Policy Engine Integration
 WP-C1-07: JWT Actor Migration
 Phase 2C-A: Break Deduction Integration + Anomaly Logging (Option C)
+Phase 2C-C: Defensive guard for calculate_break_deduction + logging format fix
+Phase 2D: Break Anomaly AuditLog Upgrade — persist anomalies to audit_logs table
+         (single record per punch-out, meta.anomalies=[...], status='success')
+         AuditLog write failure falls back to logger.warning per anomaly;
+         fallback logging failure falls back to logger.error. Never blocks punch-out.
 """
 
 import logging
@@ -39,6 +44,7 @@ from app.modules.attendance.work_hour_engine import (
     calculate_break_deduction,
     BreakPunchDTO,
 )
+from app.modules.audit.repo import get_audit_log_repository
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +132,8 @@ async def punch_out(
 ):
     """Punch out (打卡下班) - WP-11-02, WP-11-05C: with policy engine, WP-C1-07: JWT Actor
     Phase 2C-A: break deduction integrated (gross only written to DB).
+    Phase 2C-C: defensive guard on calculate_break_deduction.
+    Phase 2D: anomalies persisted to audit_logs (single record per punch-out).
     """
     company_id = actor.active_company_id
     user_id = str(actor.user_id)
@@ -172,6 +180,7 @@ async def punch_out(
     gross_minutes = int(duration.total_seconds() / 60)
 
     # Phase 2C-A: Break deduction (derived only -- NOT written to DB)
+    # Phase 2C-C: Defensive guard -- engine failure falls back to gross, punch-out never blocked
     session_punches = repo.get_session_punches(session.id)
     break_punches = [
         p for p in session_punches
@@ -185,11 +194,28 @@ async def punch_out(
         )
         for p in break_punches
     ]
-    deduction_result = calculate_break_deduction(
-        session.punch_in_time,
-        punch_out_time,
-        break_punch_dtos,
-    )
+    try:
+        deduction_result = calculate_break_deduction(
+            session.punch_in_time,
+            punch_out_time,
+            break_punch_dtos,
+        )
+    except Exception:
+        logger.error("Break deduction failed, fallback to gross", exc_info=True)
+
+        class _FallbackResult:
+            gross_minutes = gross_minutes
+            break_minutes = 0
+            net_work_minutes = gross_minutes
+            valid_break_pair_count = 0
+            anomaly_count = 0
+            anomalies = []
+            was_clamped = False
+            pairing_strategy = "fallback"
+            rounding_strategy = "floor"
+
+        deduction_result = _FallbackResult()
+
     # Note: deduction_result.net_work_minutes is derived/informational only.
     # session.duration_minutes must remain gross_minutes.
 
@@ -213,26 +239,74 @@ async def punch_out(
         policy_id=policy.id if policy else None
     )
 
-    # Phase 2C-A: Anomaly logging (Option C) -- non-blocking, isolated try/except
+    # Phase 2D: Anomaly persistence -- non-blocking, isolated try/except
+    # Strategy: single AuditLog record per punch-out, meta.anomalies=[...]
+    # status='success' means the anomaly audit record was written successfully
+    #   (NOT that there are no anomalies -- anomaly_count > 0 is the anomaly indicator)
+    # Failure path: AuditLog write failure -> fallback per-anomaly logger.warning
+    #               fallback logger.warning failure -> logger.error
+    #               punch-out is never blocked by any failure in this block.
     if deduction_result.anomaly_count > 0:
+        # Build anomaly payload list (reuse same fields as Phase 2C-C logger.warning format)
+        anomaly_payloads = [
+            {
+                "event": "break_anomaly",
+                "session_id": str(session.id),
+                "company_id": str(company_id),
+                "user_id": str(session.user_id),
+                "anomaly_type": a.anomaly_type,
+                "gross_minutes": deduction_result.gross_minutes,
+                "break_minutes": deduction_result.break_minutes,
+                "net_work_minutes": deduction_result.net_work_minutes,
+                "was_clamped": deduction_result.was_clamped,
+                "anomaly_count": deduction_result.anomaly_count,
+                "related_punch_ids": a.related_punch_ids,
+                "message": a.message,
+                "pairing_strategy": getattr(deduction_result, "pairing_strategy", None),
+                "rounding_strategy": getattr(deduction_result, "rounding_strategy", None),
+            }
+            for a in deduction_result.anomalies
+        ]
+
+        _audit_write_ok = False
         try:
-            for a in deduction_result.anomalies:
-                logger.warning(str({
-                    "event": "break_anomaly",
+            # Phase 2D: Primary path -- write single AuditLog record
+            # Uses get_audit_log_repository factory (not manual instantiation)
+            audit_repo = get_audit_log_repository(db)
+            audit_repo.create_log(
+                company_id=str(company_id),
+                action="attendance.break_anomaly",
+                status="success",  # 'success' = audit record written OK; anomaly_count signals the anomaly
+                actor=str(session.user_id),
+                meta={
                     "session_id": str(session.id),
-                    "company_id": str(company_id),
-                    "user_id": str(session.user_id),
-                    "anomaly_type": a.anomaly_type,
+                    "anomaly_count": deduction_result.anomaly_count,
                     "gross_minutes": deduction_result.gross_minutes,
                     "break_minutes": deduction_result.break_minutes,
                     "net_work_minutes": deduction_result.net_work_minutes,
                     "was_clamped": deduction_result.was_clamped,
-                    "anomaly_count": deduction_result.anomaly_count,
-                    "related_punch_ids": a.related_punch_ids,
-                    "message": a.message,
-                }))
+                    "pairing_strategy": getattr(deduction_result, "pairing_strategy", None),
+                    "rounding_strategy": getattr(deduction_result, "rounding_strategy", None),
+                    "anomalies": anomaly_payloads,
+                },
+            )
+            _audit_write_ok = True
+            logger.info(
+                "break_anomaly audit record written: session_id=%s anomaly_count=%d",
+                str(session.id),
+                deduction_result.anomaly_count,
+            )
         except Exception:
-            logger.error("Failed to log break anomaly", exc_info=True)
+            logger.error("Failed to write break anomaly audit log", exc_info=True)
+
+        if not _audit_write_ok:
+            # Phase 2D: Fallback path -- AuditLog write failed, revert to per-anomaly logger.warning
+            # This preserves the non-blocking behaviour from Phase 2C-A/C.
+            try:
+                for payload in anomaly_payloads:
+                    logger.warning(payload)
+            except Exception:
+                logger.error("Failed to log break anomaly (fallback)", exc_info=True)
 
     # Build response with policy evaluation
     policy_eval_response = PolicyEvaluationResponse(

@@ -1,4 +1,4 @@
-"""Integration tests for Phase 2C-A: Break Deduction in punch-out flow.
+"""Integration tests for Phase 2C-A/C/2D: Break Deduction + AuditLog in punch-out flow.
 
 Pure unit tests using mocks -- no DB, no fixtures.
 
@@ -9,8 +9,13 @@ This test patches sys.modules before importing punch to work around it.
 Verifies:
   1. punch-out with no break punches succeeds, duration_minutes = gross
   2. punch-out with valid break punches succeeds, duration_minutes still gross
-  3. punch-out with anomaly (unclosed break) succeeds, logger.warning called
-  4. logging failure does not block punch-out, logger.error called
+  3. anomaly present, AuditLog write succeeds -> warning NOT called
+  4. AuditLog write failure -> fallback warning called, punch-out still succeeds
+  5. [Phase 2C-C] clamp: was_clamped=True, DB gross, AuditLog meta correct
+  6. [Phase 2D] no anomaly -> AuditLog NOT written
+  7. [Phase 2D] anomaly -> create_log called with correct fields
+  8. [Phase 2D] AuditLog write failure -> fallback warning, punch-out ok
+  9. [Phase 2D] clamp anomaly -> AuditLog meta has was_clamped=True
 """
 
 import sys
@@ -26,11 +31,7 @@ import asyncio
 # ---------------------------------------------------------------------------
 
 def _patch_broken_api_init():
-    """Inject a fake get_sessions_reporting into sys.modules so that
-    api/__init__.py's broken import does not raise ImportError.
-    """
     reporting_mod_name = "app.modules.attendance.api.reporting"
-    # Only patch if module is not yet loaded or lacks the symbol
     if reporting_mod_name not in sys.modules:
         fake = types.ModuleType(reporting_mod_name)
         fake.get_sessions_reporting = MagicMock()
@@ -43,7 +44,6 @@ def _patch_broken_api_init():
 
 _patch_broken_api_init()
 
-# Now it is safe to import punch_module
 import app.modules.attendance.api.punch as punch_module  # noqa: E402
 
 from app.modules.attendance.work_hour_engine import (  # noqa: E402
@@ -118,22 +118,29 @@ def _make_policy_evaluation():
     return ev
 
 
-def _default_deduction(anomaly_count=0, anomalies=None):
+def _default_deduction(anomaly_count=0, anomalies=None, was_clamped=False,
+                       break_minutes=0, net_work_minutes=None):
     return BreakDeductionResult(
         gross_minutes=GROSS_MINUTES,
-        break_minutes=0,
-        net_work_minutes=GROSS_MINUTES,
+        break_minutes=break_minutes,
+        net_work_minutes=net_work_minutes if net_work_minutes is not None else GROSS_MINUTES,
         valid_break_pair_count=0,
         anomaly_count=anomaly_count,
         anomalies=anomalies or [],
-        was_clamped=False,
+        was_clamped=was_clamped,
     )
 
 
-def _run(session_punches, deduction_result, warn_side_effect=None):
+def _run(
+    session_punches,
+    deduction_result,
+    warn_side_effect=None,
+    audit_create_log_side_effect=None,
+):
     """
     Execute punch_out with all dependencies mocked.
-    Returns (close_session_call_args, mock_warn, mock_err).
+    Phase 2D: also mocks get_audit_log_repository.
+    Returns (close_session_call_args, mock_warn, mock_err, mock_audit_repo).
     """
     session = _make_session()
     actor = _make_actor()
@@ -149,6 +156,10 @@ def _run(session_punches, deduction_result, warn_side_effect=None):
     mock_policy_engine_instance = MagicMock()
     mock_policy_engine_instance.evaluate.return_value = _make_policy_evaluation()
 
+    mock_audit_repo = MagicMock()
+    if audit_create_log_side_effect is not None:
+        mock_audit_repo.create_log.side_effect = audit_create_log_side_effect
+
     request = MagicMock()
     request.notes = None
     request.location = None
@@ -161,6 +172,8 @@ def _run(session_punches, deduction_result, warn_side_effect=None):
 
     with patch.object(
         punch_module, "get_attendance_session_repository", return_value=mock_repo
+    ), patch.object(
+        punch_module, "get_audit_log_repository", return_value=mock_audit_repo
     ), patch.object(
         punch_module, "AttendancePolicyEngine", return_value=mock_policy_engine_instance
     ), patch.object(
@@ -186,7 +199,7 @@ def _run(session_punches, deduction_result, warn_side_effect=None):
             )
         )
 
-    return mock_repo.close_session.call_args, mock_warn, mock_err
+    return mock_repo.close_session.call_args, mock_warn, mock_err, mock_audit_repo
 
 
 # ---------------------------------------------------------------------------
@@ -196,13 +209,14 @@ def _run(session_punches, deduction_result, warn_side_effect=None):
 class TestNoBrakesPunchOut:
     def test_no_break_punches_success_gross_written(self):
         """punch-out with no break punches: succeeds, duration_minutes = gross."""
-        close_kwargs, mock_warn, mock_err = _run(
+        close_kwargs, mock_warn, mock_err, mock_audit_repo = _run(
             session_punches=[_make_punch("in", 1), _make_punch("out", 9)],
             deduction_result=_default_deduction(),
         )
         assert close_kwargs.kwargs["duration_minutes"] == GROSS_MINUTES
         mock_warn.assert_not_called()
         mock_err.assert_not_called()
+        mock_audit_repo.create_log.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -221,7 +235,7 @@ class TestValidBreakPunchesPunchOut:
             anomalies=[],
             was_clamped=False,
         )
-        close_kwargs, mock_warn, mock_err = _run(
+        close_kwargs, mock_warn, mock_err, mock_audit_repo = _run(
             session_punches=[
                 _make_punch("in", 1),
                 _make_punch("break_start", 4),
@@ -230,18 +244,21 @@ class TestValidBreakPunchesPunchOut:
             ],
             deduction_result=deduction,
         )
-        # DB must receive gross (480), NOT net (450)
         assert close_kwargs.kwargs["duration_minutes"] == GROSS_MINUTES
         mock_warn.assert_not_called()
+        mock_audit_repo.create_log.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
-# Test 3: anomaly -- punch-out succeeds, logger.warning called
+# Test 3: anomaly -- AuditLog written, logger.warning NOT called (success path)
 # ---------------------------------------------------------------------------
 
 class TestAnomalyLogging:
-    def test_anomaly_warning_logged_and_punch_out_succeeds(self):
-        """unclosed_break_at_close anomaly: punch-out succeeds, warning logged."""
+    def test_anomaly_audit_log_written_no_warning_on_success(self):
+        """Phase 2D: anomaly present, AuditLog write succeeds.
+        create_log called once; logger.warning NOT called.
+        punch-out succeeds, duration_minutes = gross.
+        """
         bs = _make_punch("break_start", 4)
         anomaly = BreakAnomaly(
             anomaly_type="unclosed_break_at_close",
@@ -251,26 +268,32 @@ class TestAnomalyLogging:
         )
         deduction = _default_deduction(anomaly_count=1, anomalies=[anomaly])
 
-        close_kwargs, mock_warn, mock_err = _run(
+        close_kwargs, mock_warn, mock_err, mock_audit_repo = _run(
             session_punches=[_make_punch("in", 1), bs, _make_punch("out", 9)],
             deduction_result=deduction,
         )
 
         assert close_kwargs.kwargs["duration_minutes"] == GROSS_MINUTES
-        assert mock_warn.call_count == 1
-        logged_msg = mock_warn.call_args[0][0]
-        assert "unclosed_break_at_close" in logged_msg
-        assert "break_anomaly" in logged_msg
+        mock_audit_repo.create_log.assert_called_once()
+        call_kw = mock_audit_repo.create_log.call_args.kwargs
+        assert call_kw["action"] == "attendance.break_anomaly"
+        assert call_kw["status"] == "success"
+        assert call_kw["meta"]["anomaly_count"] == 1
+        assert len(call_kw["meta"]["anomalies"]) == 1
+        assert call_kw["meta"]["anomalies"][0]["anomaly_type"] == "unclosed_break_at_close"
+        mock_warn.assert_not_called()
         mock_err.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
-# Test 4: logging failure does not block punch-out
+# Test 4: AuditLog write failure -> fallback warning, punch-out succeeds
 # ---------------------------------------------------------------------------
 
 class TestLoggingFailure:
-    def test_logging_failure_does_not_block(self):
-        """If logger.warning raises, punch-out still succeeds; logger.error called."""
+    def test_audit_write_failure_fallback_warning_punch_out_succeeds(self):
+        """Phase 2D: AuditLog.create_log raises -> fallback per-anomaly logger.warning.
+        punch-out still succeeds; logger.error called for the audit failure.
+        """
         bs = _make_punch("break_start", 4)
         anomaly = BreakAnomaly(
             anomaly_type="unclosed_break_at_close",
@@ -280,14 +303,129 @@ class TestLoggingFailure:
         )
         deduction = _default_deduction(anomaly_count=1, anomalies=[anomaly])
 
-        close_kwargs, mock_warn, mock_err = _run(
+        close_kwargs, mock_warn, mock_err, mock_audit_repo = _run(
             session_punches=[_make_punch("in", 1), bs, _make_punch("out", 9)],
             deduction_result=deduction,
-            warn_side_effect=RuntimeError("log infra down"),
+            audit_create_log_side_effect=RuntimeError("DB unavailable"),
         )
 
         assert close_kwargs is not None
         assert close_kwargs.kwargs["duration_minutes"] == GROSS_MINUTES
-        mock_err.assert_called_once()
-        err_msg = mock_err.call_args[0][0]
-        assert "Failed to log break anomaly" in err_msg
+        mock_audit_repo.create_log.assert_called_once()
+        assert mock_err.call_count >= 1
+        err_msgs = [str(c.args[0]) for c in mock_err.call_args_list]
+        assert any("Failed to write break anomaly audit log" in m for m in err_msgs)
+        assert mock_warn.call_count == 1
+        fallback_payload = mock_warn.call_args[0][0]
+        assert isinstance(fallback_payload, dict)
+        assert fallback_payload["event"] == "break_anomaly"
+        assert fallback_payload["anomaly_type"] == "unclosed_break_at_close"
+
+
+# ---------------------------------------------------------------------------
+# Test 5: [Phase 2C-C / 2D] clamp path -- was_clamped=True, gross preserved
+# ---------------------------------------------------------------------------
+
+class TestClampIntegration:
+    def test_clamp_does_not_affect_gross_written(self):
+        """Phase 2C-C/2D: when break_minutes >= gross_minutes engine clamps to 0.
+        DB receives gross; AuditLog meta has was_clamped=True.
+        """
+        bs = _make_punch("break_start", 1, 30)
+        be = _make_punch("break_end", 9, 0)
+
+        clamp_anomaly = BreakAnomaly(
+            anomaly_type="break_exceeds_gross",
+            related_punch_ids=[str(bs.id), str(be.id)],
+            related_timestamps=[bs.punch_time, be.punch_time],
+            message="break_minutes clamped to gross",
+        )
+        clamped_deduction = BreakDeductionResult(
+            gross_minutes=GROSS_MINUTES,
+            break_minutes=GROSS_MINUTES,
+            net_work_minutes=0,
+            valid_break_pair_count=1,
+            anomaly_count=1,
+            anomalies=[clamp_anomaly],
+            was_clamped=True,
+        )
+
+        close_kwargs, mock_warn, mock_err, mock_audit_repo = _run(
+            session_punches=[
+                _make_punch("in", 1), bs, be, _make_punch("out", 9),
+            ],
+            deduction_result=clamped_deduction,
+        )
+
+        assert close_kwargs is not None
+        assert close_kwargs.kwargs["duration_minutes"] == GROSS_MINUTES
+        assert clamped_deduction.was_clamped is True
+        mock_audit_repo.create_log.assert_called_once()
+        meta = mock_audit_repo.create_log.call_args.kwargs["meta"]
+        assert meta["was_clamped"] is True
+        assert meta["net_work_minutes"] == 0
+        assert meta["gross_minutes"] == GROSS_MINUTES
+        assert meta["anomalies"][0]["was_clamped"] is True
+        mock_warn.assert_not_called()
+        mock_err.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Test 6: [Phase 2D] no anomaly -> AuditLog NOT written
+# ---------------------------------------------------------------------------
+
+class TestNoAnomalyNoAuditLog:
+    def test_no_anomaly_no_audit_log_written(self):
+        """Phase 2D: anomaly_count == 0 -> create_log must not be invoked."""
+        close_kwargs, mock_warn, mock_err, mock_audit_repo = _run(
+            session_punches=[_make_punch("in", 1), _make_punch("out", 9)],
+            deduction_result=_default_deduction(anomaly_count=0),
+        )
+        assert close_kwargs.kwargs["duration_minutes"] == GROSS_MINUTES
+        mock_audit_repo.create_log.assert_not_called()
+        mock_warn.assert_not_called()
+        mock_err.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Test 7: [Phase 2D] anomaly -> create_log called with correct fields
+# ---------------------------------------------------------------------------
+
+class TestAuditLogFields:
+    def test_audit_log_fields_correct(self):
+        """Phase 2D: verify AuditLog create_log receives all required fields."""
+        bs = _make_punch("break_start", 4)
+        anomaly = BreakAnomaly(
+            anomaly_type="unclosed_break_at_close",
+            related_punch_ids=[str(bs.id)],
+            related_timestamps=[bs.punch_time],
+            message="break_start never closed",
+        )
+        deduction = _default_deduction(anomaly_count=1, anomalies=[anomaly])
+
+        close_kwargs, mock_warn, mock_err, mock_audit_repo = _run(
+            session_punches=[_make_punch("in", 1), bs, _make_punch("out", 9)],
+            deduction_result=deduction,
+        )
+
+        mock_audit_repo.create_log.assert_called_once()
+        kw = mock_audit_repo.create_log.call_args.kwargs
+        assert kw["action"] == "attendance.break_anomaly"
+        assert kw["status"] == "success"
+        assert isinstance(kw["company_id"], str)
+        assert isinstance(kw["actor"], str)
+
+        meta = kw["meta"]
+        assert "session_id" in meta
+        assert meta["anomaly_count"] == 1
+        assert meta["gross_minutes"] == GROSS_MINUTES
+        assert "break_minutes" in meta
+        assert "net_work_minutes" in meta
+        assert "was_clamped" in meta
+        assert isinstance(meta["anomalies"], list)
+        assert len(meta["anomalies"]) == 1
+
+        entry = meta["anomalies"][0]
+        assert entry["event"] == "break_anomaly"
+        assert entry["anomaly_type"] == "unclosed_break_at_close"
+        assert entry["gross_minutes"] 
