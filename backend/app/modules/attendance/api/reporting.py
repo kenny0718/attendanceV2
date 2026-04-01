@@ -59,29 +59,18 @@ def get_sessions(
     - 員工（無特殊角色）：只能查自己的 sessions
     - 管理者（manager/admin）：可查本公司任意 user 的 sessions
     """
-    _require_attendance_feature(actor)
+    _require_attendance_feature(actor.active_company_id, db)
 
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
 
-    start_utc = None
-    end_utc = None
-
-    if start_date is not None:
-        if start_date.tzinfo is None:
-            raise HTTPException(status_code=400, detail="start_date must be timezone-aware (naive datetime rejected)")
-        start_utc = _normalize_to_utc(start_date)
-
-    if end_date is not None:
-        if end_date.tzinfo is None:
-            raise HTTPException(status_code=400, detail="end_date must be timezone-aware (naive datetime rejected)")
-        end_utc = _normalize_to_utc(end_date)
-
-    _validate_datetime_range(start_utc, end_utc)
+    _validate_datetime_range(start_date, end_date)
+    start_utc = _normalize_to_utc(start_date)
+    end_utc = _normalize_to_utc(end_date)
 
     # Scope enforcement
     target_user_id: Optional[UUID] = None
-    is_manager = actor.role in ("manager", "admin")
+    is_manager = actor.is_admin()
 
     if user_id is not None:
         try:
@@ -97,7 +86,7 @@ def get_sessions(
     repo = get_reporting_repository(db)
 
     sessions = repo.get_sessions_for_reporting(
-        company_id=actor.company_id,
+        company_id=actor.active_company_id,
         user_id=target_user_id,
         start_utc=start_utc,
         end_utc=end_utc,
@@ -107,7 +96,7 @@ def get_sessions(
     )
 
     total = repo.count_sessions_for_reporting(
-        company_id=actor.company_id,
+        company_id=actor.active_company_id,
         user_id=target_user_id,
         start_utc=start_utc,
         end_utc=end_utc,
@@ -115,13 +104,14 @@ def get_sessions(
     )
 
     user_ids = list({str(s.user_id) for s in sessions})
-    display_names = get_display_names(user_ids, db)
+    display_names = get_display_names(db, user_ids)
 
     items = []
     for s in sessions:
         items.append(SessionResponse(
-            id=s.id,
+            session_id=s.id,
             user_id=s.user_id,
+            company_id=s.company_id,
             display_name=display_names.get(str(s.user_id)),
             punch_in_time=s.punch_in_time,
             punch_out_time=s.punch_out_time,
@@ -130,7 +120,7 @@ def get_sessions(
             notes=s.notes,
         ))
 
-    return SessionsListResponse(items=items, total=total, limit=limit, offset=offset)
+    return SessionsListResponse(sessions=items, total=total, limit=limit, offset=offset)
 
 
 @router.get("/reports/user-summary", response_model=UserSummaryResponse)
@@ -154,40 +144,25 @@ def get_user_summary(
     - 員工只能查詢自己的 summary
     - 嘗試查詢他人回傳 403（本 Step 不支援 manager 查他人）
     """
-    _require_attendance_feature(actor)
+    _require_attendance_feature(actor.active_company_id, db)
 
-    start_utc = None
-    end_utc = None
-
-    if start_date is not None:
-        if start_date.tzinfo is None:
-            raise HTTPException(status_code=400, detail="start_date must be timezone-aware (naive datetime rejected)")
-        start_utc = _normalize_to_utc(start_date)
-
-    if end_date is not None:
-        if end_date.tzinfo is None:
-            raise HTTPException(status_code=400, detail="end_date must be timezone-aware (naive datetime rejected)")
-        end_utc = _normalize_to_utc(end_date)
-
-    _validate_datetime_range(start_utc, end_utc)
+    _validate_datetime_range(start_date, end_date)
+    start_utc = _normalize_to_utc(start_date)
+    end_utc = _normalize_to_utc(end_date)
 
     repo = get_reporting_repository(db)
 
     sessions = repo.get_user_summary_sessions(
-        company_id=actor.company_id,
+        company_id=actor.active_company_id,
         user_id=actor.user_id,
         start_utc=start_utc,
         end_utc=end_utc,
     )
 
-    closed_sessions = [s for s in sessions if s.status == 'closed']
-    open_sessions = [s for s in sessions if s.status == 'open']
-
-    summary = calculate_user_summary(closed_sessions, open_sessions)
+    summary = calculate_user_summary(sessions)
 
     return UserSummaryResponse(
-        user_id=actor.user_id,
-        company_id=actor.company_id,
+        user_id=str(actor.user_id),
         **summary,
     )
 
@@ -214,40 +189,26 @@ def get_company_summary(
     - 所有查詢強制 WHERE company_id = ?（從 JWT Actor 取得）
     - 查詢全公司所有用戶，不過濾 user_id
     """
-    _require_attendance_feature(actor)
+    _require_attendance_feature(actor.active_company_id, db)
 
-    if actor.role not in ("manager", "admin"):
+    if not actor.is_admin():
         raise HTTPException(status_code=403, detail="Company summary requires manager or admin role")
 
-    start_utc = None
-    end_utc = None
-
-    if start_date is not None:
-        if start_date.tzinfo is None:
-            raise HTTPException(status_code=400, detail="start_date must be timezone-aware (naive datetime rejected)")
-        start_utc = _normalize_to_utc(start_date)
-
-    if end_date is not None:
-        if end_date.tzinfo is None:
-            raise HTTPException(status_code=400, detail="end_date must be timezone-aware (naive datetime rejected)")
-        end_utc = _normalize_to_utc(end_date)
-
-    _validate_datetime_range(start_utc, end_utc)
+    _validate_datetime_range(start_date, end_date)
+    start_utc = _normalize_to_utc(start_date)
+    end_utc = _normalize_to_utc(end_date)
 
     repo = get_reporting_repository(db)
 
     sessions = repo.get_company_summary_sessions(
-        company_id=actor.company_id,
+        company_id=actor.active_company_id,
         start_utc=start_utc,
         end_utc=end_utc,
     )
 
-    closed_sessions = [s for s in sessions if s.status == 'closed']
-    open_sessions = [s for s in sessions if s.status == 'open']
-
-    summary = calculate_company_summary(closed_sessions, open_sessions)
+    summary = calculate_company_summary(sessions)
 
     return CompanySummaryResponse(
-        company_id=actor.company_id,
+        company_id=actor.active_company_id,
         **summary,
     )

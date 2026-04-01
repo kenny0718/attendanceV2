@@ -12,7 +12,18 @@ Phase 1B: Reporting extraction
 - checkpoints.py: OUT Checkpoint API (WP-C1-11)
 """
 
+from fastapi import APIRouter
 from app.modules.attendance.api.legacy import router
-from app.modules.attendance.api.reporting import get_sessions_reporting
+from app.modules.attendance.api.punch import router_v1 as _punch_router_v1
+from app.modules.attendance.api.breaks import router_v1 as _breaks_router_v1
+from app.modules.attendance.api.checkpoints import router_v1 as _checkpoints_router_v1
+from app.modules.attendance.api.reporting import router as reporting_router
 
-__all__ = ["router", "get_sessions_reporting"]
+# Merged router_v1: all /api/v1/attendance/* endpoints
+router_v1 = APIRouter()
+router_v1.include_router(_punch_router_v1)
+router_v1.include_router(_breaks_router_v1)
+router_v1.include_router(_checkpoints_router_v1)
+router_v1.include_router(reporting_router)
+
+__all__ = ["router", "router_v1"]
