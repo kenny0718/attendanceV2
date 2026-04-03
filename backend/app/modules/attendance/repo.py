@@ -253,6 +253,85 @@ class AttendanceSessionRepository:
         )
 
 
+
+    def get_sessions_by_company_user_business_date_range(
+        self,
+        company_id: str,
+        user_id: UUID,
+        business_day_start: datetime,
+        business_day_end: datetime,
+    ) -> List[AttendanceSession]:
+        """Read-only: 取得 company/user 在 business date 對應區間內的 sessions。
+
+        注意：
+        - Tenant Isolation: 強制 WHERE company_id = ?
+        - business date -> datetime range 的換算由 service 層決定，repo 不做業務推論
+        - 使用 punch_in_time 作為日級 trace read-side 的最小安全查詢基準
+        """
+        return (
+            self.db.query(AttendanceSession)
+            .filter(
+                and_(
+                    AttendanceSession.company_id == company_id,
+                    AttendanceSession.user_id == user_id,
+                    AttendanceSession.punch_in_time >= business_day_start,
+                    AttendanceSession.punch_in_time < business_day_end,
+                )
+            )
+            .order_by(AttendanceSession.punch_in_time.asc())
+            .all()
+        )
+
+    def get_punches_by_company_user_business_date_range(
+        self,
+        company_id: str,
+        user_id: UUID,
+        business_day_start: datetime,
+        business_day_end: datetime,
+    ) -> List[AttendancePunch]:
+        """Read-only: 取得 company/user 在 business date 對應區間內的 punches。
+
+        注意：
+        - Tenant Isolation: 強制 WHERE company_id = ?
+        - 僅提供 read-side 存取，不做 trace 組裝或規則判定
+        """
+        return (
+            self.db.query(AttendancePunch)
+            .filter(
+                and_(
+                    AttendancePunch.company_id == company_id,
+                    AttendancePunch.user_id == user_id,
+                    AttendancePunch.punch_time >= business_day_start,
+                    AttendancePunch.punch_time < business_day_end,
+                )
+            )
+            .order_by(AttendancePunch.punch_time.asc())
+            .all()
+        )
+
+    def get_punches_by_company_user_and_session_ids(
+        self,
+        company_id: str,
+        user_id: UUID,
+        session_ids: List[UUID],
+    ) -> List[AttendancePunch]:
+        """Read-only: 依 company/user + session_ids 批次取得 punches。"""
+        if not session_ids:
+            return []
+
+        return (
+            self.db.query(AttendancePunch)
+            .filter(
+                and_(
+                    AttendancePunch.company_id == company_id,
+                    AttendancePunch.user_id == user_id,
+                    AttendancePunch.session_id.in_(session_ids),
+                )
+            )
+            .order_by(AttendancePunch.punch_time.asc())
+            .all()
+        )
+
 def get_attendance_session_repository(db: Session) -> AttendanceSessionRepository:
     """Factory function for dependency injection"""
     return AttendanceSessionRepository(db)

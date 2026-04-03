@@ -14,203 +14,28 @@ Design Principles:
 
 import logging
 from datetime import date, datetime, time, timedelta
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from uuid import UUID
 from zoneinfo import ZoneInfo
+
+from sqlalchemy.orm import Session
 
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 
 from app.modules.attendance.models import AttendanceSession, AttendancePolicy
+from app.modules.schedule.service import ScheduleBaselineResolver
 
 logger = logging.getLogger(__name__)
 
 
 
-# ============================================
-# WP-11-03S: Work Schedule Abstractions
-# ============================================
-
-from dataclasses import dataclass
-from typing import List
-
-@dataclass(frozen=True)
-class WorkWindow:
-    """Represents a single work time window
-    
-    Used for split shift scenarios where a day has multiple work periods.
-    Example: 08:00-14:00 and 16:00-18:00
-    
-    Attributes:
-        start_time: Window start time (time only, no date)
-        end_time: Window end time (time only, no date)
-    """
-    start_time: time
-    end_time: time
-    
-    def __post_init__(self):
-        """Validate window"""
-        if self.start_time >= self.end_time:
-            raise ValueError(
-                f"Invalid WorkWindow: start_time ({self.start_time}) "
-                f"must be before end_time ({self.end_time})"
-            )
-    
-    def duration_minutes(self) -> int:
-        """Calculate window duration in minutes"""
-        start_dt = datetime.combine(date.min, self.start_time)
-        end_dt = datetime.combine(date.min, self.end_time)
-        delta = end_dt - start_dt
-        return int(delta.total_seconds() / 60)
-    
-    def contains_time(self, check_time: time) -> bool:
-        """Check if a time falls within this window"""
-        return self.start_time <= check_time < self.end_time
-    
-    def overlaps_with(self, other: 'WorkWindow') -> bool:
-        """Check if this window overlaps with another"""
-        return (self.start_time < other.end_time and 
-                self.end_time > other.start_time)
-
-
-@dataclass(frozen=True)
-class FlexTimeBand:
-    """Represents a flexible time band (WP-11-03S: Extension Point)
-    
-    For future Flex Time support. Not used in current implementation.
-    
-    Example: Employees can arrive between 08:00-10:00
-    
-    Attributes:
-        earliest: Earliest allowed time
-        latest: Latest allowed time
-        band_type: Type of flex band ('arrival', 'departure', 'break')
-    """
-    earliest: time
-    latest: time
-    band_type: str  # 'arrival', 'departure', 'break'
-    
-    def __post_init__(self):
-        """Validate flex band"""
-        if self.earliest >= self.latest:
-            raise ValueError(
-                f"Invalid FlexTimeBand: earliest ({self.earliest}) "
-                f"must be before latest ({self.latest})"
-            )
-
-
-@dataclass
-class WorkSchedule:
-    """Represents a work schedule with support for split shifts and flex time
-    
-    WP-11-03S: Core abstraction for schedule modes.
-    
-    Schedule Modes:
-    - STANDARD: Single continuous work period (default, backward compatible)
-    - SPLIT_SHIFT: Multiple discrete work windows
-    - FLEX_TIME: Flexible arrival/departure with core hours (future)
-    
-    Attributes:
-        mode: Schedule mode ('standard', 'split_shift', 'flex_time')
-        windows: List of work windows (1 for standard, 2+ for split shift)
-        core_time_start: Core hours start (for flex time, future)
-        core_time_end: Core hours end (for flex time, future)
-        flex_bands: Flexible time bands (for flex time, future)
-    """
-    mode: str  # 'standard', 'split_shift', 'flex_time'
-    windows: List[WorkWindow]
-    
-    # Extension points for Flex Time (WP-11-03S: not implemented yet)
-    core_time_start: Optional[time] = None
-    core_time_end: Optional[time] = None
-    flex_bands: Optional[List[FlexTimeBand]] = None
-    
-    def __post_init__(self):
-        """Validate schedule"""
-        if not self.windows:
-            raise ValueError("WorkSchedule must have at least one window")
-        
-        if self.mode not in ('standard', 'split_shift', 'flex_time'):
-            raise ValueError(
-                f"Invalid schedule mode: {self.mode}. "
-                "Must be 'standard', 'split_shift', or 'flex_time'"
-            )
-        
-        if self.mode == 'standard' and len(self.windows) != 1:
-            raise ValueError("Standard mode must have exactly one window")
-        
-        if self.mode == 'split_shift' and len(self.windows) < 2:
-            raise ValueError("Split shift mode must have at least 2 windows")
-        
-        # Check for overlapping windows
-        for i, window1 in enumerate(self.windows):
-            for window2 in self.windows[i+1:]:
-                if window1.overlaps_with(window2):
-                    raise ValueError(
-                        f"Overlapping windows detected: "
-                        f"{window1.start_time}-{window1.end_time} and "
-                        f"{window2.start_time}-{window2.end_time}"
-                    )
-        
-        # Ensure windows are sorted
-        sorted_windows = sorted(self.windows, key=lambda w: w.start_time)
-        if self.windows != sorted_windows:
-            # Auto-sort windows
-            object.__setattr__(self, 'windows', sorted_windows)
-            logger.warning(
-                f"WorkSchedule windows were not sorted. Auto-sorted to: "
-                f"{[f'{w.start_time}-{w.end_time}' for w in sorted_windows]}"
-            )
-    
-    @classmethod
-    def from_policy(cls, policy: Optional['AttendancePolicy']) -> 'WorkSchedule':
-        """Create WorkSchedule from AttendancePolicy (backward compatibility)
-        
-        Converts existing policy fields (work_start_time, work_end_time) 
-        into a standard single-window schedule.
-        
-        Args:
-            policy: AttendancePolicy or None
-        
-        Returns:
-            WorkSchedule with single window (standard mode)
-        """
-        if policy:
-            window = WorkWindow(
-                start_time=policy.work_start_time,
-                end_time=policy.work_end_time
-            )
-        else:
-            # Use defaults from AttendancePolicyEngine
-            window = WorkWindow(
-                start_time=AttendancePolicyEngine.DEFAULT_WORK_START_TIME,
-                end_time=AttendancePolicyEngine.DEFAULT_WORK_END_TIME
-            )
-        
-        return cls(mode='standard', windows=[window])
-    
-    @classmethod
-    def create_split_shift(cls, windows: List[WorkWindow]) -> 'WorkSchedule':
-        """Create a split shift schedule
-        
-        Args:
-            windows: List of work windows (must be 2 or more)
-        
-        Returns:
-            WorkSchedule in split_shift mode
-        """
-        return cls(mode='split_shift', windows=windows)
-    
-    def total_scheduled_minutes(self) -> int:
-        """Calculate total scheduled work minutes across all windows"""
-        return sum(w.duration_minutes() for w in self.windows)
-    
-    def first_window(self) -> WorkWindow:
-        """Get the first work window (for late detection)"""
-        return self.windows[0]
-    
-    def last_window(self) -> WorkWindow:
-        """Get the last work window (for early leave detection)"""
-        return self.windows[-1]
+from app.modules.attendance.policy_schedule_models import (
+    DEFAULT_WORK_START_TIME as SHARED_DEFAULT_WORK_START_TIME,
+    DEFAULT_WORK_END_TIME as SHARED_DEFAULT_WORK_END_TIME,
+    WorkWindow,
+    FlexTimeBand,
+    WorkSchedule,
+)
 
 
 class PolicyEvaluationResult:
@@ -238,7 +63,9 @@ class PolicyEvaluationResult:
         work_minutes: int,
         # Policy settings
         grace_period_minutes: int,
-        overtime_threshold_minutes: Optional[int]
+        overtime_threshold_minutes: Optional[int],
+        # Schedule-aware extension (non-breaking)
+        schedule_violation_flags: Optional[List[str]] = None,
     ):
         self.session_id = session_id
         self.company_id = company_id
@@ -264,6 +91,9 @@ class PolicyEvaluationResult:
         # Policy settings
         self.grace_period_minutes = grace_period_minutes
         self.overtime_threshold_minutes = overtime_threshold_minutes
+
+        # Schedule-aware extension
+        self.schedule_violation_flags = list(schedule_violation_flags or [])
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API response"""
@@ -291,6 +121,9 @@ class PolicyEvaluationResult:
                 "early_leave_minutes": self.early_leave_minutes,
                 "is_overtime": self.is_overtime,
                 "overtime_minutes": self.overtime_minutes
+            },
+            "schedule": {
+                "violation_flags": self.schedule_violation_flags,
             }
         }
 
@@ -314,8 +147,8 @@ class AttendancePolicyEngine:
     # Default fallback values when no policy is provided
     DEFAULT_GRACE_PERIOD_MINUTES = 0
     DEFAULT_OVERTIME_THRESHOLD_MINUTES = 480  # 8 hours
-    DEFAULT_WORK_START_TIME = time(9, 0)  # 09:00
-    DEFAULT_WORK_END_TIME = time(18, 0)  # 18:00
+    DEFAULT_WORK_START_TIME = SHARED_DEFAULT_WORK_START_TIME  # 09:00
+    DEFAULT_WORK_END_TIME = SHARED_DEFAULT_WORK_END_TIME  # 18:00
     
     @staticmethod
     def evaluate(
@@ -494,6 +327,111 @@ class AttendancePolicyEngine:
             return True, overtime_minutes
         else:
             return False, 0
+
+    @staticmethod
+    def _to_business_date(dt: datetime) -> date:
+        if dt.tzinfo is not None:
+            return dt.astimezone(TZ_TAIPEI).date()
+        return dt.date()
+
+    @staticmethod
+    def _calculate_late_from_datetime(
+        punch_in_time: datetime,
+        expected_start: datetime,
+        grace_period_minutes: int,
+    ) -> Tuple[bool, int]:
+        expected_start_with_grace = expected_start + timedelta(minutes=grace_period_minutes)
+        if punch_in_time > expected_start_with_grace:
+            late_delta = punch_in_time - expected_start_with_grace
+            return True, int(late_delta.total_seconds() / 60)
+        return False, 0
+
+    @staticmethod
+    def _calculate_early_leave_from_datetime(
+        punch_out_time: datetime,
+        expected_end: datetime,
+    ) -> Tuple[bool, int]:
+        if punch_out_time < expected_end:
+            early_delta = expected_end - punch_out_time
+            return True, int(early_delta.total_seconds() / 60)
+        return False, 0
+
+    @staticmethod
+    def evaluate_with_schedule_v2(
+        session: AttendanceSession,
+        db: Session,
+        policy: Optional[AttendancePolicy] = None,
+    ) -> PolicyEvaluationResult:
+        if session.status == 'open' or session.punch_out_time is None:
+            raise ValueError(
+                f"Cannot evaluate open session {session.id}. "
+                "Session must be closed (punch_out_time must be set)."
+            )
+
+        if policy:
+            grace_period_minutes = policy.grace_period_minutes
+            overtime_threshold_minutes = policy.overtime_threshold_minutes
+            policy_id = policy.id
+            policy_name = policy.name
+        else:
+            grace_period_minutes = AttendancePolicyEngine.DEFAULT_GRACE_PERIOD_MINUTES
+            overtime_threshold_minutes = AttendancePolicyEngine.DEFAULT_OVERTIME_THRESHOLD_MINUTES
+            policy_id = None
+            policy_name = "Default Policy (No Policy Assigned)"
+
+        work_date = AttendancePolicyEngine._to_business_date(session.punch_in_time)
+        baseline = ScheduleBaselineResolver(db).resolve(
+            company_id=session.company_id,
+            user_id=session.user_id,
+            work_date=work_date,
+        )
+        normalized_windows = baseline.normalized_windows
+
+        if not normalized_windows:
+            default_start = datetime.combine(work_date, AttendancePolicyEngine.DEFAULT_WORK_START_TIME).replace(tzinfo=TZ_TAIPEI)
+            default_end = datetime.combine(work_date, AttendancePolicyEngine.DEFAULT_WORK_END_TIME).replace(tzinfo=TZ_TAIPEI)
+            normalized_windows = [(default_start, default_end)]
+
+        first_window_start = normalized_windows[0][0]
+        last_window_end = normalized_windows[-1][1]
+
+        is_late, late_minutes = AttendancePolicyEngine._calculate_late_from_datetime(
+            punch_in_time=session.punch_in_time,
+            expected_start=first_window_start,
+            grace_period_minutes=grace_period_minutes,
+        )
+
+        # Step 2 scope: missing_segment is deferred to runtime hardening phase.
+        violation_flags: List[str] = []
+        is_early_leave, early_leave_minutes = AttendancePolicyEngine._calculate_early_leave_from_datetime(
+            punch_out_time=session.punch_out_time,
+            expected_end=last_window_end,
+        )
+
+        work_minutes = session.duration_minutes or 0
+
+        return PolicyEvaluationResult(
+            session_id=session.id,
+            company_id=session.company_id,
+            user_id=session.user_id,
+            policy_id=policy_id,
+            policy_name=policy_name,
+            punch_in_time=session.punch_in_time,
+            punch_out_time=session.punch_out_time,
+            work_start_time=first_window_start.astimezone(TZ_TAIPEI).time().replace(tzinfo=None),
+            work_end_time=last_window_end.astimezone(TZ_TAIPEI).time().replace(tzinfo=None),
+            is_late=is_late,
+            late_minutes=late_minutes,
+            is_early_leave=is_early_leave,
+            early_leave_minutes=early_leave_minutes,
+            is_overtime=False,
+            overtime_minutes=0,
+            work_minutes=work_minutes,
+            grace_period_minutes=grace_period_minutes,
+            overtime_threshold_minutes=overtime_threshold_minutes,
+            schedule_violation_flags=violation_flags,
+        )
+
 
 
 

@@ -27,7 +27,7 @@ from uuid import UUID
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from .models import ASSIGNMENT_STATUS_CANCELLED, ShiftAssignment, ShiftTemplate
+from .models import ASSIGNMENT_STATUS_CANCELLED, ShiftAssignment, ShiftSegment, ShiftTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,48 @@ class ShiftTemplateRepo:
         if active_only:
             q = q.filter(ShiftTemplate.is_active == True)  # noqa: E712
         return q.order_by(ShiftTemplate.code.asc()).all()
+
+    def list_segments(
+        self, template_id: UUID, company_id: str, active_only: bool = True
+    ) -> List[ShiftSegment]:
+        """List segments by template within company scope."""
+        q = self.db.query(ShiftSegment).filter(
+            and_(
+                ShiftSegment.shift_template_id == template_id,
+                ShiftSegment.company_id == company_id,
+            )
+        )
+        if active_only:
+            q = q.filter(ShiftSegment.is_active == True)  # noqa: E712
+        return q.order_by(ShiftSegment.segment_index.asc()).all()
+
+    def replace_segments_no_commit(
+        self,
+        template_id: UUID,
+        company_id: str,
+        segments: List[dict],
+    ) -> None:
+        """Replace all segments for one template in current transaction."""
+        self.db.query(ShiftSegment).filter(
+            and_(
+                ShiftSegment.shift_template_id == template_id,
+                ShiftSegment.company_id == company_id,
+            )
+        ).delete(synchronize_session=False)
+
+        for row in segments:
+            self.db.add(
+                ShiftSegment(
+                    company_id=company_id,
+                    shift_template_id=template_id,
+                    segment_index=row["segment_index"],
+                    start_time=row["start_time"],
+                    end_time=row["end_time"],
+                    day_offset_start=row["day_offset_start"],
+                    day_offset_end=row["day_offset_end"],
+                    is_active=row.get("is_active", True),
+                )
+            )
 
     # --- Write ---
 
@@ -183,6 +225,30 @@ class ShiftAssignmentRepo:
                     ShiftAssignment.company_id == company_id,
                 )
             )
+            .first()
+        )
+
+    def get_effective_assignment(
+        self,
+        company_id: str,
+        user_id: UUID,
+        work_date: date,
+    ) -> Optional[ShiftAssignment]:
+        """Get active assignment for one user on one date within company.
+
+        Excludes cancelled assignments.
+        """
+        return (
+            self.db.query(ShiftAssignment)
+            .filter(
+                and_(
+                    ShiftAssignment.company_id == company_id,
+                    ShiftAssignment.user_id == user_id,
+                    ShiftAssignment.work_date == work_date,
+                    ShiftAssignment.status != ASSIGNMENT_STATUS_CANCELLED,
+                )
+            )
+            .order_by(ShiftAssignment.created_at.desc())
             .first()
         )
 

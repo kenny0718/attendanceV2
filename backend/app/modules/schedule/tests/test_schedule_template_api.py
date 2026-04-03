@@ -180,3 +180,129 @@ class TestScheduleTemplateCRUD:
             with override_actor_dependency(actor_b_obj):
                 r = client.get(f"/api/v1/schedule/shift-templates/{tid}")
                 assert r.status_code == 404
+
+
+class TestScheduleTemplateSegments:
+    """Phase 1: ShiftSegments minimal integration coverage."""
+
+    def _mock_feature_enabled(self):
+        return patch(
+            "app.modules.schedule.api.get_feature_service",
+            return_value=type("FS", (), {"require_enabled": lambda self, *a: None})(),
+        )
+
+    def test_create_template_with_segments(self, schedule_entitlement):
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        payload = {
+            **TEMPLATE_BASE,
+            "company_id": SCHEDULE_COMPANY_A,
+            "code": f"SEG_{uuid4().hex[:6].upper()}",
+            "segments": [
+                {
+                    "segment_index": 1,
+                    "start_time": "09:00:00",
+                    "end_time": "12:00:00",
+                    "day_offset_start": 0,
+                    "day_offset_end": 0,
+                    "is_active": True,
+                },
+                {
+                    "segment_index": 2,
+                    "start_time": "13:00:00",
+                    "end_time": "18:00:00",
+                    "day_offset_start": 0,
+                    "day_offset_end": 0,
+                    "is_active": True,
+                },
+            ],
+        }
+
+        with override_actor_dependency(actor):
+            with self._mock_feature_enabled():
+                r = client.post("/api/v1/schedule/shift-templates", json=payload)
+                assert r.status_code == 201, r.text
+                data = r.json()
+                assert len(data["segments"]) == 2
+                assert data["segments"][0]["segment_index"] == 1
+                assert data["segments"][1]["segment_index"] == 2
+
+    def test_create_template_segments_overlap_returns_422(self, schedule_entitlement):
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        payload = {
+            **TEMPLATE_BASE,
+            "company_id": SCHEDULE_COMPANY_A,
+            "code": f"SEGOV_{uuid4().hex[:6].upper()}",
+            "segments": [
+                {
+                    "segment_index": 1,
+                    "start_time": "09:00:00",
+                    "end_time": "12:00:00",
+                    "day_offset_start": 0,
+                    "day_offset_end": 0,
+                    "is_active": True,
+                },
+                {
+                    "segment_index": 2,
+                    "start_time": "11:30:00",
+                    "end_time": "13:00:00",
+                    "day_offset_start": 0,
+                    "day_offset_end": 0,
+                    "is_active": True,
+                },
+            ],
+        }
+
+        with override_actor_dependency(actor):
+            with self._mock_feature_enabled():
+                r = client.post("/api/v1/schedule/shift-templates", json=payload)
+                assert r.status_code == 422
+
+    def test_update_template_segments_replace_all(self, schedule_entitlement):
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        create_payload = {
+            **TEMPLATE_BASE,
+            "company_id": SCHEDULE_COMPANY_A,
+            "code": f"SEGRP_{uuid4().hex[:6].upper()}",
+            "segments": [
+                {
+                    "segment_index": 1,
+                    "start_time": "09:00:00",
+                    "end_time": "17:00:00",
+                    "day_offset_start": 0,
+                    "day_offset_end": 0,
+                    "is_active": True,
+                }
+            ],
+        }
+
+        with override_actor_dependency(actor):
+            with self._mock_feature_enabled():
+                r = client.post("/api/v1/schedule/shift-templates", json=create_payload)
+                assert r.status_code == 201, r.text
+                tid = r.json()["id"]
+
+                update_payload = {
+                    "segments": [
+                        {
+                            "segment_index": 1,
+                            "start_time": "08:00:00",
+                            "end_time": "12:00:00",
+                            "day_offset_start": 0,
+                            "day_offset_end": 0,
+                            "is_active": True,
+                        },
+                        {
+                            "segment_index": 2,
+                            "start_time": "13:00:00",
+                            "end_time": "17:00:00",
+                            "day_offset_start": 0,
+                            "day_offset_end": 0,
+                            "is_active": True,
+                        },
+                    ]
+                }
+                r = client.patch(f"/api/v1/schedule/shift-templates/{tid}", json=update_payload)
+                assert r.status_code == 200, r.text
+                data = r.json()
+                assert len(data["segments"]) == 2
+                assert [s["segment_index"] for s in data["segments"]] == [1, 2]

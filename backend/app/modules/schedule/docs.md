@@ -646,3 +646,30 @@ PLAN_DEFAULTS = {
 - Assignment read response 仍保留 `company_id`
 - Assignment update/list/get/cancel flow 不變
 - Template flow 不變
+
+
+---
+
+## Phase 1 — ShiftSegments (Multi-Segment Shift) Record
+
+- ShiftTemplate 現在支援 `segments`（1..N）。
+- `ShiftAssignment` 維持不變（user + date → template）。
+- 保留舊欄位：`start_time` / `end_time` / `break_minutes` / `is_overnight`。
+
+### ShiftSegments 欄位
+
+- `id` UUID
+- `company_id`
+- `shift_template_id`
+- `segment_index`（template 內唯一，從 1 開始）
+- `start_time` / `end_time`
+- `day_offset_start` / `day_offset_end`
+- `is_active`
+
+### 規則
+
+1. `segment_index` 在同 template 內不可重複。
+2. segment 不可重疊（允許相接：`end == next.start`）。
+3. 跨日判定必須使用 day offset。
+4. 更新 template 若帶 `segments`，採 replace-all：刪舊後重建。
+5. fallback segment 僅用於 read/response 相容，**不回寫 DB**。

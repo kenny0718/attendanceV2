@@ -38,7 +38,7 @@ from app.modules.attendance.schemas import (
     SessionResponse,
     PolicyEvaluationResponse,
 )
-from app.modules.attendance.api.punch_close_flow import build_policy_evaluation
+from app.modules.attendance.service import get_attendance_service
 from app.modules.attendance.api.helpers import _require_attendance_feature
 from app.modules.attendance.api.break_deduction import resolve_break_deduction
 from app.modules.attendance.api.anomaly_audit import write_break_anomaly_audit
@@ -190,8 +190,9 @@ async def punch_out(
     # Note: deduction_result.net_work_minutes is derived/informational only.
     # session.duration_minutes must remain gross_minutes.
 
-    # WP-11-05C: Policy evaluation
-    policy_eval = build_policy_evaluation(
+    # WP-11-05C: Policy evaluation (delegated to service orchestration entry)
+    service = get_attendance_service(db)
+    policy_eval = service.build_punch_out_policy_evaluation(
         session=session,
         repo=repo,
         company_id=company_id,

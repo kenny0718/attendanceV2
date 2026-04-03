@@ -174,11 +174,109 @@ class ShiftTemplate(Base):
         back_populates="shift_template",
         lazy="dynamic",
     )
+    segments = relationship(
+        "ShiftSegment",
+        back_populates="shift_template",
+        order_by="ShiftSegment.segment_index",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return (
             f"<ShiftTemplate id={self.id} code={self.code!r}"
             f" company={self.company_id}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# ShiftSegment
+# ---------------------------------------------------------------------------
+
+class ShiftSegment(Base):
+    """Represents one segment row inside a ShiftTemplate."""
+    __tablename__ = "shift_segments"
+
+    id = Column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+        comment="ShiftSegment ID (PK)",
+    )
+    company_id = Column(
+        String(255),
+        nullable=False,
+        comment="Company ID (Tenant Isolation, FK to tenants.id)",
+    )
+    shift_template_id = Column(
+        PGUUID(as_uuid=True),
+        nullable=False,
+        comment="ShiftTemplate ID (FK to shift_templates.id)",
+    )
+    segment_index = Column(
+        Integer,
+        nullable=False,
+        comment="Segment order index starting from 1",
+    )
+    start_time = Column(Time, nullable=False, comment="Segment start time")
+    end_time = Column(Time, nullable=False, comment="Segment end time")
+    day_offset_start = Column(
+        Integer,
+        nullable=False,
+        server_default="0",
+        comment="Start day offset from shift day",
+    )
+    day_offset_end = Column(
+        Integer,
+        nullable=False,
+        server_default="0",
+        comment="End day offset from shift day",
+    )
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        server_default="true",
+        comment="Soft-delete flag",
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+        comment="Created timestamp (UTC)",
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+        comment="Updated timestamp (UTC)",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "shift_template_id", "segment_index",
+            name="uq_shift_segments_template_index",
+        ),
+        ForeignKeyConstraint(
+            ["company_id"], ["tenants.id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["shift_template_id"], ["shift_templates.id"],
+            ondelete="CASCADE",
+        ),
+        Index("idx_shift_segments_company", "company_id"),
+        Index("idx_shift_segments_template", "shift_template_id"),
+        Index("idx_shift_segments_company_template", "company_id", "shift_template_id"),
+    )
+
+    shift_template = relationship(
+        "ShiftTemplate",
+        back_populates="segments",
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<ShiftSegment id={self.id} template={self.shift_template_id}"
+            f" idx={self.segment_index} company={self.company_id}>"
         )
 
 

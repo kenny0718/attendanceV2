@@ -47,24 +47,6 @@ def calculate_work_duration(
     return int((punch_out_time - punch_in_time).total_seconds() / 60)
 
 
-def calculate_work_minutes_by_segments(
-    punch_in_time: datetime,
-    punch_out_time: datetime,
-    normalized_windows: List[tuple[datetime, datetime]],
-) -> int:
-    """Calculate overlapped work minutes from normalized schedule windows.
-
-    Input windows MUST already be normalized datetimes from ScheduleBaselineResolver.
-    """
-    total_minutes = 0
-    for window_start, window_end in normalized_windows:
-        effective_start = max(punch_in_time, window_start)
-        effective_end = min(punch_out_time, window_end)
-        if effective_start < effective_end:
-            total_minutes += int((effective_end - effective_start).total_seconds() / 60)
-    return total_minutes
-
-
 # ============================================================
 # Phase 2B: Break Deduction Types
 # ============================================================
@@ -121,6 +103,8 @@ class BreakDeductionResult:
     rounding_strategy: str = "floor_per_segment"
 
 
+
+
 @dataclass
 class FallbackDeductionResult:
     """Duck-type fallback for BreakDeductionResult when calculate_break_deduction() raises.
@@ -130,7 +114,7 @@ class FallbackDeductionResult:
 
     anomaly_count=0 guarantees write_break_anomaly_audit() early-returns (no-op).
     anomalies uses default_factory=list to avoid shared-list class attribute risk.
-    """
+    """  
     gross_minutes: int
     net_work_minutes: int
     break_minutes: int = 0
@@ -140,7 +124,6 @@ class FallbackDeductionResult:
     was_clamped: bool = False
     pairing_strategy: str = "fallback"
     rounding_strategy: str = "floor"
-
 
 # ============================================================
 # Phase 2B: Break Deduction Engine

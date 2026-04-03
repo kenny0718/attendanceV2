@@ -27,13 +27,8 @@
               <input v-model="filters.end_date" type="date" class="filter-input" />
             </div>
             <div class="filter-group">
-              <label class="filter-label">員工（選填）</label>
-              <select v-model="selectedEmployeeId" class="filter-input" :disabled="employeeLoading || employeeOptions.length === 0">
-                <option value="">全部員工</option>
-                <option v-for="member in employeeOptions" :key="member.user_id" :value="member.user_id">
-                  {{ member.display_name || member.login_username }}（{{ member.login_username }}）
-                </option>
-              </select>
+              <label class="filter-label">員工 ID（選填）</label>
+              <input v-model="filters.user_id" type="text" class="filter-input" placeholder="輸入員工 ID" />
             </div>
             <div class="filter-group filter-group-action">
               <button class="btn-query" :disabled="loading || !filters.start_date || !filters.end_date" @click="loadSessions">
@@ -54,14 +49,7 @@
             </svg>
           </button>
         </div>
-        <!-- RISK-03 S1-12E: super_admin 無 company scope 限制提示 -->
-        <div v-if="isSuperAdminNoScope" class="state-box state-notice">
-          <div>
-            <p class="state-title">需要公司範圍才能查詢</p>
-            <p class="state-msg">目前帳號未選定公司範圍，無法查詢打卡資料。請先切換至特定公司後再使用此功能。</p>
-          </div>
-        </div>
-        <div v-else-if="loading" class="state-box"><div class="spinner"></div><span>載入中…</span></div>
+        <div v-if="loading" class="state-box"><div class="spinner"></div><span>載入中…</span></div>
         <div v-else-if="error" class="state-box state-error"><div><p class="state-title">載入失敗</p><p class="state-msg">{{ error }}</p></div></div>
         <div v-else-if="!queried" class="state-box"><div><p class="state-title">請選擇日期範圍後查詢</p><p class="state-msg">設定開始與結束日期，按下「查詢」開始查看打卡紀錄。</p></div></div>
         <div v-else-if="sessions.length === 0" class="state-box"><div><p class="state-title">此期間無打卡紀錄</p><p class="state-msg">請調整日期範圍後重新查詢。</p></div></div>
@@ -85,11 +73,9 @@
   </div>
 </template>
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import { ref, onMounted } from 'vue'
 import Navbar from '@/components/Navbar.vue'
 import { attendanceApi } from '@/api/attendance'
-import { adminApi } from '@/api/admin'
 
 // FIX-02 (S1-12C): 用 UTC+8 基準產生台北日期字串，避免跨日問題
 function getTaipeiDateStr(offsetDays = 0) {
@@ -100,14 +86,7 @@ function getTaipeiDateStr(offsetDays = 0) {
 const today = getTaipeiDateStr(0)
 const sevenDaysAgo = getTaipeiDateStr(-6)
 
-const authStore = useAuthStore()
-// RISK-03 (S1-12E): super_admin 無 company scope 時顯示限制提示
-const isSuperAdminNoScope = computed(() => authStore.isSuperAdmin && !authStore.companyId)
-
-const filters = ref({ start_date: sevenDaysAgo, end_date: today })
-const employeeOptions = ref([])
-const employeeLoading = ref(false)
-const selectedEmployeeId = ref('')
+const filters = ref({ start_date: sevenDaysAgo, end_date: today, user_id: '' })
 const sessions = ref([])
 const loading = ref(false)
 const error = ref(null)
@@ -120,27 +99,6 @@ function toTaipeiISO(dateStr, isEnd = false) {
   return isEnd ? dateStr + 'T23:59:59+08:00' : dateStr + 'T00:00:00+08:00'
 }
 
-async function loadEmployees() {
-  if (!authStore.companyId) {
-    employeeOptions.value = []
-    selectedEmployeeId.value = ''
-    return
-  }
-  employeeLoading.value = true
-  try {
-    const data = await adminApi.listCompanyMembers(authStore.companyId)
-    employeeOptions.value = data.members || []
-    if (selectedEmployeeId.value && !employeeOptions.value.some(m => m.user_id === selectedEmployeeId.value)) {
-      selectedEmployeeId.value = ''
-    }
-  } catch {
-    employeeOptions.value = []
-    selectedEmployeeId.value = ''
-  } finally {
-    employeeLoading.value = false
-  }
-}
-
 async function loadSessions() {
   if (!filters.value.start_date || !filters.value.end_date) return
   loading.value = true
@@ -150,8 +108,8 @@ async function loadSessions() {
       start_date: toTaipeiISO(filters.value.start_date, false),
       end_date:   toTaipeiISO(filters.value.end_date,   true)
     }
-    if (selectedEmployeeId.value) {
-      params.user_id = selectedEmployeeId.value
+    if (filters.value.user_id && filters.value.user_id.trim()) {
+      params.user_id = filters.value.user_id.trim()
     }
     const data = await attendanceApi.getAdminAttendanceSessions(params)
     sessions.value = data.sessions || []
@@ -164,10 +122,7 @@ async function loadSessions() {
   }
 }
 
-onMounted(async () => {
-  await loadEmployees()
-  await loadSessions()
-})
+onMounted(loadSessions)
 
 function formatDate(isoStr) {
   if (!isoStr) return '—'
@@ -228,7 +183,6 @@ function statusClass(s) {
 @keyframes spin{to{transform:rotate(360deg)}}
 .state-box{display:flex;align-items:center;justify-content:center;gap:12px;padding:48px 24px;color:var(--text-secondary);font-size:14px}
 .state-error{color:var(--error)}
-.state-notice{color:#92400e;background:#fffbeb;border-radius:12px;border:1px solid #fde68a}
 .state-title{font-weight:600;margin:0 0 4px;font-size:15px}
 .state-msg{margin:0;font-size:13px;opacity:.8}
 .spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}

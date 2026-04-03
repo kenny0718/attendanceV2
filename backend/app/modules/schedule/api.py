@@ -165,8 +165,9 @@ def update_shift_template(
     actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ) -> ShiftTemplateRead:
-    """部分更新班別模板（name / times / break_minutes / is_overnight / is_active）。
+    """部分更新班別模板（name / times / break_minutes / is_overnight / is_active / segments）。
 
+    - 若 payload 提供 segments，採 replace-all（service 層處理）
     - 不存在或不屬於此 company → 404
     - Tenant Isolation: 強制 company scope
     """
