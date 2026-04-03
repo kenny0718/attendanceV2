@@ -19,9 +19,10 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.core.database import get_db
 from app.modules.attendance.models import AttendanceSession
-from app.modules.tenants.models import Tenant
+from app.modules.tenants.models import Tenant, CompanyEntitlement
 from app.modules.auth.models import User
 from app.tests.utils.auth import create_test_actor, override_actor_dependency
+from app.core.features import FeatureKeys
 
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 COMPANY_A = "company-usrsummary-a"
@@ -56,6 +57,21 @@ def make_actor(company_id, user_id):
     return create_test_actor(company_id, user_id=user_id)
 
 
+def ensure_attendance_entitlement(db, company_id):
+    existing = db.query(CompanyEntitlement).filter(
+        CompanyEntitlement.company_id == company_id,
+        CompanyEntitlement.feature_key == FeatureKeys.ATTENDANCE_CORE,
+    ).first()
+    if not existing:
+        db.add(CompanyEntitlement(
+            id=uuid4(),
+            company_id=company_id,
+            feature_key=FeatureKeys.ATTENDANCE_CORE,
+            enabled=True,
+        ))
+        db.commit()
+
+
 # --- fixtures ---
 
 @pytest.fixture
@@ -72,6 +88,7 @@ def tenant_a(db):
     if not t:
         t = Tenant(id=COMPANY_A, name="USR Summary Co A", is_active=True)
         db.add(t); db.commit()
+    ensure_attendance_entitlement(db, COMPANY_A)
     return t
 
 @pytest.fixture
@@ -80,6 +97,7 @@ def tenant_b(db):
     if not t:
         t = Tenant(id=COMPANY_B, name="USR Summary Co B", is_active=True)
         db.add(t); db.commit()
+    ensure_attendance_entitlement(db, COMPANY_B)
     return t
 
 @pytest.fixture
@@ -96,6 +114,10 @@ def user_b(db, tenant_b):
     u.company_id = COMPANY_B
     return u
 
+def get_user_summary(client_a, company_id, user_id, params=None):
+    with override_actor_dependency(make_actor(company_id, user_id)):
+        return client_a.get(URL, params=params)
+
 # --- USR-01: Basic summary ---
 class TestUSR01BasicSummary:
     def test_counts_and_work_minutes(self, client_a, db, user_a):
@@ -103,7 +125,7 @@ class TestUSR01BasicSummary:
         make_closed(db, COMPANY_A, user_a.id, now - timedelta(hours=30), duration_minutes=480)
         make_closed(db, COMPANY_A, user_a.id, now - timedelta(hours=20), duration_minutes=300)
         make_open(db, COMPANY_A, user_a.id, now - timedelta(hours=1))
-        resp = client_a.get(URL, headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id)
         assert resp.status_code == 200, resp.text
         d = resp.json()
         assert d["total_sessions"] >= 3
@@ -119,7 +141,7 @@ class TestUSR01BasicSummary:
         t2 = now - timedelta(hours=10)
         make_closed(db, COMPANY_A, user_a.id, t1)
         make_closed(db, COMPANY_A, user_a.id, t2)
-        resp = client_a.get(URL, headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id)
         assert resp.status_code == 200
         d = resp.json()
         assert d["first_session_time"] is not None
@@ -136,9 +158,7 @@ class TestUSR02DateRangeFilter:
         make_closed(db, COMPANY_A, user_a.id, punch_apr, duration_minutes=360)
         start = datetime(2026, 3, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
         end   = datetime(2026, 4, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
-        resp = client_a.get(URL,
-            params={"start_date": start.isoformat(), "end_date": end.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id, params={"start_date": start.isoformat(), "end_date": end.isoformat()})
         assert resp.status_code == 200
         d = resp.json()
         assert d["total_sessions"] >= 1
@@ -155,16 +175,12 @@ class TestUSR03CrossMidnight:
         apr_start = datetime(2026, 4, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
         may_start = datetime(2026, 5, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
         # March query: must find it
-        r_mar = client_a.get(URL,
-            params={"start_date": mar_start.isoformat(), "end_date": apr_start.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
+        r_mar = get_user_summary(client_a, COMPANY_A, user_a.id, params={"start_date": mar_start.isoformat(), "end_date": apr_start.isoformat()})
         assert r_mar.status_code == 200
         assert r_mar.json()["total_sessions"] >= 1
         assert r_mar.json()["total_work_minutes"] >= 70
         # April query: must NOT find it
-        r_apr = client_a.get(URL,
-            params={"start_date": apr_start.isoformat(), "end_date": may_start.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
+        r_apr = get_user_summary(client_a, COMPANY_A, user_a.id, params={"start_date": apr_start.isoformat(), "end_date": may_start.isoformat()})
         assert r_apr.status_code == 200
         # session has punch_in_utc = 2026-03-31 15:50 UTC which is < apr_start
         assert r_apr.json()["total_work_minutes"] < 70 or r_apr.json()["total_sessions"] == 0
@@ -175,7 +191,7 @@ class TestUSR04NullDuration:
         now = datetime.now(timezone.utc)
         make_closed(db, COMPANY_A, user_a.id, now - timedelta(hours=20), duration_minutes=480)
         make_open(db, COMPANY_A, user_a.id, now - timedelta(hours=1))
-        resp = client_a.get(URL, headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id)
         assert resp.status_code == 200
         d = resp.json()
         assert d["open_sessions"] >= 1
@@ -188,7 +204,7 @@ class TestUSR04NullDuration:
     def test_all_open_sessions_average_is_none(self, client_a, db, user_a):
         now = datetime.now(timezone.utc)
         make_open(db, COMPANY_A, user_a.id, now - timedelta(hours=1))
-        resp = client_a.get(URL, headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id)
         assert resp.status_code == 200
         d = resp.json()
         # If all sessions are open, closed_sessions == 0 -> average must be None
@@ -200,7 +216,7 @@ class TestUSR05TenantIsolation:
     def test_company_a_cannot_see_company_b_sessions(self, client_a, db, user_a, user_b):
         now = datetime.now(timezone.utc)
         make_closed(db, COMPANY_B, user_b.id, now - timedelta(hours=5), duration_minutes=300)
-        resp = client_a.get(URL, headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id)
         assert resp.status_code == 200
         # company A user should not see company B sessions in total_work_minutes
         # (company A user has no sessions, so total must be 0 or only company A data)
@@ -212,7 +228,7 @@ class TestUSR06UserScope:
     def test_user_can_query_own_summary(self, client_a, db, user_a):
         now = datetime.now(timezone.utc)
         make_closed(db, COMPANY_A, user_a.id, now - timedelta(hours=5))
-        resp = client_a.get(URL, headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id)
         assert resp.status_code == 200
         assert resp.json()["user_id"] == str(user_a.id)
 
@@ -223,7 +239,7 @@ class TestUSR06UserScope:
         now = datetime.now(timezone.utc)
         make_closed(db, COMPANY_A, user_a.id, now - timedelta(hours=10), duration_minutes=480)
         make_closed(db, COMPANY_A, other.id, now - timedelta(hours=8), duration_minutes=999)
-        resp = client_a.get(URL, headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id)
         assert resp.status_code == 200
         d = resp.json()
         # should not include other user 999 min session
@@ -232,22 +248,16 @@ class TestUSR06UserScope:
 # --- USR-07: Naive datetime rejection ---
 class TestUSR07NaiveDatetime:
     def test_naive_start_date_returns_422(self, client_a, user_a):
-        resp = client_a.get(URL,
-            params={"start_date": "2026-03-01T00:00:00"},
-            headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id, params={"start_date": "2026-03-01T00:00:00"})
         assert resp.status_code == 422
 
     def test_naive_end_date_returns_422(self, client_a, user_a):
-        resp = client_a.get(URL,
-            params={"end_date": "2026-04-01T00:00:00"},
-            headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id, params={"end_date": "2026-04-01T00:00:00"})
         assert resp.status_code == 422
 
     def test_aware_datetime_is_accepted(self, client_a, user_a):
         start = datetime(2026, 3, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
-        resp = client_a.get(URL,
-            params={"start_date": start.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id, params={"start_date": start.isoformat()})
         assert resp.status_code == 200
 
 # --- USR-08: Empty result ---
@@ -256,9 +266,7 @@ class TestUSR08EmptyResult:
         # query a future date range where no sessions exist
         start = datetime(2099, 1, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
         end   = datetime(2099, 2, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
-        resp = client_a.get(URL,
-            params={"start_date": start.isoformat(), "end_date": end.isoformat()},
-            headers=hdr(COMPANY_A, user_a.id))
+        resp = get_user_summary(client_a, COMPANY_A, user_a.id, params={"start_date": start.isoformat(), "end_date": end.isoformat()})
         assert resp.status_code == 200, resp.text
         d = resp.json()
         assert d["total_sessions"] == 0

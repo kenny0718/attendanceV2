@@ -18,9 +18,10 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.core.database import get_db
 from app.modules.attendance.models import AttendanceSession
-from app.modules.tenants.models import Tenant
+from app.modules.tenants.models import Tenant, CompanyEntitlement
 from app.modules.auth.models import User
 from app.tests.utils.auth import create_test_actor, override_actor_dependency
+from app.core.features import FeatureKeys
 
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 COMPANY_A = "company-cmpsummary-a"
@@ -55,7 +56,7 @@ def make_open(db, company_id, user_id, punch_in_utc):
 def make_actor_company(company_id, user_id=None):
     """WP-C1-07: JWT Actor 取代 X-Company-ID header"""
     from uuid import uuid4
-    return create_test_actor(company_id, user_id=user_id or uuid4())
+    return create_test_actor(company_id, user_id=user_id or uuid4(), role_id="company_admin")
 
 
 def make_user(db):
@@ -72,6 +73,21 @@ def ensure_tenant(db, company_id, name):
     return t
 
 
+def ensure_attendance_entitlement(db, company_id):
+    existing = db.query(CompanyEntitlement).filter(
+        CompanyEntitlement.company_id == company_id,
+        CompanyEntitlement.feature_key == FeatureKeys.ATTENDANCE_CORE,
+    ).first()
+    if not existing:
+        db.add(CompanyEntitlement(
+            id=uuid4(),
+            company_id=company_id,
+            feature_key=FeatureKeys.ATTENDANCE_CORE,
+            enabled=True,
+        ))
+        db.commit()
+
+
 # --- fixtures ---
 
 @pytest.fixture
@@ -85,12 +101,21 @@ def client_a(db):
 
 @pytest.fixture
 def tenant_a(db):
-    return ensure_tenant(db, COMPANY_A, "CMP Summary Co A")
+    ensure_tenant(db, COMPANY_A, "CMP Summary Co A")
+    ensure_attendance_entitlement(db, COMPANY_A)
+    return db.query(Tenant).filter(Tenant.id == COMPANY_A).first()
 
 
 @pytest.fixture
 def tenant_b(db):
-    return ensure_tenant(db, COMPANY_B, "CMP Summary Co B")
+    ensure_tenant(db, COMPANY_B, "CMP Summary Co B")
+    ensure_attendance_entitlement(db, COMPANY_B)
+    return db.query(Tenant).filter(Tenant.id == COMPANY_B).first()
+
+
+def get_company_summary(client_a, company_id, params=None):
+    with override_actor_dependency(make_actor_company(company_id)):
+        return client_a.get(URL, params=params)
 
 
 # ============================================================
@@ -107,7 +132,7 @@ class TestCMP01BasicSummary:
         make_closed(db, COMPANY_A, u2.id, now - timedelta(hours=25), duration_minutes=240)
         make_open(db, COMPANY_A, u2.id, now - timedelta(hours=1))
 
-        resp = client_a.get(URL, headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A)
         assert resp.status_code == 200, resp.text
         d = resp.json()
         assert d["company_id"] == COMPANY_A
@@ -120,7 +145,7 @@ class TestCMP01BasicSummary:
         assert d["average_minutes_per_user"] is not None
 
     def test_response_has_required_fields(self, client_a, db, tenant_a):
-        resp = client_a.get(URL, headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A)
         assert resp.status_code == 200
         d = resp.json()
         required = [
@@ -139,7 +164,7 @@ class TestCMP01BasicSummary:
         t2 = now - timedelta(hours=10)
         make_closed(db, COMPANY_A, u.id, t1)
         make_closed(db, COMPANY_A, u.id, t2)
-        resp = client_a.get(URL, headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A)
         assert resp.status_code == 200
         d = resp.json()
         assert d["first_session_time"] is not None
@@ -153,7 +178,7 @@ class TestCMP01BasicSummary:
         make_closed(db, COMPANY_A, u.id, now - timedelta(hours=40))
         make_closed(db, COMPANY_A, u.id, now - timedelta(hours=30))
         make_closed(db, COMPANY_A, u.id, now - timedelta(hours=20))
-        resp = client_a.get(URL, headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A)
         assert resp.status_code == 200
         d = resp.json()
         # 3 sessions but only 1 unique user
@@ -177,9 +202,7 @@ class TestCMP02DateRangeFilter:
         start = datetime(2026, 3, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
         end   = datetime(2026, 4, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
 
-        resp = client_a.get(URL,
-            params={"start_date": start.isoformat(), "end_date": end.isoformat()},
-            headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A, params={"start_date": start.isoformat(), "end_date": end.isoformat()})
         assert resp.status_code == 200
         d = resp.json()
         assert d["total_sessions"] >= 1
@@ -205,17 +228,13 @@ class TestCMP03CrossMidnight:
         may_start = datetime(2026, 5, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
 
         # March query: must find it
-        r_mar = client_a.get(URL,
-            params={"start_date": mar_start.isoformat(), "end_date": apr_start.isoformat()},
-            headers=hdr(COMPANY_A))
+        r_mar = get_company_summary(client_a, COMPANY_A, params={"start_date": mar_start.isoformat(), "end_date": apr_start.isoformat()})
         assert r_mar.status_code == 200
         assert r_mar.json()["total_sessions"] >= 1
         assert r_mar.json()["total_work_minutes"] >= 70
 
         # April query: must NOT find it
-        r_apr = client_a.get(URL,
-            params={"start_date": apr_start.isoformat(), "end_date": may_start.isoformat()},
-            headers=hdr(COMPANY_A))
+        r_apr = get_company_summary(client_a, COMPANY_A, params={"start_date": apr_start.isoformat(), "end_date": may_start.isoformat()})
         assert r_apr.status_code == 200
         # punch_in_utc = 2026-03-31 15:50 UTC < apr_start
         assert r_apr.json()["total_work_minutes"] < 70 or r_apr.json()["total_sessions"] == 0
@@ -232,7 +251,7 @@ class TestCMP04NullDuration:
         make_closed(db, COMPANY_A, u.id, now - timedelta(hours=20), duration_minutes=480)
         make_open(db, COMPANY_A, u.id, now - timedelta(hours=1))
 
-        resp = client_a.get(URL, headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A)
         assert resp.status_code == 200
         d = resp.json()
         assert d["open_sessions"] >= 1
@@ -246,7 +265,7 @@ class TestCMP04NullDuration:
         now = datetime.now(timezone.utc)
         make_open(db, COMPANY_A, u.id, now - timedelta(hours=1))
 
-        resp = client_a.get(URL, headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A)
         assert resp.status_code == 200
         d = resp.json()
         # If all sessions are open, closed_sessions == 0 -> averages must be None
@@ -265,7 +284,7 @@ class TestCMP05TenantIsolation:
         make_closed(db, COMPANY_B, u_b.id, now - timedelta(hours=5), duration_minutes=999)
 
         # Query company A — must not see company B's 999-min session
-        resp = client_a.get(URL, headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A)
         assert resp.status_code == 200
         d = resp.json()
         assert d["company_id"] == COMPANY_A
@@ -277,7 +296,7 @@ class TestCMP05TenantIsolation:
         now = datetime.now(timezone.utc)
         make_closed(db, COMPANY_B, u_b.id, now - timedelta(hours=3))
 
-        resp = client_a.get(URL, headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A)
         assert resp.status_code == 200
         # company A has no sessions from company B users
         assert resp.json()["company_id"] == COMPANY_A
@@ -293,9 +312,7 @@ class TestCMP06EmptyDataset:
         start = datetime(2099, 1, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
         end   = datetime(2099, 2, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
 
-        resp = client_a.get(URL,
-            params={"start_date": start.isoformat(), "end_date": end.isoformat()},
-            headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A, params={"start_date": start.isoformat(), "end_date": end.isoformat()})
         assert resp.status_code == 200, resp.text
         d = resp.json()
         assert d["total_sessions"] == 0
@@ -315,20 +332,14 @@ class TestCMP06EmptyDataset:
 
 class TestCMP07NaiveDatetime:
     def test_naive_start_date_returns_422(self, client_a, tenant_a):
-        resp = client_a.get(URL,
-            params={"start_date": "2026-03-01T00:00:00"},
-            headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A, params={"start_date": "2026-03-01T00:00:00"})
         assert resp.status_code == 422
 
     def test_naive_end_date_returns_422(self, client_a, tenant_a):
-        resp = client_a.get(URL,
-            params={"end_date": "2026-04-01T00:00:00"},
-            headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A, params={"end_date": "2026-04-01T00:00:00"})
         assert resp.status_code == 422
 
     def test_aware_datetime_is_accepted(self, client_a, tenant_a):
         start = datetime(2026, 3, 1, 0, 0, 0, tzinfo=TZ_TAIPEI).astimezone(timezone.utc)
-        resp = client_a.get(URL,
-            params={"start_date": start.isoformat()},
-            headers=hdr(COMPANY_A))
+        resp = get_company_summary(client_a, COMPANY_A, params={"start_date": start.isoformat()})
         assert resp.status_code == 200
