@@ -5,13 +5,19 @@ Phase 4: 改為真正寫 DB
 
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.core.event_bus import get_event_bus
 from app.modules.attendance.repo import get_attendance_repository
+from app.modules.attendance.api.punch_close_flow import build_policy_evaluation, PolicyEvalPayload
+from app.modules.attendance.policy_missing_segment import (
+    MissingSegmentInput,
+    NormalizedSegment,
+    evaluate_missing_segment_dry_run,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +34,7 @@ class AttendanceService:
         self.db = db
         self.repo = get_attendance_repository(db)
         self.event_bus = get_event_bus()
+        self._last_internal_missing_segment_dry_run: Optional[Dict[str, Any]] = None
     
     def mock_create_attendance(self, company_id: str) -> str:
         """建立考勤記錄（Phase 4: 真正寫 DB）
@@ -116,6 +123,151 @@ class AttendanceService:
         logger.info(f"事件 attendance.approved 已發出")
         
         return {"ok": True, "payload": payload}
+
+    def _to_segment(self, start_at: datetime, end_at: datetime) -> Optional[NormalizedSegment]:
+        if end_at <= start_at:
+            return None
+        return NormalizedSegment(start_at=start_at, end_at=end_at)
+
+    def _collect_session_punches_for_dry_run(
+        self,
+        repo,
+        company_id: str,
+        user_id: UUID,
+        session_id: UUID,
+    ) -> list:
+        if hasattr(repo, "get_punches_by_company_user_and_session_ids"):
+            punches = repo.get_punches_by_company_user_and_session_ids(
+                company_id=company_id,
+                user_id=user_id,
+                session_ids=[session_id],
+            )
+            if isinstance(punches, list):
+                return punches
+
+        if hasattr(repo, "get_session_punches"):
+            punches = repo.get_session_punches(session_id)
+            if isinstance(punches, list):
+                return punches
+
+        return []
+
+    def _build_actual_segments_from_punches(
+        self,
+        punches: list,
+        fallback_end: datetime,
+    ) -> list[NormalizedSegment]:
+        actual: list[NormalizedSegment] = []
+        sorted_punches = sorted(
+            punches,
+            key=lambda p: getattr(p, "punch_time", datetime.min.replace(tzinfo=fallback_end.tzinfo)),
+        )
+
+        current_start: Optional[datetime] = None
+        for punch in sorted_punches:
+            punch_type = getattr(punch, "punch_type", None)
+            punch_time = getattr(punch, "punch_time", None)
+            if punch_time is None:
+                continue
+
+            if punch_type == "in":
+                current_start = punch_time
+            elif punch_type == "break_start":
+                if current_start is not None:
+                    segment = self._to_segment(current_start, punch_time)
+                    if segment is not None:
+                        actual.append(segment)
+                    current_start = None
+            elif punch_type == "break_end":
+                if current_start is None:
+                    current_start = punch_time
+            elif punch_type == "out":
+                if current_start is not None:
+                    segment = self._to_segment(current_start, punch_time)
+                    if segment is not None:
+                        actual.append(segment)
+                    current_start = None
+
+        if current_start is not None:
+            segment = self._to_segment(current_start, fallback_end)
+            if segment is not None:
+                actual.append(segment)
+
+        return actual
+
+    def _build_missing_segment_input(
+        self,
+        session,
+        repo,
+        company_id: str,
+        user_id: UUID,
+        punch_out_time: datetime,
+    ) -> MissingSegmentInput:
+        expected_segments: list[NormalizedSegment] = []
+        expected = self._to_segment(session.punch_in_time, punch_out_time)
+        if expected is not None:
+            expected_segments.append(expected)
+
+        session_punches = self._collect_session_punches_for_dry_run(
+            repo=repo,
+            company_id=company_id,
+            user_id=user_id,
+            session_id=session.id,
+        )
+        actual_segments = self._build_actual_segments_from_punches(
+            punches=session_punches,
+            fallback_end=punch_out_time,
+        )
+
+        evidence_sufficient = bool(expected_segments) and bool(actual_segments)
+
+        return MissingSegmentInput(
+            expected_segments=expected_segments,
+            actual_segments=actual_segments,
+            exception_segments=[],
+            evidence_sufficient=evidence_sufficient,
+            boundary_tolerance_seconds=0,
+        )
+
+    def build_punch_out_policy_evaluation(
+        self,
+        session,
+        repo,
+        company_id: str,
+        user_id: UUID,
+        punch_out_time: datetime,
+        gross_minutes: int,
+    ) -> PolicyEvalPayload:
+        """Punch-out close flow orchestration entry with internal dry-run hook."""
+        missing_input = self._build_missing_segment_input(
+            session=session,
+            repo=repo,
+            company_id=company_id,
+            user_id=user_id,
+            punch_out_time=punch_out_time,
+        )
+        missing_result = evaluate_missing_segment_dry_run(missing_input)
+
+        self._last_internal_missing_segment_dry_run = {
+            "input": missing_input,
+            "result": missing_result,
+            "source": {
+                "expected_segments_count": len(missing_input.expected_segments),
+                "actual_segments_count": len(missing_input.actual_segments),
+                "exception_segments_count": len(missing_input.exception_segments),
+            },
+        }
+
+        policy_eval = build_policy_evaluation(
+            session=session,
+            repo=repo,
+            company_id=company_id,
+            user_id=user_id,
+            punch_out_time=punch_out_time,
+            gross_minutes=gross_minutes,
+        )
+
+        return policy_eval
 
 
 def get_attendance_service(db: Session) -> AttendanceService:
