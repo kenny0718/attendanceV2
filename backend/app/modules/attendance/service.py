@@ -12,7 +12,7 @@ from fastapi import HTTPException, status
 
 from app.core.event_bus import get_event_bus
 from app.modules.attendance.repo import get_attendance_repository
-from app.modules.attendance.api.punch_close_flow import build_policy_evaluation, PolicyEvalPayload
+from app.modules.attendance.punch_close_domain import build_policy_evaluation, PolicyEvalPayload
 from app.modules.attendance.policy_missing_segment import (
     MissingSegmentInput,
     NormalizedSegment,
