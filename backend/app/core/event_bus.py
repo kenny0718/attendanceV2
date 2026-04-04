@@ -3,6 +3,8 @@
 from typing import Callable, Dict, List, Any
 import logging
 
+from app.core.config import is_testing, settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +41,10 @@ class EventBus:
         
         注意：一個訂閱者失敗不會影響其他訂閱者的執行
         """
+        if not settings.debug and not is_testing() and (event_name.startswith("demo.") or event_name.startswith("debug.")):
+            logger.warning(f"已阻擋非 debug/testing 環境事件發出: {event_name}")
+            return
+
         if event_name not in self._subscribers:
             logger.debug(f"事件 {event_name} 沒有訂閱者")
             return

@@ -5,11 +5,11 @@ from typing import Dict, Any
 from fastapi import FastAPI, Request
 
 from app.core.event_bus import get_event_bus
-from app.core.config import settings
+from app.core.config import settings, is_testing
 from app.core.exceptions import register_exception_handlers
 # from app.core.database import init_db  # Deprecated: Use alembic upgrade head instead
 from app.modules.attendance.api import router as attendance_router, router_v1 as attendance_router_v1
-from app.modules.attendance.feature_gate_demo import router as attendance_gate_demo_router  # WP-C1-06
+from app.modules.router_wiring import register_demo_routers
 from app.modules.attendance.admin_location_api import router as admin_location_router  # WP-11-13
 from app.modules.notifications.api import router as notifications_router
 from app.modules.backup.api import router as backup_router
@@ -19,7 +19,8 @@ from app.modules.tenants.api import router as tenants_router
 from app.modules.customer_service.api import router as customer_service_router
 from app.modules.leave.api import router_v1 as leave_router_v1  # WP-11-08
 from app.modules.schedule.api import router as schedule_router  # WP-S1-04B
-from app.modules.notifications.event_handlers import register_event_handlers
+from app.modules.startup_wiring import register_demo_startup_handlers, register_production_startup_handlers
+from app.modules.debug_event_api import router as debug_event_router
 
 # 設定日誌
 logging.basicConfig(
@@ -59,7 +60,7 @@ async def legacy_header_guard(request: Request, call_next):
 # 註冊路由
 app.include_router(attendance_router)
 app.include_router(attendance_router_v1)
-app.include_router(attendance_gate_demo_router)  # WP-C1-06
+register_demo_routers(app)  # WP-C1-06
 app.include_router(admin_location_router)  # WP-11-13
 app.include_router(notifications_router)
 app.include_router(backup_router)
@@ -69,6 +70,8 @@ app.include_router(tenants_router)
 app.include_router(customer_service_router)
 app.include_router(leave_router_v1)  # WP-11-08
 app.include_router(schedule_router)  # WP-S1-04B
+if settings.debug or is_testing():
+    app.include_router(debug_event_router)
 
 
 @app.on_event("startup")
@@ -80,24 +83,10 @@ async def startup_event():
     event_bus = get_event_bus()
     
     # 註冊 demo 訂閱者
-    def demo_handler(payload: Dict[str, Any]) -> None:
-        """Demo 事件處理器"""
-        logger.info(f"[Demo Handler] 收到事件 test.event，payload: {payload}")
-    
-    def attendance_approved_demo_handler(payload: Dict[str, Any]) -> None:
-        """Attendance 核准事件處理器（Demo，用於 log）"""
-        logger.info(f"[Demo Handler] 收到事件 attendance.approved")
-        logger.info(f"  - company_id: {payload.get('company_id')}")
-        logger.info(f"  - employee_id: {payload.get('employee_id')}")
-        logger.info(f"  - attendance_record_id: {payload.get('attendance_record_id')}")
-        logger.info(f"  - approved_at: {payload.get('approved_at')}")
-        logger.info(f"  - approved_by: {payload.get('approved_by', 'N/A')}")
-    
-    event_bus.subscribe("test.event", demo_handler)
-    event_bus.subscribe("attendance.approved", attendance_approved_demo_handler)
+    register_demo_startup_handlers(event_bus)
     
     # 註冊 notifications 事件處理器
-    register_event_handlers()
+    register_production_startup_handlers()
     
     logger.info("EventBus 已初始化，所有訂閱者已註冊")
 
@@ -121,51 +110,6 @@ async def health_check():
     return {"status": "ok", "service": settings.app_name}
 
 
-@app.get("/api/test/event")
-async def get_event_status():
-    """取得當前事件訂閱狀態（用於測試/除錯）"""
-    event_bus = get_event_bus()
-    events = event_bus.list_events()
-    
-    result = {}
-    for event_name in events:
-        subscribers = event_bus.get_subscribers(event_name)
-        result[event_name] = {
-            "subscriber_count": len(subscribers),
-            "subscribers": [handler.__name__ for handler in subscribers]
-        }
-    
-    return {
-        "status": "ok",
-        "events": result
-    }
-
-
-@app.post("/api/test/event")
-async def emit_test_event(payload: Dict[str, Any] | None = None):
-    """發出 test.event 事件（用於測試）
-    
-    Body (可選):
-        {
-            "message": "測試訊息",
-            "data": {...}
-        }
-    """
-    event_bus = get_event_bus()
-    
-    # 如果沒有提供 payload，使用預設值
-    if payload is None:
-        payload = {"message": "Hello from test event!"}
-    
-    # 發出事件
-    event_bus.emit("test.event", payload)
-    
-    return {
-        "status": "ok",
-        "message": "事件已發出",
-        "event_name": "test.event",
-        "payload": payload
-    }
 
 
 if __name__ == "__main__":
