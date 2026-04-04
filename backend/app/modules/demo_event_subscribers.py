@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 def demo_handler(payload: Dict[str, Any]) -> None:
     """Demo 事件處理器"""
-    logger.info(f"[Demo Handler] 收到事件 test.event，payload: {payload}")
+    logger.info(f"[Demo Handler] 收到事件 demo.test_event，payload: {payload}")
 
 
 def attendance_approved_demo_handler(payload: Dict[str, Any]) -> None:
@@ -20,5 +20,5 @@ def attendance_approved_demo_handler(payload: Dict[str, Any]) -> None:
 
 
 def register_demo_event_subscribers(event_bus) -> None:
-    event_bus.subscribe("test.event", demo_handler)
+    event_bus.subscribe("demo.test_event", demo_handler)
     event_bus.subscribe("attendance.approved", attendance_approved_demo_handler)

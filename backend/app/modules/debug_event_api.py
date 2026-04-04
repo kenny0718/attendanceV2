@@ -29,7 +29,7 @@ async def get_event_status():
 
 @router.post("")
 async def emit_test_event(payload: Dict[str, Any] | None = None):
-    """發出 test.event 事件（用於測試）
+    """發出 demo.test_event 事件（用於測試）
 
     Body (可選):
         {
@@ -44,11 +44,11 @@ async def emit_test_event(payload: Dict[str, Any] | None = None):
         payload = {"message": "Hello from test event!"}
 
     # 發出事件
-    event_bus.emit("test.event", payload)
+    event_bus.emit("demo.test_event", payload)
 
     return {
         "status": "ok",
         "message": "事件已發出",
-        "event_name": "test.event",
+        "event_name": "demo.test_event",
         "payload": payload
     }
