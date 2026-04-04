@@ -1,7 +1,7 @@
 /**
  * Leave Request API client (S1-14A)
  *
- * Base URL: /api/v1/leave
+ * Base URL: /v1/leave
  * All endpoints require Bearer token (JWT with active_company_id)
  */
 import apiClient from './client'
@@ -9,7 +9,7 @@ import apiClient from './client'
 export const leaveApi = {
   /**
    * S1-14A: 建立請假申請
-   * POST /api/v1/leave/requests
+   * POST /v1/leave/requests
    *
    * @param {Object} payload
    * @param {string} payload.leave_type_id  - Leave Type UUID
@@ -24,7 +24,7 @@ export const leaveApi = {
 
   /**
    * 取得自己的請假列表
-   * GET /api/v1/leave/my-requests
+   * GET /v1/leave/my-requests
    */
   getMyLeaveRequests: ({ status, limit = 20, offset = 0 } = {}) => {
     const params = { limit, offset }

@@ -5,7 +5,7 @@ from typing import Dict, Any
 from fastapi import FastAPI, Request
 
 from app.core.event_bus import get_event_bus
-from app.core.config import settings, is_testing
+from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 # from app.core.database import init_db  # Deprecated: Use alembic upgrade head instead
 from app.modules.attendance.api import router as attendance_router, router_v1 as attendance_router_v1
@@ -70,8 +70,7 @@ app.include_router(tenants_router)
 app.include_router(customer_service_router)
 app.include_router(leave_router_v1)  # WP-11-08
 app.include_router(schedule_router)  # WP-S1-04B
-if settings.debug or is_testing():
-    app.include_router(debug_event_router)
+app.include_router(debug_event_router, prefix="/api")
 
 
 @app.on_event("startup")

@@ -4,10 +4,10 @@ from fastapi import APIRouter
 
 from app.core.event_bus import get_event_bus
 
-router = APIRouter(prefix="/api/test/event")
+router = APIRouter()
 
 
-@router.get("")
+@router.get("/test/event")
 async def get_event_status():
     """取得當前事件訂閱狀態（用於測試/除錯）"""
     event_bus = get_event_bus()
@@ -27,7 +27,7 @@ async def get_event_status():
     }
 
 
-@router.post("")
+@router.post("/test/event")
 async def emit_test_event(payload: Dict[str, Any] | None = None):
     """發出 demo.test_event 事件（用於測試）
 
@@ -51,4 +51,13 @@ async def emit_test_event(payload: Dict[str, Any] | None = None):
         "message": "事件已發出",
         "event_name": "demo.test_event",
         "payload": payload
+    }
+
+
+@router.get("/debug/events")
+async def get_registered_events():
+    """取得 EventBus registry（用於測試/除錯）"""
+    event_bus = get_event_bus()
+    return {
+        "events": event_bus.list_registered_events()
     }

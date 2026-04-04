@@ -1,3 +1,4 @@
+from app.core.config import settings, is_testing
 from app.modules.demo_event_subscribers import register_demo_event_subscribers
 from app.modules.notifications.event_handlers import register_event_handlers
 
