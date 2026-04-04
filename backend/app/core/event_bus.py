@@ -1,6 +1,21 @@
 """In-memory 同步事件匯流排"""
 
 from typing import Callable, Dict, List, Any
+
+
+def _is_valid_event_name(event_name: str) -> bool:
+    parts = event_name.split(".")
+    if len(parts) != 2:
+        return False
+
+    domain, action = parts
+    if not domain or not action:
+        return False
+
+
+    return True
+
+
 import logging
 
 from app.core.config import is_testing, settings
@@ -41,6 +56,9 @@ class EventBus:
         
         注意：一個訂閱者失敗不會影響其他訂閱者的執行
         """
+        if not _is_valid_event_name(event_name):
+            logger.warning(f"事件名稱不符合最小命名規範: {event_name}")
+
         if not settings.debug and not is_testing() and (event_name.startswith("demo.") or event_name.startswith("debug.")):
             logger.warning(f"已阻擋非 debug/testing 環境事件發出: {event_name}")
             return
