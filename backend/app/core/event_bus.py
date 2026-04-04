@@ -32,6 +32,7 @@ class EventBus:
     def __init__(self):
         """初始化 EventBus"""
         self._subscribers: Dict[str, List[Callable]] = {}
+        self._event_registry: Dict[str, int] = {}
     
     def subscribe(self, event_name: str, handler: Callable) -> None:
         """訂閱事件
@@ -62,6 +63,10 @@ class EventBus:
         if not settings.debug and not is_testing() and (event_name.startswith("demo.") or event_name.startswith("debug.")):
             logger.warning(f"已阻擋非 debug/testing 環境事件發出: {event_name}")
             return
+
+        if event_name not in self._event_registry:
+            self._event_registry[event_name] = 0
+        self._event_registry[event_name] += 1
 
         if event_name not in self._subscribers:
             logger.debug(f"事件 {event_name} 沒有訂閱者")
@@ -97,6 +102,14 @@ class EventBus:
             事件名稱列表
         """
         return list(self._subscribers.keys())
+
+    def list_registered_events(self) -> Dict[str, int]:
+        """列出目前已記錄的事件 emit 次數（用於測試/除錯）
+
+        Returns:
+            事件名稱與 emit 次數映射
+        """
+        return self._event_registry.copy()
 
 
 # 全域 EventBus 單例
