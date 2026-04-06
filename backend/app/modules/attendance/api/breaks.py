@@ -12,7 +12,7 @@ WP-C1-07: JWT Actor Migration
 """
 
 import logging
-from datetime import datetime, timezone, date, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -30,6 +30,10 @@ from app.modules.attendance.schemas import (
     BreakInResponse,
 )
 from app.modules.attendance.api.helpers import _require_attendance_feature
+from app.modules.attendance.api.reporting_helpers import (
+    build_taipei_business_date_boundary,
+    get_taipei_today,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -200,10 +204,9 @@ async def get_break_punches(
     
     user_uuid = UUID(user_id)
     
-    # Get today's date range (UTC+8)
-    today = date.today()
-    start_of_day = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
-    end_of_day = start_of_day + timedelta(days=1)
+    boundary = build_taipei_business_date_boundary(get_taipei_today())
+    start_utc = boundary.start_utc
+    end_utc = boundary.end_utc
     
     # Query break punches
     from app.modules.attendance.models import AttendancePunch
@@ -215,8 +218,8 @@ async def get_break_punches(
                 AttendancePunch.company_id == company_id,
                 AttendancePunch.user_id == user_uuid,
                 AttendancePunch.punch_type.in_(['break_start', 'break_end']),
-                AttendancePunch.punch_time >= start_of_day,
-                AttendancePunch.punch_time < end_of_day
+                AttendancePunch.punch_time >= start_utc,
+                AttendancePunch.punch_time < end_utc
             )
         )
         .order_by(AttendancePunch.punch_time.desc())
