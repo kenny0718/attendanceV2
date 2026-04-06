@@ -18,6 +18,7 @@ Covers:
   14. punch_in_time > punch_out_time -> ValueError
   15. unexpected punch_type -> anomaly, discard
   16. input order scrambled -> engine sort, correct result
+  17. canonical pure calculation wrapper
 """
 
 import pytest
@@ -26,9 +27,11 @@ from datetime import datetime, timezone, timedelta
 from app.modules.attendance.work_hour_engine import (
     calculate_work_duration,
     calculate_break_deduction,
+    calculate_canonical_work_duration,
     BreakPunchDTO,
     BreakAnomaly,
     BreakDeductionResult,
+    CanonicalWorkDurationResult,
 )
 
 
@@ -126,7 +129,7 @@ class TestSingleValidBreakPair:
             BreakPunchDTO(punch_type="break_end",   punch_time=end,   punch_id="p2"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
-        assert result.break_minutes == 30   # 30m59s -> floor -> 30
+        assert result.break_minutes == 30
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +145,7 @@ class TestMultipleValidBreakPairs:
             _bp("break_end",   12, 45, "p4"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
-        assert result.break_minutes == 60   # 15 + 45
+        assert result.break_minutes == 60
         assert result.net_work_minutes == 480
         assert result.valid_break_pair_count == 2
         assert result.anomaly_count == 0
@@ -157,7 +160,7 @@ class TestMultipleValidBreakPairs:
             _bp("break_end",   15, 5,  "p6"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
-        assert result.break_minutes == 35   # 10+20+5
+        assert result.break_minutes == 35
         assert result.valid_break_pair_count == 3
 
 
@@ -195,7 +198,7 @@ class TestOrphanBreakEnd:
     def test_orphan_end_then_valid_pair(self):
         """Orphan end first; subsequent valid pair still counted."""
         punches = [
-            _bp("break_end",   10, 0,  "p0"),   # orphan
+            _bp("break_end",   10, 0,  "p0"),
             _bp("break_start", 12, 0,  "p1"),
             _bp("break_end",   12, 30, "p2"),
         ]
@@ -214,11 +217,10 @@ class TestDuplicateBreakStart:
     def test_duplicate_start_first_wins(self):
         punches = [
             _bp("break_start", 12, 0,  "p1"),
-            _bp("break_start", 12, 10, "p2"),  # duplicate -> discard
+            _bp("break_start", 12, 10, "p2"),
             _bp("break_end",   12, 30, "p3"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
-        # pair: 12:00 -> 12:30 = 30 min
         assert result.break_minutes == 30
         assert result.valid_break_pair_count == 1
         assert result.anomaly_count == 1
@@ -233,8 +235,8 @@ class TestDuplicateBreakEnd:
     def test_extra_end_becomes_orphan(self):
         punches = [
             _bp("break_start", 12, 0,  "p1"),
-            _bp("break_end",   12, 30, "p2"),   # closes pair
-            _bp("break_end",   12, 45, "p3"),   # orphan
+            _bp("break_end",   12, 30, "p2"),
+            _bp("break_end",   12, 45, "p3"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
         assert result.break_minutes == 30
@@ -252,7 +254,7 @@ class TestUnclosedBreakAtClose:
         punches = [
             _bp("break_start", 10, 0,  "p1"),
             _bp("break_end",   10, 15, "p2"),
-            _bp("break_start", 12, 0,  "p3"),  # never closed
+            _bp("break_start", 12, 0,  "p3"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
         assert result.break_minutes == 15
@@ -268,18 +270,17 @@ class TestUnclosedBreakAtClose:
 class TestOutOfSessionRange:
     def test_break_before_punch_in_discarded(self):
         punches = [
-            _bp("break_start", 8, 0,  "p1"),   # before session 09:00
+            _bp("break_start", 8, 0,  "p1"),
             _bp("break_end",   8, 30, "p2"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
         assert result.break_minutes == 0
-        # both punches discarded as out_of_session_range
         anomaly_types = [a.anomaly_type for a in result.anomalies]
         assert anomaly_types.count("out_of_session_range") == 2
 
     def test_break_after_punch_out_discarded(self):
         punches = [
-            _bp("break_start", 18, 30, "p1"),  # after session end 18:00
+            _bp("break_start", 18, 30, "p1"),
             _bp("break_end",   19, 0,  "p2"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
@@ -289,10 +290,10 @@ class TestOutOfSessionRange:
 
     def test_valid_pair_unaffected_by_out_of_range(self):
         punches = [
-            _bp("break_start", 8, 0,  "p0"),   # out of range
-            _bp("break_end",   8, 30, "p00"),  # out of range
-            _bp("break_start", 12, 0,  "p1"),  # valid
-            _bp("break_end",   12, 30, "p2"),  # valid
+            _bp("break_start", 8, 0,  "p0"),
+            _bp("break_end",   8, 30, "p00"),
+            _bp("break_start", 12, 0,  "p1"),
+            _bp("break_end",   12, 30, "p2"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
         assert result.break_minutes == 30
@@ -305,7 +306,6 @@ class TestOutOfSessionRange:
 
 class TestInvalidPairOrder:
     def test_zero_duration_pair_discarded(self):
-        """end == start -> segment_seconds == 0 -> invalid_pair_order."""
         punches = [
             BreakPunchDTO(punch_type="break_start", punch_time=_dt(12, 0), punch_id="p1"),
             BreakPunchDTO(punch_type="break_end",   punch_time=_dt(12, 0), punch_id="p2"),
@@ -317,9 +317,6 @@ class TestInvalidPairOrder:
         assert result.anomalies[0].anomaly_type == "invalid_pair_order"
 
     def test_scrambled_input_sorted_correctly(self):
-        """When start > end in raw input, engine sorts ASC.
-        end (12:00) arrives before start (12:30) after sort,
-        so end becomes orphan_break_end and start becomes unclosed."""
         punches = [
             BreakPunchDTO(punch_type="break_start", punch_time=_dt(12, 30), punch_id="p1"),
             BreakPunchDTO(punch_type="break_end",   punch_time=_dt(12, 0),  punch_id="p2"),
@@ -335,10 +332,9 @@ class TestInvalidPairOrder:
 
 class TestBreakExceedsGross:
     def test_break_equals_gross_clamped(self):
-        """break_minutes == gross_minutes -> clamp, net = 0."""
         punches = [
             _bp("break_start", 9, 0,  "p1"),
-            _bp("break_end",   10, 0, "p2"),  # 60 min break in 60 min session
+            _bp("break_end",   10, 0, "p2"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(10), punches)
         assert result.gross_minutes == 60
@@ -349,10 +345,9 @@ class TestBreakExceedsGross:
         assert "break_exceeds_gross" in anomaly_types
 
     def test_break_less_than_gross_not_clamped(self):
-        """break_minutes < gross_minutes -> no clamp."""
         punches = [
             _bp("break_start", 9, 0,  "p1"),
-            _bp("break_end",   9, 30, "p2"),  # 30 min break in 120 min session
+            _bp("break_end",   9, 30, "p2"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(11), punches)
         assert result.gross_minutes == 120
@@ -361,7 +356,6 @@ class TestBreakExceedsGross:
         assert result.was_clamped is False
 
     def test_gross_zero_break_zero_no_clamp(self):
-        """gross=0 with no breaks: was_clamped stays False."""
         result = calculate_break_deduction(_dt(9), _dt(9), [])
         assert result.gross_minutes == 0
         assert result.break_minutes == 0
@@ -382,10 +376,9 @@ class TestEqualPunchTimes:
         assert result.anomaly_count == 0
 
     def test_equal_times_with_break_punches_all_out_of_range(self):
-        """Session duration 0; any break punch must be at exactly punch_in==punch_out."""
         punches = [
-            _bp("break_start", 8, 0, "p1"),   # before
-            _bp("break_end",   10, 0, "p2"),  # after
+            _bp("break_start", 8, 0, "p1"),
+            _bp("break_end",   10, 0, "p2"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(9), punches)
         assert result.break_minutes == 0
@@ -403,7 +396,6 @@ class TestInvalidSessionTimes:
             calculate_break_deduction(_dt(18), _dt(9), [])
 
     def test_punch_in_one_second_after_raises(self):
-        from datetime import timedelta
         t = _dt(9)
         with pytest.raises(ValueError):
             calculate_break_deduction(t + timedelta(seconds=1), t, [])
@@ -428,7 +420,6 @@ class TestUnexpectedPunchType:
             BreakPunchDTO(punch_type="in",  punch_time=_dt(10, 0), punch_id="p1"),
             BreakPunchDTO(punch_type="out", punch_time=_dt(11, 0), punch_id="p2"),
         ]
-        # Must not raise; both discarded as unexpected_punch_type
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
         assert result.break_minutes == 0
         assert result.anomaly_count == 2
@@ -437,12 +428,11 @@ class TestUnexpectedPunchType:
         punches = [
             BreakPunchDTO(punch_type="lunch",       punch_time=_dt(10, 0), punch_id="p0"),
             BreakPunchDTO(punch_type="break_start", punch_time=_dt(12, 0), punch_id="p1"),
-                        BreakPunchDTO(punch_type="break_end",   punch_time=_dt(12, 30), punch_id="p2"),
+            BreakPunchDTO(punch_type="break_end",   punch_time=_dt(12, 30), punch_id="p2"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
         assert result.break_minutes == 30
         assert result.valid_break_pair_count == 1
-        # lunch punch -> unexpected_punch_type anomaly
         anomaly_types = [a.anomaly_type for a in result.anomalies]
         assert "unexpected_punch_type" in anomaly_types
 
@@ -453,12 +443,10 @@ class TestUnexpectedPunchType:
 
 class TestInputOrderScrambled:
     def test_reversed_input_sorted_correctly(self):
-        """Break punches fed in reverse order; engine must sort ASC."""
         punches = [
-            _bp("break_end",   12, 30, "p2"),  # given last
-            _bp("break_start", 12, 0,  "p1"),  # given first
+            _bp("break_end",   12, 30, "p2"),
+            _bp("break_start", 12, 0,  "p1"),
         ]
-        # After sort: break_start(12:00) -> break_end(12:30) = valid 30 min pair
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
         assert result.break_minutes == 30
         assert result.valid_break_pair_count == 1
@@ -474,12 +462,59 @@ class TestInputOrderScrambled:
             _bp("break_start", 12, 0,  "p3"),
         ]
         result = calculate_break_deduction(_dt(9), _dt(18), punches)
-        assert result.break_minutes == 35   # 10+20+5
+        assert result.break_minutes == 35
         assert result.valid_break_pair_count == 3
         assert result.anomaly_count == 0
 
     def test_metadata_fields_present(self):
-        """Verify BreakDeductionResult metadata fields are set correctly."""
         result = calculate_break_deduction(_dt(9), _dt(18), [])
         assert result.pairing_strategy == "tolerant_state_machine"
         assert result.rounding_strategy == "floor_per_segment"
+
+
+# ---------------------------------------------------------------------------
+# 17. Canonical pure calculation wrapper
+# ---------------------------------------------------------------------------
+
+class TestCalculateCanonicalWorkDuration:
+    def test_no_breaks_canonical_equals_gross(self):
+        result = calculate_canonical_work_duration(_dt(9), _dt(18), [])
+        assert isinstance(result, CanonicalWorkDurationResult)
+        assert result.gross_minutes == 540
+        assert result.break_minutes == 0
+        assert result.canonical_minutes == 540
+        assert result.valid_break_pair_count == 0
+        assert result.anomaly_count == 0
+
+    def test_single_break_canonical_equals_gross_minus_break(self):
+        punches = [
+            _bp("break_start", 12, 0, "p1"),
+            _bp("break_end", 12, 30, "p2"),
+        ]
+        result = calculate_canonical_work_duration(_dt(9), _dt(18), punches)
+        assert result.gross_minutes == 540
+        assert result.break_minutes == 30
+        assert result.canonical_minutes == 510
+        assert result.valid_break_pair_count == 1
+        assert result.anomaly_count == 0
+
+    def test_multiple_breaks_canonical_uses_engine_result(self):
+        punches = [
+            _bp("break_start", 10, 0, "p1"),
+            _bp("break_end", 10, 15, "p2"),
+            _bp("break_start", 12, 0, "p3"),
+            _bp("break_end", 12, 45, "p4"),
+        ]
+        result = calculate_canonical_work_duration(_dt(9), _dt(18), punches)
+        assert result.gross_minutes == 540
+        assert result.break_minutes == 60
+        assert result.canonical_minutes == 480
+        assert result.valid_break_pair_count == 2
+        assert result.pairing_strategy == "tolerant_state_machine"
+        assert result.rounding_strategy == "floor_per_segment"
+
+    def test_signature_preserved_as_pure_function(self):
+        import inspect
+        sig = inspect.signature(calculate_canonical_work_duration)
+        params = list(sig.parameters.keys())
+        assert params == ["punch_in_time", "punch_out_time", "break_punches"]

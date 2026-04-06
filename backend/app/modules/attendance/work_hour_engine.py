@@ -142,6 +142,25 @@ class FallbackDeductionResult:
     rounding_strategy: str = "floor"
 
 
+@dataclass
+class CanonicalWorkDurationResult:
+    """Pure canonical work duration result for future Option B adoption.
+
+    canonical_minutes represents net work duration (gross - break).
+    This DTO is introduced in F1 only and is intentionally not wired to any
+    existing runtime flow, persistence path, policy path, or reporting path.
+    """
+    gross_minutes: int
+    break_minutes: int
+    canonical_minutes: int
+    valid_break_pair_count: int
+    anomaly_count: int
+    anomalies: List[BreakAnomaly] = field(default_factory=list)
+    was_clamped: bool = False
+    pairing_strategy: str = "tolerant_state_machine"
+    rounding_strategy: str = "floor_per_segment"
+
+
 # ============================================================
 # Phase 2B: Break Deduction Engine
 # ============================================================
@@ -362,4 +381,37 @@ def calculate_break_deduction(
         anomaly_count=len(anomalies),
         anomalies=anomalies,
         was_clamped=was_clamped,
+    )
+
+
+def calculate_canonical_work_duration(
+    punch_in_time: datetime,
+    punch_out_time: datetime,
+    break_punches: List[BreakPunchDTO],
+) -> CanonicalWorkDurationResult:
+    """Calculate canonical work duration as net work duration.
+
+    F1 constraints:
+    - pure composition only
+    - no runtime wiring
+    - no DB, repo, session, policy, API, or reporting logic
+    - does not alter existing calculate_work_duration/calculate_break_deduction behavior
+    """
+    gross_minutes = calculate_work_duration(punch_in_time, punch_out_time)
+    deduction_result = calculate_break_deduction(
+        punch_in_time,
+        punch_out_time,
+        break_punches,
+    )
+
+    return CanonicalWorkDurationResult(
+        gross_minutes=gross_minutes,
+        break_minutes=deduction_result.break_minutes,
+        canonical_minutes=deduction_result.net_work_minutes,
+        valid_break_pair_count=deduction_result.valid_break_pair_count,
+        anomaly_count=deduction_result.anomaly_count,
+        anomalies=deduction_result.anomalies,
+        was_clamped=deduction_result.was_clamped,
+        pairing_strategy=deduction_result.pairing_strategy,
+        rounding_strategy=deduction_result.rounding_strategy,
     )
