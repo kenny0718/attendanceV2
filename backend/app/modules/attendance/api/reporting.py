@@ -13,6 +13,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
@@ -27,11 +28,13 @@ from app.modules.attendance.reporting_schemas import (
     CompanySummaryResponse,
 )
 from app.modules.attendance.api.helpers import _require_attendance_feature
-from app.modules.attendance.api.reporting_helpers import _normalize_to_utc, _validate_datetime_range
+from app.modules.attendance.api.reporting_helpers import _validate_datetime_range, resolve_reporting_query_range_to_utc
 from app.modules.attendance.reporting_service import calculate_user_summary, calculate_company_summary
 from app.core.user_lookup import get_display_names
 
 logger = logging.getLogger(__name__)
+
+TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 
 router = APIRouter(prefix="/api/v1/attendance", tags=["attendance-v1"])
 
@@ -65,8 +68,7 @@ def get_sessions(
         raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
 
     _validate_datetime_range(start_date, end_date)
-    start_utc = _normalize_to_utc(start_date)
-    end_utc = _normalize_to_utc(end_date)
+    start_utc, end_utc = resolve_reporting_query_range_to_utc(start_date, end_date)
 
     # Scope enforcement
     target_user_id: Optional[UUID] = None
@@ -113,8 +115,8 @@ def get_sessions(
             user_id=s.user_id,
             company_id=s.company_id,
             display_name=display_names.get(str(s.user_id)),
-            punch_in_time=s.punch_in_time,
-            punch_out_time=s.punch_out_time,
+            punch_in_time=s.punch_in_time.astimezone(TZ_TAIPEI),
+            punch_out_time=s.punch_out_time.astimezone(TZ_TAIPEI) if s.punch_out_time is not None else None,
             status=s.status,
             duration_minutes=s.duration_minutes,
             notes=s.notes,
@@ -147,8 +149,7 @@ def get_user_summary(
     _require_attendance_feature(actor.active_company_id, db)
 
     _validate_datetime_range(start_date, end_date)
-    start_utc = _normalize_to_utc(start_date)
-    end_utc = _normalize_to_utc(end_date)
+    start_utc, end_utc = resolve_reporting_query_range_to_utc(start_date, end_date)
 
     repo = get_reporting_repository(db)
 
@@ -160,6 +161,9 @@ def get_user_summary(
     )
 
     summary = calculate_user_summary(sessions)
+
+    summary["first_session_time"] = summary["first_session_time"].astimezone(TZ_TAIPEI) if summary["first_session_time"] is not None else None
+    summary["last_session_time"] = summary["last_session_time"].astimezone(TZ_TAIPEI) if summary["last_session_time"] is not None else None
 
     return UserSummaryResponse(
         user_id=str(actor.user_id),
@@ -195,8 +199,7 @@ def get_company_summary(
         raise HTTPException(status_code=403, detail="Company summary requires manager or admin role")
 
     _validate_datetime_range(start_date, end_date)
-    start_utc = _normalize_to_utc(start_date)
-    end_utc = _normalize_to_utc(end_date)
+    start_utc, end_utc = resolve_reporting_query_range_to_utc(start_date, end_date)
 
     repo = get_reporting_repository(db)
 
@@ -207,6 +210,9 @@ def get_company_summary(
     )
 
     summary = calculate_company_summary(sessions)
+
+    summary["first_session_time"] = summary["first_session_time"].astimezone(timezone.utc) if summary["first_session_time"] is not None else None
+    summary["last_session_time"] = summary["last_session_time"].astimezone(timezone.utc) if summary["last_session_time"] is not None else None
 
     return CompanySummaryResponse(
         company_id=actor.active_company_id,
