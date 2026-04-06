@@ -30,6 +30,12 @@ from app.modules.attendance.policy_rules import (
     calculate_late,
     calculate_late_from_datetime,
     calculate_overtime,
+    calculate_work_minutes_split_shift,
+)
+from app.modules.attendance.policy_schedule_support import (
+    normalize_windows_with_fallback,
+    select_expected_window_bounds,
+    to_business_date,
 )
 
 logger = logging.getLogger(__name__)
@@ -249,13 +255,6 @@ class AttendancePolicyEngine:
     
     
 
-    @staticmethod
-    def _to_business_date(dt: datetime) -> date:
-        if dt.tzinfo is not None:
-            return dt.astimezone(TZ_TAIPEI).date()
-        return dt.date()
-
-
 
     @staticmethod
     def evaluate_with_schedule_v2(
@@ -280,21 +279,19 @@ class AttendancePolicyEngine:
             policy_id = None
             policy_name = "Default Policy (No Policy Assigned)"
 
-        work_date = AttendancePolicyEngine._to_business_date(session.punch_in_time)
+        work_date = to_business_date(session.punch_in_time)
         baseline = ScheduleBaselineResolver(db).resolve(
             company_id=session.company_id,
             user_id=session.user_id,
             work_date=work_date,
         )
-        normalized_windows = baseline.normalized_windows
-
-        if not normalized_windows:
-            default_start = datetime.combine(work_date, AttendancePolicyEngine.DEFAULT_WORK_START_TIME).replace(tzinfo=TZ_TAIPEI)
-            default_end = datetime.combine(work_date, AttendancePolicyEngine.DEFAULT_WORK_END_TIME).replace(tzinfo=TZ_TAIPEI)
-            normalized_windows = [(default_start, default_end)]
-
-        first_window_start = normalized_windows[0][0]
-        last_window_end = normalized_windows[-1][1]
+        normalized_windows = normalize_windows_with_fallback(
+            work_date=work_date,
+            normalized_windows=baseline.normalized_windows,
+            default_work_start_time=AttendancePolicyEngine.DEFAULT_WORK_START_TIME,
+            default_work_end_time=AttendancePolicyEngine.DEFAULT_WORK_END_TIME,
+        )
+        first_window_start, last_window_end = select_expected_window_bounds(normalized_windows)
 
         is_late, late_minutes = calculate_late_from_datetime(
             punch_in_time=session.punch_in_time,
@@ -394,10 +391,11 @@ class AttendancePolicyEngine:
         
         # 3. Calculate actual work minutes within windows (WP-11-03S: split shift logic)
         if schedule.mode == 'split_shift':
-            work_minutes = AttendancePolicyEngine._calculate_work_minutes_split_shift(
+            work_minutes = calculate_work_minutes_split_shift(
                 punch_in_time=session.punch_in_time,
                 punch_out_time=session.punch_out_time,
-                windows=schedule.windows
+                windows=schedule.windows,
+                logger=logger,
             )
         else:
             # Standard mode: use session duration
@@ -438,54 +436,6 @@ class AttendancePolicyEngine:
             overtime_threshold_minutes=overtime_threshold_minutes
         )
     
-    @staticmethod
-    def _calculate_work_minutes_split_shift(
-        punch_in_time: datetime,
-        punch_out_time: datetime,
-        windows: List[WorkWindow]
-    ) -> int:
-        """Calculate work minutes for split shift (WP-11-03S)
-        
-        Only counts time that falls within work windows.
-        Time outside windows (breaks/gaps) is not counted.
-        
-        Args:
-            punch_in_time: Actual punch-in time
-            punch_out_time: Actual punch-out time
-            windows: List of work windows (sorted)
-        
-        Returns:
-            Total work minutes within windows
-        """
-        total_minutes = 0
-        
-        for window in windows:
-            # Derive business date in Asia/Taipei for window boundaries
-            # P1-01/P1-02 fix: use Taipei local date and mark with TZ_TAIPEI
-            if punch_in_time.tzinfo is not None:
-                taipei_date = punch_in_time.astimezone(TZ_TAIPEI).date()
-            else:
-                taipei_date = punch_in_time.date()
-            window_start_dt = datetime.combine(taipei_date, window.start_time).replace(tzinfo=TZ_TAIPEI)
-            window_end_dt = datetime.combine(taipei_date, window.end_time).replace(tzinfo=TZ_TAIPEI)
-            
-            # Calculate overlap between punch times and this window
-            effective_start = max(punch_in_time, window_start_dt)
-            effective_end = min(punch_out_time, window_end_dt)
-            
-            # Only count if there's actual overlap
-            if effective_start < effective_end:
-                delta = effective_end - effective_start
-                window_minutes = int(delta.total_seconds() / 60)
-                total_minutes += window_minutes
-                
-                logger.debug(
-                    f"Window {window.start_time}-{window.end_time}: "
-                    f"counted {window_minutes} minutes "
-                    f"(effective: {effective_start.time()}-{effective_end.time()})"
-                )
-        
-        return total_minutes
 
 
 def get_policy_engine() -> AttendancePolicyEngine:
