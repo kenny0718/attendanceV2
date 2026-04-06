@@ -73,6 +73,30 @@ def calculate_overtime(
         return False, 0
 
 
+def calculate_late_from_datetime(
+    punch_in_time: datetime,
+    expected_start: datetime,
+    grace_period_minutes: int,
+) -> tuple[bool, int]:
+    """Calculate late minutes from a resolved expected-start datetime."""
+    expected_start_with_grace = expected_start + timedelta(minutes=grace_period_minutes)
+    if punch_in_time > expected_start_with_grace:
+        late_delta = punch_in_time - expected_start_with_grace
+        return True, int(late_delta.total_seconds() / 60)
+    return False, 0
+
+
+def calculate_early_leave_from_datetime(
+    punch_out_time: datetime,
+    expected_end: datetime,
+) -> tuple[bool, int]:
+    """Calculate early-leave minutes from a resolved expected-end datetime."""
+    if punch_out_time < expected_end:
+        early_delta = expected_end - punch_out_time
+        return True, int(early_delta.total_seconds() / 60)
+    return False, 0
+
+
 def calculate_work_minutes_split_shift(
     punch_in_time: datetime,
     punch_out_time: datetime,

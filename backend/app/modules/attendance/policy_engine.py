@@ -24,6 +24,13 @@ TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 
 from app.modules.attendance.models import AttendanceSession, AttendancePolicy
 from app.modules.schedule.service import ScheduleBaselineResolver
+from app.modules.attendance.policy_rules import (
+    calculate_early_leave,
+    calculate_early_leave_from_datetime,
+    calculate_late,
+    calculate_late_from_datetime,
+    calculate_overtime,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -193,20 +200,20 @@ class AttendancePolicyEngine:
         work_minutes = session.duration_minutes or 0
         
         # 1. Late detection
-        is_late, late_minutes = AttendancePolicyEngine._calculate_late(
+        is_late, late_minutes = calculate_late(
             punch_in_time=session.punch_in_time,
             work_start_time=work_start_time,
             grace_period_minutes=grace_period_minutes
         )
         
         # 2. Early leave detection
-        is_early_leave, early_leave_minutes = AttendancePolicyEngine._calculate_early_leave(
+        is_early_leave, early_leave_minutes = calculate_early_leave(
             punch_out_time=session.punch_out_time,
             work_end_time=work_end_time
         )
         
         # 3. Overtime detection
-        is_overtime, overtime_minutes = AttendancePolicyEngine._calculate_overtime(
+        is_overtime, overtime_minutes = calculate_overtime(
             work_minutes=work_minutes,
             overtime_threshold_minutes=overtime_threshold_minutes
         )
@@ -239,94 +246,8 @@ class AttendancePolicyEngine:
             overtime_threshold_minutes=overtime_threshold_minutes
         )
     
-    @staticmethod
-    def _calculate_late(
-        punch_in_time: datetime,
-        work_start_time: time,
-        grace_period_minutes: int
-    ) -> tuple[bool, int]:
-        """Calculate if punch-in is late
-        
-        Args:
-            punch_in_time: Actual punch-in time (datetime with timezone)
-            work_start_time: Expected work start time (time only)
-            grace_period_minutes: Grace period in minutes
-        
-        Returns:
-            (is_late, late_minutes)
-        """
-        # Derive business date in Asia/Taipei, then combine with work_start_time
-        # P1-01/P1-02 fix: use Taipei local date (not UTC date) and mark with TZ_TAIPEI
-        if punch_in_time.tzinfo is not None:
-            taipei_date = punch_in_time.astimezone(TZ_TAIPEI).date()
-        else:
-            taipei_date = punch_in_time.date()
-        expected_start = datetime.combine(taipei_date, work_start_time).replace(tzinfo=TZ_TAIPEI)
-        
-        # Add grace period
-        expected_start_with_grace = expected_start + timedelta(minutes=grace_period_minutes)
-        
-        # Calculate late minutes
-        if punch_in_time > expected_start_with_grace:
-            late_delta = punch_in_time - expected_start_with_grace
-            late_minutes = int(late_delta.total_seconds() / 60)
-            return True, late_minutes
-        else:
-            return False, 0
     
-    @staticmethod
-    def _calculate_early_leave(
-        punch_out_time: datetime,
-        work_end_time: time
-    ) -> tuple[bool, int]:
-        """Calculate if punch-out is early leave
-        
-        Args:
-            punch_out_time: Actual punch-out time (datetime with timezone)
-            work_end_time: Expected work end time (time only)
-        
-        Returns:
-            (is_early_leave, early_leave_minutes)
-        """
-        # Derive business date in Asia/Taipei, then combine with work_end_time
-        # P1-01/P1-02 fix: use Taipei local date (not UTC date) and mark with TZ_TAIPEI
-        if punch_out_time.tzinfo is not None:
-            taipei_date = punch_out_time.astimezone(TZ_TAIPEI).date()
-        else:
-            taipei_date = punch_out_time.date()
-        expected_end = datetime.combine(taipei_date, work_end_time).replace(tzinfo=TZ_TAIPEI)
-        
-        # Calculate early leave minutes
-        if punch_out_time < expected_end:
-            early_delta = expected_end - punch_out_time
-            early_leave_minutes = int(early_delta.total_seconds() / 60)
-            return True, early_leave_minutes
-        else:
-            return False, 0
     
-    @staticmethod
-    def _calculate_overtime(
-        work_minutes: int,
-        overtime_threshold_minutes: Optional[int]
-    ) -> tuple[bool, int]:
-        """Calculate if work duration qualifies as overtime
-        
-        Args:
-            work_minutes: Actual work duration in minutes
-            overtime_threshold_minutes: Overtime threshold (None = no overtime detection)
-        
-        Returns:
-            (is_overtime, overtime_minutes)
-        """
-        if overtime_threshold_minutes is None:
-            # No overtime threshold defined
-            return False, 0
-        
-        if work_minutes > overtime_threshold_minutes:
-            overtime_minutes = work_minutes - overtime_threshold_minutes
-            return True, overtime_minutes
-        else:
-            return False, 0
 
     @staticmethod
     def _to_business_date(dt: datetime) -> date:
@@ -334,27 +255,7 @@ class AttendancePolicyEngine:
             return dt.astimezone(TZ_TAIPEI).date()
         return dt.date()
 
-    @staticmethod
-    def _calculate_late_from_datetime(
-        punch_in_time: datetime,
-        expected_start: datetime,
-        grace_period_minutes: int,
-    ) -> Tuple[bool, int]:
-        expected_start_with_grace = expected_start + timedelta(minutes=grace_period_minutes)
-        if punch_in_time > expected_start_with_grace:
-            late_delta = punch_in_time - expected_start_with_grace
-            return True, int(late_delta.total_seconds() / 60)
-        return False, 0
 
-    @staticmethod
-    def _calculate_early_leave_from_datetime(
-        punch_out_time: datetime,
-        expected_end: datetime,
-    ) -> Tuple[bool, int]:
-        if punch_out_time < expected_end:
-            early_delta = expected_end - punch_out_time
-            return True, int(early_delta.total_seconds() / 60)
-        return False, 0
 
     @staticmethod
     def evaluate_with_schedule_v2(
@@ -395,7 +296,7 @@ class AttendancePolicyEngine:
         first_window_start = normalized_windows[0][0]
         last_window_end = normalized_windows[-1][1]
 
-        is_late, late_minutes = AttendancePolicyEngine._calculate_late_from_datetime(
+        is_late, late_minutes = calculate_late_from_datetime(
             punch_in_time=session.punch_in_time,
             expected_start=first_window_start,
             grace_period_minutes=grace_period_minutes,
@@ -403,7 +304,7 @@ class AttendancePolicyEngine:
 
         # Step 2 scope: missing_segment is deferred to runtime hardening phase.
         violation_flags: List[str] = []
-        is_early_leave, early_leave_minutes = AttendancePolicyEngine._calculate_early_leave_from_datetime(
+        is_early_leave, early_leave_minutes = calculate_early_leave_from_datetime(
             punch_out_time=session.punch_out_time,
             expected_end=last_window_end,
         )
@@ -479,14 +380,14 @@ class AttendancePolicyEngine:
         last_window = schedule.last_window()
         
         # 1. Late detection (based on first window)
-        is_late, late_minutes = AttendancePolicyEngine._calculate_late(
+        is_late, late_minutes = calculate_late(
             punch_in_time=session.punch_in_time,
             work_start_time=first_window.start_time,
             grace_period_minutes=grace_period_minutes
         )
         
         # 2. Early leave detection (based on last window)
-        is_early_leave, early_leave_minutes = AttendancePolicyEngine._calculate_early_leave(
+        is_early_leave, early_leave_minutes = calculate_early_leave(
             punch_out_time=session.punch_out_time,
             work_end_time=last_window.end_time
         )
@@ -503,7 +404,7 @@ class AttendancePolicyEngine:
             work_minutes = session.duration_minutes or 0
         
         # 4. Overtime detection
-        is_overtime, overtime_minutes = AttendancePolicyEngine._calculate_overtime(
+        is_overtime, overtime_minutes = calculate_overtime(
             work_minutes=work_minutes,
             overtime_threshold_minutes=overtime_threshold_minutes
         )
