@@ -1,6 +1,8 @@
 from datetime import date, datetime, timezone
+from types import SimpleNamespace
 from uuid import uuid4
 
+from app.modules.attendance.api.reporting_helpers import get_taipei_today_boundary
 from app.modules.attendance.models import AttendancePunch, AttendanceSession
 from app.tests.utils.auth import create_test_actor, override_actor_dependency
 
@@ -35,7 +37,11 @@ class TestBreakPunchesTaipeiBoundary:
     def test_taipei_midnight_boundary_assigns_2350_and_0010_correctly(self, client, test_session, test_user, monkeypatch):
         from app.modules.attendance.api import breaks as breaks_module
 
-        monkeypatch.setattr(breaks_module, "get_taipei_today", lambda: date(2026, 4, 6))
+        monkeypatch.setattr(
+            breaks_module,
+            "get_taipei_today_boundary",
+            lambda: get_taipei_today_boundary(datetime(2026, 4, 5, 16, 30, 0, tzinfo=timezone.utc)),
+        )
 
         session = self._create_session(test_session, test_user)
         excluded_2350 = self._create_break_punch(
@@ -69,7 +75,11 @@ class TestBreakPunchesTaipeiBoundary:
     def test_cross_day_utc_previous_day_is_included_when_taipei_is_current_day(self, client, test_session, test_user, monkeypatch):
         from app.modules.attendance.api import breaks as breaks_module
 
-        monkeypatch.setattr(breaks_module, "get_taipei_today", lambda: date(2026, 4, 6))
+        monkeypatch.setattr(
+            breaks_module,
+            "get_taipei_today_boundary",
+            lambda: get_taipei_today_boundary(datetime(2026, 4, 5, 16, 30, 0, tzinfo=timezone.utc)),
+        )
 
         session = self._create_session(test_session, test_user)
         included_prev_utc_day = self._create_break_punch(
@@ -94,7 +104,11 @@ class TestBreakPunchesTaipeiBoundary:
     def test_query_uses_start_utc_inclusive_and_end_utc_exclusive(self, client, test_session, test_user, monkeypatch):
         from app.modules.attendance.api import breaks as breaks_module
 
-        monkeypatch.setattr(breaks_module, "get_taipei_today", lambda: date(2026, 4, 6))
+        monkeypatch.setattr(
+            breaks_module,
+            "get_taipei_today_boundary",
+            lambda: get_taipei_today_boundary(datetime(2026, 4, 5, 16, 30, 0, tzinfo=timezone.utc)),
+        )
 
         session = self._create_session(test_session, test_user)
         included_at_start = self._create_break_punch(
@@ -132,4 +146,58 @@ class TestBreakPunchesTaipeiBoundary:
 
         assert str(included_at_start.id) in returned_ids
         assert str(included_before_end.id) in returned_ids
+        assert str(excluded_at_end.id) not in returned_ids
+
+    def test_breaks_route_uses_exact_shared_boundary_without_route_rebuilding(self, client, test_session, test_user, monkeypatch):
+        from app.modules.attendance.api import breaks as breaks_module
+
+        calls = {"count": 0}
+        expected_boundary = SimpleNamespace(
+            business_date=date(2026, 4, 6),
+            start_utc=datetime(2026, 4, 5, 16, 10, tzinfo=timezone.utc),
+            end_utc=datetime(2026, 4, 5, 16, 20, tzinfo=timezone.utc),
+        )
+
+        def _fake_boundary():
+            calls["count"] += 1
+            return expected_boundary
+
+        monkeypatch.setattr(breaks_module, "get_taipei_today_boundary", _fake_boundary)
+
+        session = self._create_session(test_session, test_user)
+        excluded_before_start = self._create_break_punch(
+            test_session,
+            session,
+            test_user,
+            "break_start",
+            datetime(2026, 4, 5, 16, 9, 59, tzinfo=timezone.utc),
+            "Before fake shared boundary",
+        )
+        included_within_range = self._create_break_punch(
+            test_session,
+            session,
+            test_user,
+            "break_end",
+            datetime(2026, 4, 5, 16, 15, tzinfo=timezone.utc),
+            "Inside fake shared boundary",
+        )
+        excluded_at_end = self._create_break_punch(
+            test_session,
+            session,
+            test_user,
+            "break_start",
+            expected_boundary.end_utc,
+            "At fake shared boundary end",
+        )
+
+        actor = create_test_actor(test_user.company_id, user_id=test_user.id)
+        with override_actor_dependency(actor):
+            response = client.get("/api/v1/attendance/break-punches?limit=50")
+
+        assert response.status_code == 200
+        assert calls["count"] == 1
+        returned_ids = {item["punch_id"] for item in response.json()["punches"]}
+
+        assert str(included_within_range.id) in returned_ids
+        assert str(excluded_before_start.id) not in returned_ids
         assert str(excluded_at_end.id) not in returned_ids

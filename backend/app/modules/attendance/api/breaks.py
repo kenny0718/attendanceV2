@@ -30,10 +30,7 @@ from app.modules.attendance.schemas import (
     BreakInResponse,
 )
 from app.modules.attendance.api.helpers import _require_attendance_feature
-from app.modules.attendance.api.reporting_helpers import (
-    build_taipei_business_date_boundary,
-    get_taipei_today,
-)
+from app.modules.attendance.api.reporting_helpers import get_taipei_today_boundary
 
 logger = logging.getLogger(__name__)
 
@@ -204,13 +201,11 @@ async def get_break_punches(
     
     user_uuid = UUID(user_id)
     
-    boundary = build_taipei_business_date_boundary(get_taipei_today())
-    start_utc = boundary.start_utc
-    end_utc = boundary.end_utc
-    
+    boundary = get_taipei_today_boundary()
+
     # Query break punches
     from app.modules.attendance.models import AttendancePunch
-    
+
     punches = (
         db.query(AttendancePunch)
         .filter(
@@ -218,8 +213,8 @@ async def get_break_punches(
                 AttendancePunch.company_id == company_id,
                 AttendancePunch.user_id == user_uuid,
                 AttendancePunch.punch_type.in_(['break_start', 'break_end']),
-                AttendancePunch.punch_time >= start_utc,
-                AttendancePunch.punch_time < end_utc
+                AttendancePunch.punch_time >= boundary.start_utc,
+                AttendancePunch.punch_time < boundary.end_utc
             )
         )
         .order_by(AttendancePunch.punch_time.desc())
