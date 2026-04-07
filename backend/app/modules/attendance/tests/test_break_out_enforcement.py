@@ -9,6 +9,7 @@ from uuid import uuid4
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
+from app.core.features import FeatureKeys
 from app.tests.utils.auth import create_test_actor, override_actor_dependency
 
 
@@ -232,11 +233,20 @@ def test_allowed_location(test_session, test_user):
 def test_user2(test_session):
     """測試用第二個使用者（不同公司）"""
     from app.modules.auth.models import User
-    from app.modules.tenants.models import Tenant
+    from app.modules.tenants.models import CompanyEntitlement, Tenant
     
     # 建立第二個公司
     company2 = Tenant(id="test-company-2", name="Test Company 2", is_active=True)
     test_session.add(company2)
+    test_session.commit()
+
+    entitlement = CompanyEntitlement(
+        id=uuid4(),
+        company_id="test-company-2",
+        feature_key=FeatureKeys.ATTENDANCE_CORE,
+        enabled=True,
+    )
+    test_session.add(entitlement)
     test_session.commit()
     
     # 建立第二個使用者 (User model: global identity, no company_id/username)

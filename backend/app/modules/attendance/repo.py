@@ -22,6 +22,7 @@ from app.modules.attendance.models import (
     AttendancePunch,
     AttendancePolicy
 )
+from app.modules.attendance.attendance_punch_repo import AttendancePunchRepository
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class AttendanceSessionRepository:
 
     def __init__(self, db: Session):
         self.db = db
+        self._punch_repo = AttendancePunchRepository(db)
 
     def create_session(
         self,
@@ -123,7 +125,7 @@ class AttendanceSessionRepository:
         location_id: Optional[UUID] = None
     ) -> AttendancePunch:
         """創建打卡記錄"""
-        punch = AttendancePunch(
+        return self._punch_repo.create_punch(
             session_id=session_id,
             company_id=company_id,
             user_id=user_id,
@@ -135,17 +137,6 @@ class AttendanceSessionRepository:
             notes=notes,
             location_id=location_id
         )
-
-        self.db.add(punch)
-        self.db.commit()
-        self.db.refresh(punch)
-
-        logger.info(
-            f"Created punch: id={punch.id}, "
-            f"session_id={session_id}, type={punch_type}"
-        )
-
-        return punch
 
     def get_sessions(
         self,
@@ -228,17 +219,7 @@ class AttendanceSessionRepository:
         session_id: UUID
     ) -> Optional[AttendancePunch]:
         """獲取 session 的最後一筆 break punch (WP-11-07 Phase 3B)"""
-        return (
-            self.db.query(AttendancePunch)
-            .filter(
-                and_(
-                    AttendancePunch.session_id == session_id,
-                    AttendancePunch.punch_type.in_(['break_start', 'break_end'])
-                )
-            )
-            .order_by(AttendancePunch.punch_time.desc())
-            .first()
-        )
+        return self._punch_repo.get_last_break_punch(session_id)
 
     def get_session_punches(
         self,
