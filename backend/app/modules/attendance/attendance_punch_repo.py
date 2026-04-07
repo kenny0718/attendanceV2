@@ -104,3 +104,28 @@ class AttendancePunchRepository:
         self.db.commit()
 
         return punch
+
+    def list_break_punches_for_user_in_range(
+        self,
+        company_id: str,
+        user_id: UUID,
+        start_utc: datetime,
+        end_utc: datetime,
+        limit: int
+    ) -> list[AttendancePunch]:
+        """列出指定時間區間內的 break punches"""
+        return (
+            self.db.query(AttendancePunch)
+            .filter(
+                and_(
+                    AttendancePunch.company_id == company_id,
+                    AttendancePunch.user_id == user_id,
+                    AttendancePunch.punch_type.in_(['break_start', 'break_end']),
+                    AttendancePunch.punch_time >= start_utc,
+                    AttendancePunch.punch_time < end_utc
+                )
+            )
+            .order_by(AttendancePunch.punch_time.desc())
+            .limit(limit)
+            .all()
+        )

@@ -202,24 +202,14 @@ async def get_break_punches(
     user_uuid = UUID(user_id)
     
     boundary = get_taipei_today_boundary()
+    repo = get_attendance_session_repository(db)
 
-    # Query break punches
-    from app.modules.attendance.models import AttendancePunch
-
-    punches = (
-        db.query(AttendancePunch)
-        .filter(
-            and_(
-                AttendancePunch.company_id == company_id,
-                AttendancePunch.user_id == user_uuid,
-                AttendancePunch.punch_type.in_(['break_start', 'break_end']),
-                AttendancePunch.punch_time >= boundary.start_utc,
-                AttendancePunch.punch_time < boundary.end_utc
-            )
-        )
-        .order_by(AttendancePunch.punch_time.desc())
-        .limit(limit)
-        .all()
+    punches = repo.list_break_punches_for_user_in_range(
+        company_id=company_id,
+        user_id=user_uuid,
+        start_utc=boundary.start_utc,
+        end_utc=boundary.end_utc,
+        limit=limit
     )
     
     # Format response

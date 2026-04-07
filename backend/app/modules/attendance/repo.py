@@ -236,6 +236,23 @@ class AttendanceSessionRepository:
             notes=notes
         )
 
+    def list_break_punches_for_user_in_range(
+        self,
+        company_id: str,
+        user_id: UUID,
+        start_utc: datetime,
+        end_utc: datetime,
+        limit: int
+    ) -> list[AttendancePunch]:
+        """列出指定時間區間內的 break punches"""
+        return self._punch_repo.list_break_punches_for_user_in_range(
+            company_id=company_id,
+            user_id=user_id,
+            start_utc=start_utc,
+            end_utc=end_utc,
+            limit=limit
+        )
+
     def get_session_punches(
         self,
         session_id: UUID
