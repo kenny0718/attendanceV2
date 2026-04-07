@@ -259,21 +259,19 @@ async def update_punch_note(
     user_uuid = UUID(user_id)
     punch_uuid = UUID(punch_id)
     
-    # Get punch record
-    from app.modules.attendance.models import AttendancePunch
-    punch = db.query(AttendancePunch).filter(
-        AttendancePunch.id == punch_uuid,
-        AttendancePunch.company_id == company_id,
-        AttendancePunch.user_id == user_uuid
-    ).first()
-    
-    if not punch:
-        raise HTTPException(status_code=404, detail="Punch record not found")
-    
+    repo = get_attendance_session_repository(db)
+
     # Update notes
     notes = request.get('notes', '')
-    punch.notes = notes
-    db.commit()
+    punch = repo.update_punch_note(
+        company_id=company_id,
+        user_id=user_uuid,
+        punch_id=punch_uuid,
+        notes=notes
+    )
+
+    if not punch:
+        raise HTTPException(status_code=404, detail="Punch record not found")
     
     return {
         "success": True,

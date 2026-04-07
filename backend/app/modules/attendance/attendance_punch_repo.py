@@ -82,3 +82,25 @@ class AttendancePunchRepository:
             .order_by(AttendancePunch.punch_time.desc())
             .first()
         )
+
+    def update_punch_note(
+        self,
+        company_id: str,
+        user_id: UUID,
+        punch_id: UUID,
+        notes: str
+    ) -> Optional[AttendancePunch]:
+        """更新打卡備註"""
+        punch = self.db.query(AttendancePunch).filter(
+            AttendancePunch.id == punch_id,
+            AttendancePunch.company_id == company_id,
+            AttendancePunch.user_id == user_id
+        ).first()
+
+        if not punch:
+            return None
+
+        punch.notes = notes
+        self.db.commit()
+
+        return punch

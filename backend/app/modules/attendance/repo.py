@@ -221,6 +221,21 @@ class AttendanceSessionRepository:
         """獲取 session 的最後一筆 break punch (WP-11-07 Phase 3B)"""
         return self._punch_repo.get_last_break_punch(session_id)
 
+    def update_punch_note(
+        self,
+        company_id: str,
+        user_id: UUID,
+        punch_id: UUID,
+        notes: str
+    ) -> Optional[AttendancePunch]:
+        """更新打卡備註"""
+        return self._punch_repo.update_punch_note(
+            company_id=company_id,
+            user_id=user_id,
+            punch_id=punch_id,
+            notes=notes
+        )
+
     def get_session_punches(
         self,
         session_id: UUID
