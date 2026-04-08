@@ -9,12 +9,12 @@ Tests policy evaluation logic:
 """
 
 import pytest
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timezone, timedelta
 from uuid import uuid4
-from zoneinfo import ZoneInfo
 
 from app.modules.attendance.models import AttendanceSession, AttendancePolicy
 from app.modules.attendance.policy_engine import AttendancePolicyEngine, PolicyEvaluationResult
+from app.modules.attendance.punch_close_domain import build_policy_evaluation_with_schedule_v2
 
 
 class TestPolicyEngineBasics:
@@ -26,8 +26,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=540
         )
@@ -60,8 +60,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 20, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 20, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=520
         )
@@ -90,8 +90,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 10, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 10, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=530
         )
@@ -118,8 +118,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 17, 30, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 17, 30, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=510
         )
@@ -148,8 +148,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 19, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 19, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=600
         )
@@ -179,8 +179,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 10, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 19, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 10, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 19, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=540
         )
@@ -213,8 +213,8 @@ class TestPolicyEngineFallback:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 30, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 30, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 30, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 30, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=540
         )
@@ -236,8 +236,8 @@ class TestPolicyEngineFallback:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=540
         )
@@ -258,7 +258,7 @@ class TestPolicyEngineEdgeCases:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
             punch_out_time=None,
             status='open',
             duration_minutes=None
@@ -284,8 +284,8 @@ class TestPolicyEngineEdgeCases:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 20, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 20, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=660
         )
@@ -313,8 +313,8 @@ class TestPolicyEngineEdgeCases:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=540
         )
@@ -352,8 +352,8 @@ class TestPolicyEngineTenantIsolation:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 20, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 20, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=520
         )
@@ -372,8 +372,8 @@ class TestPolicyEngineTenantIsolation:
             id=uuid4(),
             company_id="company-b",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 20, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 20, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=520
         )
@@ -399,6 +399,64 @@ class TestPolicyEngineTenantIsolation:
         assert result_b.late_minutes == 0
 
 
+class TestF6CanonicalGuard:
+    """Targeted regression tests for F6 dormant schedule-aware risk."""
+
+    class _RepoStub:
+        def __init__(self, policy):
+            self._policy = policy
+
+        def get_user_policy(self, company_id, user_id):
+            return self._policy
+
+    def test_schedule_v2_keeps_duration_minutes_as_gross(self):
+        """schedule-aware helper 不得把 derived work_minutes 寫回 canonical duration_minutes。"""
+        session = AttendanceSession(
+            id=uuid4(),
+            company_id="company-a",
+            user_id=uuid4(),
+            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=None,
+            status='open',
+            duration_minutes=None
+        )
+
+        policy = AttendancePolicy(
+            id=uuid4(),
+            company_id="company-a",
+            name="Schedule Aware Policy",
+            work_start_time=time(9, 0),
+            work_end_time=time(18, 0),
+            grace_period_minutes=15,
+            overtime_threshold_minutes=480
+        )
+
+        repo = self._RepoStub(policy)
+        punch_out_time = datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc)
+        gross_minutes = 540
+        derived_work_minutes = 480
+        normalized_windows = [(
+            datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            datetime(2026, 3, 4, 17, 0, 0, tzinfo=timezone.utc),
+        )]
+
+        result = build_policy_evaluation_with_schedule_v2(
+            session=session,
+            repo=repo,
+            company_id="company-a",
+            user_id=session.user_id,
+            punch_out_time=punch_out_time,
+            gross_minutes=gross_minutes,
+            work_minutes=derived_work_minutes,
+            normalized_windows=normalized_windows,
+        )
+
+        assert session.duration_minutes == gross_minutes
+        assert session.duration_minutes != derived_work_minutes
+        assert result.evaluation.work_minutes == derived_work_minutes
+        assert result.evaluation.overtime_minutes == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
@@ -419,8 +477,8 @@ class TestSplitShiftBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=600  # Total 10 hours
         )
@@ -459,8 +517,8 @@ class TestSplitShiftBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 20, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 8, 20, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=580
         )
@@ -497,8 +555,8 @@ class TestSplitShiftBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 17, 30, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 17, 30, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=570
         )
@@ -535,8 +593,8 @@ class TestSplitShiftBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 13, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 13, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=300
         )
@@ -572,8 +630,8 @@ class TestSplitShiftBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 16, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 16, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=120
         )
@@ -609,8 +667,8 @@ class TestSplitShiftBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 14, 30, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 15, 30, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 14, 30, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 15, 30, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=60
         )
@@ -645,8 +703,8 @@ class TestSplitShiftBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 13, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 17, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 13, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 17, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=240
         )
@@ -745,8 +803,8 @@ class TestSplitShiftTenantIsolation:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=600
         )
@@ -761,8 +819,8 @@ class TestSplitShiftTenantIsolation:
             id=uuid4(),
             company_id="company-b",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
-            punch_out_time=datetime(2026, 3, 4, 17, 0, 0, tzinfo=ZoneInfo("Asia/Taipei")),
+            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 17, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=480
         )

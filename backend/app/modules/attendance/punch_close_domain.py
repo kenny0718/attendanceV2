@@ -65,17 +65,23 @@ def build_policy_evaluation_with_schedule_v2(
     company_id: str,
     user_id: UUID,
     punch_out_time: datetime,
+    gross_minutes: int,
     work_minutes: int,
     normalized_windows: List[Tuple[datetime, datetime]],
 ) -> PolicyEvalPayload:
-    """Schedule-aware adapter path consuming resolver-normalized windows."""
+    """Schedule-aware adapter path consuming resolver-normalized windows.
+
+    F6 canonical guard:
+    - `session.duration_minutes` must remain canonical gross_minutes
+    - schedule-aware `work_minutes` is derived only and must stay in evaluation payload
+    """
     if not normalized_windows:
         raise ValueError("normalized_windows must not be empty")
 
     policy = repo.get_user_policy(company_id, user_id)
 
     session.punch_out_time = punch_out_time
-    session.duration_minutes = work_minutes
+    session.duration_minutes = gross_minutes
     session.status = "closed"
 
     first_window_start = min(normalized_windows, key=lambda x: x[0])[0]

@@ -1,0 +1,11 @@
+LXC：Debian 12
+
+Python：3.11
+
+PostgreSQL：15
+
+Python venv：有
+
+框架：FastAPI + SQLAlchemy（同步）+ psycopg/psycopg2 + Alembic
+
+👉 非常好，這是「穩定商用組合」。

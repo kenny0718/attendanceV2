@@ -5,6 +5,7 @@ from app.modules.attendance.api.reporting_helpers import (
     TaipeiBusinessDateBoundary,
     build_taipei_business_date_boundary,
     get_taipei_today,
+    get_taipei_today_boundary,
 )
 
 
@@ -12,6 +13,15 @@ class TestTaipeiBoundaryOwner:
     def test_get_taipei_today_uses_taipei_owner(self):
         now_utc = datetime(2026, 3, 11, 16, 30, 0, tzinfo=timezone.utc)
         assert get_taipei_today(now_utc) == date(2026, 3, 12)
+
+    def test_get_taipei_today_boundary_resolves_today_through_single_owner(self):
+        boundary = get_taipei_today_boundary(
+            datetime(2026, 3, 11, 16, 30, 0, tzinfo=timezone.utc)
+        )
+        assert isinstance(boundary, TaipeiBusinessDateBoundary)
+        assert boundary.business_date == date(2026, 3, 12)
+        assert boundary.start_utc == datetime(2026, 3, 11, 16, 0, 0, tzinfo=timezone.utc)
+        assert boundary.end_utc == datetime(2026, 3, 12, 16, 0, 0, tzinfo=timezone.utc)
 
     def test_business_date_builds_canonical_utc_range(self):
         boundary = build_taipei_business_date_boundary(date(2026, 3, 12))

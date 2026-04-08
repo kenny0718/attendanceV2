@@ -77,6 +77,17 @@ def build_taipei_business_date_boundary(
     )
 
 
+def get_taipei_today_boundary(
+    now: Optional[datetime] = None,
+) -> TaipeiBusinessDateBoundary:
+    """Return today's canonical UTC query boundary owned by Taipei business date.
+
+    This helper is the shared route-level owner for resolving Attendance
+    "today" into a Taipei business-date boundary and its derived UTC range.
+    """
+    return build_taipei_business_date_boundary(get_taipei_today(now))
+
+
 def _is_exact_taipei_midnight(dt: datetime) -> bool:
     """Return True when the aware datetime lands exactly on Taipei midnight."""
     local_dt = dt.astimezone(TZ_TAIPEI)
