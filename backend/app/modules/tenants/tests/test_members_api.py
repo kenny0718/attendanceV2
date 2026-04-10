@@ -65,7 +65,7 @@ def _clear():
     app.dependency_overrides.pop(get_current_actor, None)
 
 
-TEST_ROLE_ID = "admin"
+TEST_ROLE_ID = "company_admin"
 
 
 # ── DB seed helpers ───────────────────────────────────────────────────
