@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+REPO_ROOT="/opt/attendance-system"
+python3 "$REPO_ROOT/scripts/check_sa_docs_integrity.py" --check-staged
