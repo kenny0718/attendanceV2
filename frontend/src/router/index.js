@@ -1,9 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-// WP-S1-08B: Route access policy
-// /schedule  → company_admin only   (tenant-level admin)
-// /admin     → super_admin OR company_admin OR hr_manager (S1-11C)
+// Route access policy
+// /my-schedule → authenticated user with uses_schedule=true
+// /schedule    → company_admin with uses_schedule=true (management UI)
+// /admin       → super_admin OR company_admin OR hr_manager
 // All other requiresAuth routes → any authenticated user
 
 const routes = [
@@ -19,7 +20,6 @@ const routes = [
     component: () => import('@/views/Login.vue'),
     meta: { requiresAuth: false }
   },
-  // ── Reporting UI (WP-REPORTING-UI) ─────────────────────────────────────
   {
     path: '/attendance/reports/sessions',
     name: 'AttendanceSessions',
@@ -38,46 +38,55 @@ const routes = [
     component: () => import('@/views/reports/UserSummaryPage.vue'),
     meta: { requiresAuth: true }
   },
-  // ── Schedule (WP-S1-07) — company_admin only ────────────────────────
+  {
+    path: '/my-schedule',
+    name: 'MySchedule',
+    component: () => import('@/views/schedule/MySchedulePage.vue'),
+    meta: { requiresAuth: true, requiresUsesSchedule: true }
+  },
   {
     path: '/schedule',
     name: 'Schedule',
     component: () => import('@/views/schedule/SchedulePage.vue'),
     meta: { requiresAuth: true, requiresCompanyAdmin: true }
   },
-  // ── Admin (WP-S1-08B / WP-S1-10A) — super_admin only ──────────────
   {
     path: '/admin',
-    name: 'Admin',
-    component: () => import('@/views/Admin.vue'),
-    meta: { requiresAuth: true, requiresAdminAccess: true }
+    component: () => import('@/views/admin/AdminLayout.vue'),
+    meta: { requiresAuth: true, requiresAdminAccess: true },
+    children: [
+      {
+        path: '',
+        name: 'Admin',
+        component: () => import('@/views/Admin.vue'),
+        meta: { requiresAuth: true, requiresAdminAccess: true }
+      },
+      {
+        path: 'companies',
+        name: 'AdminCompanies',
+        component: () => import('@/views/admin/AdminCompaniesView.vue'),
+        meta: { requiresAuth: true, requiresAdminAccess: true }
+      },
+      {
+        path: 'onboarding',
+        name: 'AdminOnboarding',
+        component: () => import('@/views/admin/AdminOnboardingView.vue'),
+        meta: { requiresAuth: true, requiresAdminAccess: true, requiresSuperAdmin: true }
+      },
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('@/views/admin/AdminUsersView.vue'),
+        meta: { requiresAuth: true, requiresAdminAccess: true }
+      },
+      {
+        path: 'attendance',
+        name: 'AdminAttendance',
+        component: () => import('@/views/admin/AdminAttendanceView.vue'),
+        meta: { requiresAuth: true, requiresAdminAccess: true }
+      }
+    ]
   },
-  {
-    path: '/admin/companies',
-    name: 'AdminCompanies',
-    component: () => import('@/views/admin/AdminCompaniesView.vue'),
-    meta: { requiresAuth: true, requiresAdminAccess: true }
-  },
-  {
-    path: '/admin/onboarding',
-    name: 'AdminOnboarding',
-    component: () => import('@/views/admin/AdminOnboardingView.vue'),
-    meta: { requiresAuth: true, requiresAdminAccess: true, requiresSuperAdmin: true }
-  },
-  {
-    path: '/admin/users',
-    name: 'AdminUsers',
-    component: () => import('@/views/admin/AdminUsersView.vue'),
-    meta: { requiresAuth: true, requiresAdminAccess: true }
-  },
-  // S1-12: Admin Attendance View (read-only)
-  {
-    path: '/admin/attendance',
-    name: 'AdminAttendance',
-    component: () => import('@/views/admin/AdminAttendanceView.vue'),
-    meta: { requiresAuth: true, requiresAdminAccess: true }
-  },
-  // S1-14A: Leave Request (employee)
   {
     path: '/leave',
     name: 'LeaveRequest',
@@ -94,36 +103,34 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
 
-  // S1-11E.3 fix: restore session if token exists but state is not fully hydrated.
-  // Covers the edge case where main.js restoreSession() ran on a different pinia
-  // instance before app.use(router) completed, leaving state.role as null.
   if (localStorage.getItem('token') && (!authStore.isAuthenticated || !authStore.userRole)) {
     authStore.restoreSession()
   }
 
-  // 1. Unauthenticated → /login
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
     return
   }
 
-  // 2. Already logged in, trying to visit /login → /
   if (to.path === '/login' && authStore.isAuthenticated) {
     next('/')
     return
   }
 
-  // 3. /schedule — requires exact company_admin role
-  //    Deny: employee, unauthenticated, super_admin (no tenant context)
-  //    Allow: company_admin only
-  if (to.meta.requiresCompanyAdmin) {
-    if (!authStore.isCompanyAdmin) {
+  if (to.meta.requiresUsesSchedule) {
+    if (!authStore.usesSchedule) {
       next('/')
       return
     }
   }
 
-  // 4. /admin onboarding — super_admin only
+  if (to.meta.requiresCompanyAdmin) {
+    if (!authStore.isCompanyAdmin || !authStore.usesSchedule) {
+      next('/')
+      return
+    }
+  }
+
   if (to.meta.requiresSuperAdmin) {
     if (!authStore.isSuperAdmin) {
       next('/admin')
@@ -131,9 +138,6 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  // 5. /admin — S1-11C: super_admin OR company_admin OR hr_manager
-  //    Deny: employee, unauthenticated
-  //    Allow: super_admin, company_admin, hr_manager
   if (to.meta.requiresAdminAccess) {
     if (!authStore.isSuperAdmin && !authStore.isAdminAccess) {
       next('/')

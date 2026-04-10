@@ -42,6 +42,15 @@
   /* ========== 邊框 ========== */
   --border-light: #E8EDF2;
   --border-medium: #D1DAE3;
+
+  /* ========== Leave 基準卡片語言 ========== */
+  --surface-card-bg: rgba(255, 255, 255, 0.84);
+  --surface-card-radius: 24px;
+  --surface-card-padding: 24px;
+  --surface-card-border: 1px solid rgba(148, 163, 184, 0.18);
+  --surface-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  --surface-card-gap: 18px;
+  --surface-card-hover-shadow: 0 22px 46px rgba(15, 23, 42, 0.1);
   
   /* ========== 陰影 ========== */
   --shadow-sm: 0 1px 3px rgba(28, 59, 107, 0.08);
@@ -50,6 +59,10 @@
   
   /* ========== 過渡 ========== */
   --transition-base: 0.2s ease;
+}
+
+html {
+  overflow-y: scroll;
 }
 
 * {
@@ -63,8 +76,25 @@ body {
   background-color: var(--bg-main);
   color: var(--text-primary);
   line-height: 1.6;
+  scrollbar-gutter: stable;
 }
 
 #app {
   min-height: 100vh;
+}
+
+.surface-card {
+  background: var(--surface-card-bg);
+  border-radius: var(--surface-card-radius);
+  padding: var(--surface-card-padding);
+  border: var(--surface-card-border);
+  box-shadow: var(--surface-card-shadow);
+}
+
+.surface-card--interactive {
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+
+.surface-card--interactive:hover {
+  box-shadow: var(--surface-card-hover-shadow);
 }

@@ -1,10 +1,9 @@
 <template>
   <div class="home-page">
-    <Navbar />
-    
     <div class="container">
-      <!-- 今日打卡總覽 - 使用元件 -->
-      <AttendanceOverviewCard 
+      <Navbar />
+
+      <AttendanceOverviewCard
         :today-status="todayStatus"
         :recent-logs="recentLogs"
         :can-punch-in="canPunchIn"
@@ -15,9 +14,6 @@
         @punch-out="handlePunch('OUT')"
       />
 
-
-
-      <!-- 外出管理 -->
       <OutingOverviewCard
         :reason-presets="reasonPresets"
         :reason-customs="reasonCustoms"
@@ -39,21 +35,13 @@
         @edit-note="editPunchNote"
       />
 
-      <!-- 個人服務 -->
       <PersonalServiceCard />
 
-      <!-- Toast 提示 -->
-      <div 
-        v-if="showSuccessMessage" 
-        class="toast success"
-      >
+      <div v-if="showSuccessMessage" class="toast success">
         ✓ {{ successMessage }}
       </div>
 
-      <div 
-        v-if="showErrorMessage" 
-        class="toast error"
-      >
+      <div v-if="showErrorMessage" class="toast error">
         <svg fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
         </svg>
@@ -61,15 +49,12 @@
       </div>
     </div>
 
-    <!-- 編輯外出原因對話框 -->
     <div v-if="showEditDialog" class="dialog-overlay" @click.self="cancelEdit">
       <div class="dialog-content">
         <h3 class="dialog-title">編輯外出原因</h3>
-        
+
         <div class="dialog-body">
-          <label class="dialog-label">
-            原因說明
-          </label>
+          <label class="dialog-label">原因說明</label>
           <input
             v-model="editingNote"
             type="text"
@@ -78,24 +63,12 @@
             @keyup.enter="saveEditedNote"
             @keyup.esc="cancelEdit"
           />
-          <p class="dialog-hint">
-            提示：可以在原因後面加上詳細說明
-          </p>
+          <p class="dialog-hint">提示：可以在原因後面加上詳細說明</p>
         </div>
-        
+
         <div class="dialog-actions">
-          <button
-            @click="cancelEdit"
-            class="dialog-btn cancel"
-          >
-            取消
-          </button>
-          <button
-            @click="saveEditedNote"
-            class="dialog-btn confirm"
-          >
-            保存
-          </button>
+          <button @click="cancelEdit" class="dialog-btn cancel">取消</button>
+          <button @click="saveEditedNote" class="dialog-btn confirm">保存</button>
         </div>
       </div>
     </div>
@@ -107,20 +80,17 @@ import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAttendanceStore } from '@/stores/attendance'
 import { attendanceApi } from '@/api/attendance'
-import dayjs from 'dayjs'
 import { detectDeviceType } from '@/utils/locationAdapter'
 import Navbar from '@/components/Navbar.vue'
 import { useLocation } from '@/composables/useLocation'
-import Card from '@/components/Card.vue'
 import AttendanceOverviewCard from '@/components/attendance/AttendanceOverviewCard.vue'
 import OutingOverviewCard from '@/components/attendance/OutingOverviewCard.vue'
 import PersonalServiceCard from '@/components/attendance/PersonalServiceCard.vue'
-import StatusCard from '@/components/StatusCard.vue'
 
 const attendanceStore = useAttendanceStore()
-const { 
-  todayStatus, 
-  recentLogs, 
+const {
+  todayStatus,
+  recentLogs,
   isLoading,
   breakPunches,
   reasonPresets,
@@ -131,7 +101,6 @@ const canPunchIn = computed(() => attendanceStore.canPunchIn)
 const canPunchOut = computed(() => attendanceStore.canPunchOut)
 const canBreakOut = computed(() => attendanceStore.canBreakOut)
 const canBreakIn = computed(() => attendanceStore.canBreakIn)
-const formattedTodayStatus = computed(() => attendanceStore.formattedTodayStatus)
 
 const showSuccessMessage = ref(false)
 const showErrorMessage = ref(false)
@@ -150,63 +119,13 @@ const isBreakLogsExpanded = ref(false)
 
 const deviceType = ref('pc')
 
-const {
-  location: currentLocation,
-  error: locationError,
-  isLoading: locationLoading,
-  deviceType: detectedDeviceType,
-  isGPSRequired,
-  getLocationIfRequired
-} = useLocation()
-
-const toggleRecentLogs = () => {
-  isRecentLogsExpanded.value = !isRecentLogsExpanded.value
-}
-
-const toggleBreakLogs = () => {
-  isBreakLogsExpanded.value = !isBreakLogsExpanded.value
-}
-
-const formatDateTime = (timestamp) => {
-  return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
-}
-
-const formatTime = (timestamp) => {
-  return dayjs(timestamp).format('HH:mm')
-}
-
-const getTypeLabel = (type) => {
-  const labels = {
-    'IN': '上班',
-    'OUT': '下班',
-    'BREAK_OUT': '外出',
-    'BREAK_IN': '返回'
-  }
-  return labels[type] || type
-}
-
-const getStatusLabel = (log) => {
-  if (log.is_late) {
-    return `⚠ 遲到 ${log.late_minutes} 分鐘`
-  }
-  return '✓ 正常'
-}
-
-const getStatusClass = (log) => {
-  if (log.is_late) {
-    return 'late'
-  }
-  return 'normal'
-}
+const { getLocationIfRequired } = useLocation()
 
 const handlePunch = async (type) => {
   attendanceStore.clearError()
-  
+
   try {
-    // 呼叫 store 的 punch 方法，它會自動刷新狀態
-    // store 會保留 punch_in 和 punch_out 時間
     await attendanceStore.punch(type, '')
-    
     successMessage.value = '打卡成功'
     showSuccessMessage.value = true
     setTimeout(() => {
@@ -214,10 +133,8 @@ const handlePunch = async (type) => {
     }, 3000)
   } catch (error) {
     console.error('打卡失敗:', error)
-    
     errorMessage.value = error.message || '打卡失敗，請稍後再試'
     showErrorMessage.value = true
-    
     setTimeout(() => {
       showErrorMessage.value = false
     }, 5000)
@@ -235,43 +152,39 @@ const handleBreakOutPunch = async () => {
   }
 
   attendanceStore.clearError()
-  
+
   try {
     const gpsData = await getLocationIfRequired()
-    
-    const payload = {
-      notes: breakOutReason.value.trim()
-    }
-    
+    const payload = { notes: breakOutReason.value.trim() }
+
     if (gpsData) {
       payload.location = {
         latitude: gpsData.latitude,
-        longitude: gpsData.longitude
+        longitude: gpsData.longitude,
       }
     }
-    
+
     await attendanceStore.punchWithLocation('BREAK_OUT', payload)
-    
-    breakOutReason.value = ""
-    
+    breakOutReason.value = ''
     successMessage.value = '打卡成功'
     showSuccessMessage.value = true
     setTimeout(() => {
       showSuccessMessage.value = false
     }, 3000)
-    
   } catch (error) {
     console.error('外出打卡失敗:', error)
-    
-    if (error.response?.status === 403 && 
-        error.response?.data?.detail?.error_code === 'LOCATION_POLICY_VIOLATION') {
+
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.detail?.error_code === 'LOCATION_POLICY_VIOLATION'
+    ) {
       let message = error.response.data.detail.error || '不在允許的打卡範圍內'
-      
+
       if (error.response.data.detail.nearest_location) {
         const nearest = error.response.data.detail.nearest_location
         message += `\n\n最近的允許地點：${nearest.name}\n距離：${nearest.distance_meters} 公尺`
       }
-      
+
       errorMessage.value = message
     } else if (error.code === 'PERMISSION_DENIED') {
       errorMessage.value = '需要定位權限才能外出打卡\n請在瀏覽器設定中允許定位後重試'
@@ -282,9 +195,8 @@ const handleBreakOutPunch = async () => {
     } else {
       errorMessage.value = error.message || '打卡失敗，請稍後再試'
     }
-    
+
     showErrorMessage.value = true
-    
     setTimeout(() => {
       showErrorMessage.value = false
     }, 5000)
@@ -293,12 +205,10 @@ const handleBreakOutPunch = async () => {
 
 const handleBreakInPunch = async () => {
   attendanceStore.clearError()
-  
+
   try {
     await attendanceStore.punch('BREAK_IN', '')
-    
     breakOutReason.value = ''
-    
     successMessage.value = '打卡成功'
     showSuccessMessage.value = true
     setTimeout(() => {
@@ -320,7 +230,6 @@ const selectReason = (reason) => {
 
 const addCustomReason = () => {
   if (!newCustomReason.value.trim()) return
-  
   attendanceStore.addCustomReason(newCustomReason.value.trim())
   breakOutReason.value = newCustomReason.value.trim()
   newCustomReason.value = ''
@@ -334,10 +243,7 @@ const removeCustomReason = (reason) => {
 }
 
 const editPunchNote = (punch) => {
-  if (punch.punch_type !== 'break_start') {
-    return
-  }
-  
+  if (punch.punch_type !== 'break_start') return
   editingPunch.value = punch
   editingNote.value = punch.notes || ''
   showEditDialog.value = true
@@ -345,21 +251,21 @@ const editPunchNote = (punch) => {
 
 const saveEditedNote = async () => {
   if (!editingPunch.value) return
-  
+
   try {
     await attendanceApi.updatePunchNote(editingPunch.value.punch_id, {
-      notes: editingNote.value
+      notes: editingNote.value,
     })
-    
-    const index = breakPunches.value.findIndex(p => p.punch_id === editingPunch.value.punch_id)
+
+    const index = breakPunches.value.findIndex((p) => p.punch_id === editingPunch.value.punch_id)
     if (index !== -1) {
       breakPunches.value[index].notes = editingNote.value
     }
-    
+
     showEditDialog.value = false
     editingPunch.value = null
     editingNote.value = ''
-    
+
     successMessage.value = '備註已更新'
     showSuccessMessage.value = true
     setTimeout(() => {
@@ -386,849 +292,151 @@ onMounted(() => {
   attendanceStore.fetchRecentLogs()
   attendanceStore.loadBreakPunches()
   attendanceStore.hydrateReasonsFromLocalStorage()
-  
   deviceType.value = detectDeviceType()
 })
 </script>
 
 <style scoped>
-/* 移動優先設計 - 色彩系統 */
-:root {
-  --primary: #4A6FA5;
-  --primary-hover: #3D5A8A;
-  --primary-light: #7BA3D1;
-  --secondary: #F2E8DF;
-  --heading: #1C3B6B;
-  --text-primary: #2D3A52;
-  --text-secondary: #5A6C7D;
-  --text-hint: #9CA3AF;
-  --bg-main: #F4F7F9;
-  --bg-card: #FFFFFF;
-  --bg-hover: #F0F4F8;
-  --success: #2E7D32;
-  --success-bg: #E8F5E9;
-  --error: #C62828;
-  --error-bg: #FFEBEE;
-  --warning: #F57C00;
-  --warning-bg: #FFF3E0;
-  --border: #E5E7EB;
-}
-
 .home-page {
   min-height: 100vh;
-  background-color: var(--bg-main);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   padding-bottom: 24px;
 }
 
-/* 容器 - 移動優先 */
 .container {
-  padding: 16px;
-  max-width: 480px;
+  max-width: 980px;
   margin: 0 auto;
-}
-
-/* 區塊標題 */
-.section-title {
-  margin-bottom: 12px;
-  margin-top: 16px;
-}
-
-.section-title h2 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--heading);
-}
-
-/* 狀態區塊 - 簡化為 2 欄 */
-.status-section {
-  margin-bottom: 16px;
-}
-
-.status-grid-simple {
+  padding: 24px 16px 48px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 18px;
 }
 
-/* 打卡卡片 - 主要打卡（上班/下班）*/
-.punch-grid-main {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-/* 打卡卡片 - 外出/返回 */
-.punch-grid-break {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.punch-card {
-  background: var(--bg-card);
-  border-radius: 18px;
-  padding: 16px;
-  height: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  border: 2px solid transparent;
-}
-
-.punch-card:active {
-  transform: scale(0.98);
-}
-
-.punch-card:hover:not(.disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-
-.punch-card.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: var(--bg-main);
-}
-
-.punch-card.disabled:hover {
-  transform: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.punch-card.completed {
-  background: var(--success-bg);
-  border-color: var(--success);
-}
-
-/* 卡片 Icon - 清晰的線條風格 */
-.punch-card .card-icon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-}
-
-.punch-card.disabled .card-icon {
-  color: #9CA3AF;
-}
-
-.punch-card.completed .card-icon {
-  color: var(--success);
-}
-
-.punch-card .card-icon svg {
-  width: 32px;
-  height: 32px;
-}
-
-/* 卡片標籤 */
-.punch-card .card-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  text-align: center;
-}
-
-.punch-card.disabled .card-label {
-  color: #9CA3AF;
-}
-
-/* 狀態徽章 */
-.status-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 10px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.status-badge.completed {
-  background: var(--success);
-  color: white;
-}
-
-.status-badge.active {
-  background: var(--warning);
-  color: white;
-}
-
-/* 可收合區塊 */
-.records-collapsible {
-  background: var(--bg-card);
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-  margin-bottom: 16px;
-}
-
-.records-header {
-  min-height: 50px;
-  padding: 14px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  user-select: none;
-}
-
-.records-header:active {
-  background-color: var(--bg-hover);
-}
-
-.records-header h2 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--heading);
-  margin: 0;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.count-badge {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.expand-icon {
-  width: 18px;
-  height: 18px;
-  color: var(--text-secondary);
-  transition: transform 0.3s ease;
-  flex-shrink: 0;
-}
-
-.expand-icon.expanded {
-  transform: rotate(180deg);
-}
-
-.records-content {
-  padding: 0 16px 16px 16px;
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* 記錄列表 */
-.log-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.log-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px;
-  background: var(--bg-main);
-  border-radius: 12px;
-  transition: background-color 0.2s;
-}
-
-.log-item:active {
-  background: var(--bg-hover);
-}
-
-.log-time {
-  font-size: 12px;
-  color: var(--text-secondary);
-  flex: 1;
-}
-
-.log-type {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  flex: 0 0 auto;
-  margin: 0 12px;
-}
-
-.log-status {
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 10px;
-  flex: 0 0 auto;
-}
-
-.log-status.normal {
-  background: var(--success-bg);
-  color: var(--success);
-}
-
-.log-status.late {
-  background: var(--error-bg);
-  color: var(--error);
-}
-
-.empty-state {
-  text-align: center;
-  padding: 32px 16px;
-  color: var(--text-hint);
-  font-size: 13px;
-}
-
-/* 外出記錄列表 */
-.break-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.break-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--bg-main);
-  border-radius: 12px;
-  transition: background-color 0.2s;
-}
-
-.break-item:active {
-  background: var(--bg-hover);
-}
-
-.break-icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-}
-
-.break-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-.break-icon svg:first-child {
-  color: var(--warning);
-}
-
-.break-icon svg:last-child {
-  color: var(--success);
-}
-
-.break-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.break-type-time {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-
-.break-type {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.break-time {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.break-notes {
-  font-size: 12px;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.break-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.map-link,
-.edit-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  font-size: 11px;
-  transition: all 0.2s;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-.map-link {
-  color: var(--primary);
-  text-decoration: none;
-}
-
-.map-link:active {
-  background: var(--primary-light);
-  color: white;
-}
-
-.edit-btn {
-  color: var(--text-secondary);
-}
-
-.edit-btn:active {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.map-link svg,
-.edit-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-/* 原因輸入區 */
-.reason-section {
-  margin-bottom: 16px;
-}
-
-.reason-input-area {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.input-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.reason-chips,
-.custom-reasons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.reason-chip {
-  padding: 8px 14px;
-  border-radius: 20px;
-  font-size: 13px;
-  border: none;
-  background: var(--bg-main);
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.reason-chip:active {
-  transform: scale(0.95);
-}
-
-.reason-chip.selected {
-  background: var(--primary);
-  color: white;
-  box-shadow: 0 2px 6px rgba(74, 111, 165, 0.3);
-}
-
-.reason-chip.custom {
-  background: #EFF6FF;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.reason-chip.custom.selected {
-  background: var(--secondary);
-}
-
-.remove-btn {
-  font-size: 14px;
-  opacity: 0.7;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.remove-btn:hover {
-  opacity: 1;
-}
-
-.reason-input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.reason-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.1);
-}
-
-.add-custom-reason {
-  display: flex;
-  gap: 8px;
-}
-
-.custom-input {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 13px;
-  transition: all 0.2s;
-}
-
-.custom-input:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-
-.add-btn {
-  padding: 10px 16px;
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.add-btn:active {
-  background: var(--primary-hover);
-  transform: scale(0.98);
-}
-
-.add-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 快捷功能卡片 */
-.shortcut-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.shortcut-card {
-  background: var(--bg-card);
-  border-radius: 16px;
-  padding: 14px;
-  height: 96px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.shortcut-card:active {
-  transform: scale(0.98);
-}
-
-.shortcut-card:hover:not(.disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-
-.shortcut-card.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: var(--bg-main);
-}
-
-.shortcut-card.disabled:hover {
-  transform: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.shortcut-card .card-icon {
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-}
-
-.shortcut-card.disabled .card-icon {
-  color: #9CA3AF;
-}
-
-.shortcut-card .card-icon svg {
-  width: 30px;
-  height: 30px;
-}
-
-.shortcut-card .card-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  text-align: center;
-}
-
-.shortcut-card.disabled .card-label {
-  color: #9CA3AF;
-}
-
-/* Toast 提示 */
 .toast {
   position: fixed;
+  right: 24px;
   bottom: 24px;
-  right: 16px;
-  left: 16px;
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 14px 16px;
-  border-radius: 12px;
-  font-size: 14px;
+  z-index: 50;
   display: flex;
   align-items: center;
-  gap: 10px;
-  z-index: 1000;
-  animation: slideUp 0.3s ease-out;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  color: white;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
 }
 
 .toast.success {
-  background: var(--success);
-  color: white;
+  background: #16a34a;
 }
 
 .toast.error {
-  background: var(--error);
-  color: white;
+  background: #dc2626;
+  max-width: min(420px, calc(100vw - 32px));
+  white-space: pre-line;
 }
 
-.toast svg {
-  width: 20px;
-  height: 20px;
+.toast.error svg {
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
 }
 
-/* 對話框 */
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.32);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
   padding: 16px;
+  z-index: 60;
 }
 
 .dialog-content {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  width: 100%;
-  max-width: 400px;
-  padding: 20px;
+  width: min(520px, 100%);
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 24px;
+  padding: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
 }
 
 .dialog-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 16px;
+  margin: 0 0 16px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #0f172a;
 }
 
 .dialog-body {
-  margin-bottom: 20px;
+  display: grid;
+  gap: 10px;
 }
 
 .dialog-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #334155;
 }
 
 .dialog-input {
   width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 14px;
-  transition: all 0.2s;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  color: #0f172a;
+  outline: none;
+  box-sizing: border-box;
 }
 
 .dialog-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.1);
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25);
 }
 
 .dialog-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--text-secondary);
+  margin: 0;
+  color: #64748b;
+  font-size: 0.85rem;
 }
 
 .dialog-actions {
+  margin-top: 18px;
   display: flex;
-  gap: 12px;
   justify-content: flex-end;
+  gap: 12px;
 }
 
 .dialog-btn {
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 500;
   border: none;
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-size: 0.92rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.dialog-btn:active {
-  transform: scale(0.98);
 }
 
 .dialog-btn.cancel {
-  background: var(--bg-main);
-  color: var(--text-secondary);
-}
-
-.dialog-btn.cancel:active {
-  background: var(--bg-hover);
+  background: #e2e8f0;
+  color: #334155;
 }
 
 .dialog-btn.confirm {
-  background: var(--primary);
+  background: #0ea5e9;
   color: white;
 }
 
-.dialog-btn.confirm:active {
-  background: var(--primary-hover);
-}
-
-/* 桌面版調整 */
-@media (min-width: 768px) {
+@media (max-width: 720px) {
   .container {
-    max-width: 1200px;
-    padding: 24px 32px;
+    padding: 20px 14px 40px;
+    gap: 16px;
   }
-  
-  .status-grid-simple {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 600px;
-  }
-  
-  .punch-grid-main,
-  .punch-grid-break {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 600px;
-  }
-  
-  .shortcut-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
-  
+
   .toast {
-    right: 24px;
-    left: auto;
-    max-width: 400px;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
   }
 }
-
-/* 外出管理統一卡片 */
-.break-management-card {
-  margin-bottom: 16px;
-}
-
-.break-reason-section,
-.break-actions-section,
-.break-records-section {
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.break-records-section {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.subsection-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--heading);
-  margin-bottom: 12px;
-}
-
-.break-actions-section .punch-grid-break {
-  margin-bottom: 0;
-}
-
-.records-header-inline {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
-  padding: 8px 0;
-  transition: background-color 0.2s;
-  border-radius: 8px;
-  margin: 0 -8px;
-  padding: 8px;
-}
-
-.records-header-inline:active {
-  background-color: var(--bg-hover);
-}
-
-.records-header-inline .subsection-title {
-  margin-bottom: 0;
-}
-
 </style>

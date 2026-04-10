@@ -1,21 +1,25 @@
 <template>
-  <header class="navbar-shell">
-    <div class="navbar container">
-      <router-link to="/" class="brand">
-        <div class="brand-mark">A</div>
-        <div class="brand-copy">
-          <strong>Attendance</strong>
-          <span>Workstream</span>
+  <header>
+    <div class="navbar surface-card">
+      <router-link to="/" class="brand-block">
+        <div v-if="companyLogo" class="brand-logo-wrap">
+          <img :src="companyLogo" :alt="`${companyDisplayName} logo`" class="brand-logo">
         </div>
+        <div v-else class="brand-text">{{ companyDisplayName }}</div>
       </router-link>
 
-      <div class="account-actions">
-        <div class="account-box">
-          <div class="account-name">{{ displayName }}</div>
-          <div class="account-meta">{{ roleLabel }}</div>
+      <div class="actions-block">
+        <div class="user-block">
+          <p class="user-name">{{ userDisplayName }}</p>
         </div>
 
-        <button class="logout-btn" @click="handleLogout">登出</button>
+        <router-link v-if="showAdminEntry" to="/admin" class="action-btn admin-btn">
+          後台管理
+        </router-link>
+
+        <button class="action-btn logout-btn" type="button" @click="handleLogout">
+          登出
+        </button>
       </div>
     </div>
   </header>
@@ -25,129 +29,139 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useStreamingStore } from '@/stores/streaming'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const streamingStore = useStreamingStore()
 
-const displayName = computed(() => authStore.currentUser?.name || authStore.currentUser?.email || '使用者')
-const roleLabel = computed(() => authStore.role?.name || authStore.role?.id || 'authenticated')
+const companyDisplayName = computed(
+  () => authStore.company?.display_name || authStore.company?.name || '未指定公司'
+)
+const companyLogo = computed(() => authStore.company?.logo_url || '')
+const userDisplayName = computed(
+  () => authStore.currentUser?.display_name || authStore.currentUser?.name || authStore.currentUser?.email || '未登入使用者'
+)
+const showAdminEntry = computed(() => authStore.isSuperAdmin || authStore.isAdminAccess)
 
 async function handleLogout() {
   await authStore.logout()
-  streamingStore.disconnect()
   router.push('/login')
 }
 </script>
 
 <style scoped>
-.navbar-shell {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  backdrop-filter: blur(18px);
-  background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.88));
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
-}
-
-.container {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-
 .navbar {
-  min-height: 72px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  flex-wrap: wrap;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  box-sizing: border-box;
 }
 
-.brand {
-  display: inline-flex;
+.brand-block {
+  min-width: 0;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  color: inherit;
   text-decoration: none;
 }
 
-.brand-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #f59e0b, #ef4444);
-  color: white;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  box-shadow: 0 10px 22px rgba(239, 68, 68, 0.28);
-}
-
-.brand-copy {
-  display: flex;
-  flex-direction: column;
-  color: #e2e8f0;
-  line-height: 1.05;
-}
-
-.brand-copy strong {
-  font-size: 0.98rem;
-}
-
-.brand-copy span {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.account-actions {
+.brand-logo-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #ffffff;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.brand-text {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.actions-block {
+  display: flex;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.account-box {
+.user-block {
   text-align: right;
-  color: #e2e8f0;
 }
 
-.account-name {
-  font-size: 0.88rem;
+.user-name {
+  margin: 0;
+  font-size: 0.95rem;
   font-weight: 700;
+  color: #334155;
 }
 
-.account-meta {
-  font-size: 0.72rem;
-  color: #94a3b8;
+.action-btn {
+  border: none;
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.admin-btn {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.admin-btn:hover {
+  background: #bae6fd;
 }
 
 .logout-btn {
-  border: none;
-  border-radius: 999px;
-  padding: 9px 14px;
-  background: linear-gradient(135deg, #ef4444, #f97316);
-  color: white;
-  font-weight: 700;
-  cursor: pointer;
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+  border: 1px solid rgba(203, 213, 225, 0.9);
 }
 
-@media (max-width: 900px) {
+.logout-btn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+@media (max-width: 720px) {
   .navbar {
+    padding: 16px;
     align-items: flex-start;
+    flex-direction: column;
   }
 
-  .account-actions {
-    justify-content: flex-start;
+  .actions-block {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .user-block {
+    text-align: left;
   }
 }
 </style>
