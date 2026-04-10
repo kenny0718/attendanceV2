@@ -27,6 +27,13 @@
           <input v-model="localLoginUsername" class="form-input" type="text" maxlength="100" placeholder="不修改請留原帳號" />
           <p class="form-hint">修改後，該成員下次登入需使用新的登入帳號</p>
         </div>
+        <div class="form-group">
+          <label class="form-label">我的班表顯示</label>
+          <label class="form-hint checkbox-row">
+            <input v-model="localUsesSchedule" type="checkbox" />
+            <span>此成員顯示「我的班表」</span>
+          </label>
+        </div>
         <div v-if="error" class="modal-error">{{ error }}</div>
         <div v-if="success" class="modal-success">已儲存</div>
       </div>
@@ -69,6 +76,7 @@ const localDisplayName = ref('')
 const localEmail = ref('')
 const localRoleId = ref('employee')
 const localLoginUsername = ref('')
+const localUsesSchedule = ref(false)
 const loading = ref(false)
 const error = ref(null)
 const success = ref(false)
@@ -80,6 +88,7 @@ watch(() => props.open, (val) => {
     localEmail.value = props.member.email || ''
     localRoleId.value = props.member.role_id || 'employee'
     localLoginUsername.value = props.member.login_username || ''
+    localUsesSchedule.value = props.member.uses_schedule === true
     loading.value = false
     error.value = null
     success.value = false
@@ -96,6 +105,7 @@ async function saveEdit() {
       display_name: localDisplayName.value.trim(),
       role_id: localRoleId.value,
       email: localEmail.value.trim() || null,
+      uses_schedule: localUsesSchedule.value,
     }
     // S1-13A2: only include login_username if provided
     const newUsername = localLoginUsername.value.trim()
@@ -114,6 +124,7 @@ async function saveEdit() {
       email: result.email,
       role_id: result.role_id,
       login_username: result.login_username,
+      uses_schedule: result.uses_schedule,
     })
     setTimeout(() => { emit('close') }, 800)
   } catch (err) {
@@ -185,4 +196,5 @@ async function saveEdit() {
 @keyframes spin { to { transform: rotate(360deg); } }
 /* Edit modal specific */
 .form-hint { font-size: 11px; color: #5A6C7D; margin: 3px 0 0; opacity: 0.85; }
+.checkbox-row { display: inline-flex; align-items: center; gap: 8px; }
 </style>

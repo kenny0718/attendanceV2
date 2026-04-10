@@ -6,6 +6,7 @@ export const useAuthStore = defineStore('auth', {
     user: null,
     company: null,
     role: null,
+    membership: null,
     token: localStorage.getItem('token'),
     isLoading: false,
     error: null
@@ -17,37 +18,31 @@ export const useAuthStore = defineStore('auth', {
     companyId: (state) => state.company?.id,
     userId: (state) => state.user?.id,
     userRole: (state) => state.role?.id,
-
-    // WP-S1-08B: exact role checks for route guards
-    // company_admin and super_admin are treated as distinct, non-equivalent roles
+    usesSchedule: (state) => state.membership?.uses_schedule === true,
     isCompanyAdmin: (state) => state.role?.id === 'company_admin',
     isSuperAdmin: (state) => state.role?.id === 'super_admin',
-
-    // S1-11C: admin access = company_admin or hr_manager
     isAdminAccess: (state) => ['company_admin', 'hr_manager'].includes(state.role?.id)
   },
 
   actions: {
-    // 登入
     async login(credentials) {
       this.isLoading = true
       this.error = null
 
       try {
         const response = await authApi.login(credentials)
-
-        // 保存 token
         this.token = response.access_token
         localStorage.setItem('token', response.access_token)
 
-        // 保存用戶資訊
         this.user = response.user
         this.company = response.company
         this.role = response.role
+        this.membership = response.membership || null
 
         localStorage.setItem('user', JSON.stringify(response.user))
         localStorage.setItem('company', JSON.stringify(response.company))
         localStorage.setItem('role', JSON.stringify(response.role))
+        localStorage.setItem('membership', JSON.stringify(response.membership || null))
 
         return { success: true }
       } catch (error) {
@@ -59,33 +54,32 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // 登出
     async logout() {
       await authApi.logout()
-
       this.user = null
       this.company = null
       this.role = null
+      this.membership = null
       this.token = null
       this.error = null
     },
 
-    // 從 localStorage 恢復登入狀態
     restoreSession() {
       const token = localStorage.getItem('token')
       const user = localStorage.getItem('user')
       const company = localStorage.getItem('company')
       const role = localStorage.getItem('role')
+      const membership = localStorage.getItem('membership')
 
       if (token && user && company) {
         this.token = token
         this.user = JSON.parse(user)
         this.company = JSON.parse(company)
         this.role = role ? JSON.parse(role) : null
+        this.membership = membership ? JSON.parse(membership) : null
       }
     },
 
-    // 清除錯誤
     clearError() {
       this.error = null
     }

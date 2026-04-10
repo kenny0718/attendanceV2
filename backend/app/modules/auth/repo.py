@@ -165,7 +165,8 @@ class AuthRepository:
         role_id: str,
         login_username: str,
         login_email: Optional[str] = None,
-        is_active: bool = True
+        is_active: bool = True,
+        uses_schedule: bool = False,
     ) -> Membership:
         """Create membership (link user to company with role and login credentials)
         
@@ -191,7 +192,8 @@ class AuthRepository:
             role_id=role_id,
             login_username=login_username,
             login_email=login_email,
-            is_active=is_active
+            is_active=is_active,
+            uses_schedule=uses_schedule,
         )
         
         self.db.add(membership)
@@ -243,7 +245,8 @@ class AuthRepository:
         role_id: str,
         login_username: str,
         login_email: Optional[str] = None,
-        is_active: bool = True
+        is_active: bool = True,
+        uses_schedule: bool = False,
     ) -> Membership:
         """Create a Membership WITHOUT committing.
 
@@ -262,6 +265,7 @@ class AuthRepository:
             login_username=login_username,
             login_email=login_email,
             is_active=is_active,
+            uses_schedule=uses_schedule,
         )
         self.db.add(membership)
         self.db.flush()  # write to DB but DO NOT commit

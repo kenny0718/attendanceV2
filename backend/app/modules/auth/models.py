@@ -28,41 +28,17 @@ class User(Base):
     
     __tablename__ = "users"
     
-    # Primary key
     id = Column(UUID(as_uuid=True), primary_key=True, comment="User ID (PK)")
-    
-    # Global identity
     display_name = Column(String(100), nullable=False, comment="Global display name")
     email = Column(String(255), nullable=True, comment="Email for notifications (not unique)")
     password_hash = Column(String(255), nullable=False, comment="Bcrypt/Argon2 hash")
-    
-    # Status flags
     is_active = Column(Boolean, nullable=False, default=True, comment="Active status")
     is_otp = Column(Boolean, nullable=False, default=False, comment="Is OTP account")
-    must_change_password = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-        comment="Force password change"
-    )
-    
-    # Timestamps
+    must_change_password = Column(Boolean, nullable=False, default=False, comment="Force password change")
     last_login_at = Column(DateTime, nullable=True, comment="Last login (UTC)")
-    created_at = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        comment="Created timestamp (UTC)"
-    )
-    updated_at = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        comment="Updated timestamp (UTC)"
-    )
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="Created timestamp (UTC)")
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="Updated timestamp (UTC)")
     
-    # Indexes
     __table_args__ = (
         Index('idx_users_email', 'email'),
         Index('idx_users_is_active', 'is_active'),
@@ -73,63 +49,21 @@ class User(Base):
 
 
 class Membership(Base):
-    """User-Company Membership model (replaces UserRole)
-    
-    Design principles (v2 platform-first):
-    - Links user to company with role
-    - Per-company login credentials (login_username, login_email)
-    - UNIQUE(company_id, login_username) - login username unique per company
-    - UNIQUE(user_id, company_id) - one membership per user per company
-    """
+    """User-Company Membership model (replaces UserRole)"""
     
     __tablename__ = "user_company_memberships"
     
-    # Primary key
     id = Column(UUID(as_uuid=True), primary_key=True, comment="Membership ID (PK)")
-    
-    # Relationships
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
-        comment="User ID (FK)"
-    )
-    company_id = Column(
-        String(255),
-        ForeignKey('tenants.id', ondelete='CASCADE'),
-        nullable=False,
-        comment="Company ID (FK)"
-    )
-    role_id = Column(
-        String(50),
-        ForeignKey('roles.id', ondelete='CASCADE'),
-        nullable=False,
-        comment="Role ID (FK)"
-    )
-    
-    # Per-company login credentials
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, comment="User ID (FK)")
+    company_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, comment="Company ID (FK)")
+    role_id = Column(String(50), ForeignKey('roles.id', ondelete='CASCADE'), nullable=False, comment="Role ID (FK)")
     login_username = Column(String(100), nullable=False, comment="Per-company login username")
     login_email = Column(String(255), nullable=True, comment="Per-company login email (optional)")
-    
-    # Status
     is_active = Column(Boolean, nullable=False, default=True, comment="Membership active status")
+    uses_schedule = Column(Boolean, nullable=False, default=False, comment="Whether this member should see schedule features")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="Created timestamp (UTC)")
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="Updated timestamp (UTC)")
     
-    # Timestamps
-    created_at = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        comment="Created timestamp (UTC)"
-    )
-    updated_at = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        comment="Updated timestamp (UTC)"
-    )
-    
-    # Indexes and constraints
     __table_args__ = (
         UniqueConstraint('company_id', 'login_username', name='uq_memberships_company_login'),
         UniqueConstraint('user_id', 'company_id', name='uq_memberships_user_company'),
@@ -144,49 +78,25 @@ class Membership(Base):
 
 
 class Role(Base):
-    """Role model (System Data)
-    
-    Design principles:
-    - Global roles (no company_id)
-    - Predefined roles seeded in migration
-    """
-    
     __tablename__ = "roles"
     
     id = Column(String(50), primary_key=True, comment="Role ID (PK)")
     name = Column(String(100), nullable=False, comment="Display name")
     description = Column(String, nullable=True, comment="Role description")
-    created_at = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        comment="Created timestamp (UTC)"
-    )
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="Created timestamp (UTC)")
     
     def __repr__(self):
         return f"<Role(id={self.id}, name={self.name})>"
 
 
 class Permission(Base):
-    """Permission model (System Data)
-    
-    Design principles:
-    - Global permissions (no company_id)
-    - Predefined permissions seeded in migration
-    """
-    
     __tablename__ = "permissions"
     
     id = Column(String(100), primary_key=True, comment="Permission ID (PK)")
     resource = Column(String(50), nullable=False, comment="Resource name")
     action = Column(String(50), nullable=False, comment="Action name")
     description = Column(String, nullable=True, comment="Permission description")
-    created_at = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        comment="Created timestamp (UTC)"
-    )
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="Created timestamp (UTC)")
     
     __table_args__ = (
         UniqueConstraint('resource', 'action', name='uq_permissions_resource_action'),
@@ -198,34 +108,12 @@ class Permission(Base):
 
 
 class RolePermission(Base):
-    """Role-Permission mapping (System Data)
-    
-    Design principles:
-    - Global mappings (no company_id)
-    - Defines which permissions each role has
-    """
-    
     __tablename__ = "role_permissions"
     
     id = Column(UUID(as_uuid=True), primary_key=True, comment="Assignment ID (PK)")
-    role_id = Column(
-        String(50),
-        ForeignKey('roles.id', ondelete='CASCADE'),
-        nullable=False,
-        comment="Role ID (FK)"
-    )
-    permission_id = Column(
-        String(100),
-        ForeignKey('permissions.id', ondelete='CASCADE'),
-        nullable=False,
-        comment="Permission ID (FK)"
-    )
-    created_at = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        comment="Created timestamp (UTC)"
-    )
+    role_id = Column(String(50), ForeignKey('roles.id', ondelete='CASCADE'), nullable=False, comment="Role ID (FK)")
+    permission_id = Column(String(100), ForeignKey('permissions.id', ondelete='CASCADE'), nullable=False, comment="Permission ID (FK)")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="Created timestamp (UTC)")
     
     __table_args__ = (
         UniqueConstraint('role_id', 'permission_id', name='uq_role_permissions_role_permission'),

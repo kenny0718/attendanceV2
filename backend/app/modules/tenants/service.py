@@ -191,15 +191,17 @@ class TenantService:
         # S1-13A2: login_username update with pre-check + IntegrityError fallback
         if "login_username" in fields and fields["login_username"] is not None:
             new_username = fields["login_username"]
-            # Pre-check: query for duplicates BEFORE writing (avoids relying solely on DB exception)
             conflict = db.query(MembershipModel).filter(
                 MembershipModel.company_id == company_id,
                 MembershipModel.login_username == new_username,
-                MembershipModel.id != mem_uuid,  # exclude self
+                MembershipModel.id != mem_uuid,
             ).first()
             if conflict is not None:
                 raise ValueError("DUPLICATE_LOGIN_USERNAME")
             membership.login_username = new_username
+
+        if "uses_schedule" in fields and fields["uses_schedule"] is not None:
+            membership.uses_schedule = fields["uses_schedule"]
 
         from sqlalchemy.exc import IntegrityError as _IntegrityError
         try:

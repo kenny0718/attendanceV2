@@ -48,6 +48,13 @@
               <option value="company_admin">company_admin</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="form-label">我的班表顯示</label>
+            <label class="checkbox-row">
+              <input v-model="newMember.uses_schedule" type="checkbox" />
+              <span>此成員顯示「我的班表」</span>
+            </label>
+          </div>
           <div class="form-group form-group-action">
             <button type="submit" class="btn-add-member" :disabled="addMemberLoading">
               <span v-if="addMemberLoading" class="btn-spinner-sm"></span>
@@ -79,7 +86,7 @@ const props = defineProps({
 
 const emit = defineEmits(['created'])
 
-const newMember = ref({ display_name: '', email: '', login_username: '', password: '', role_id: 'employee' })
+const newMember = ref({ display_name: '', email: '', login_username: '', password: '', role_id: 'employee', uses_schedule: false })
 const addMemberLoading = ref(false)
 const addMemberError = ref(null)
 const addMemberSuccess = ref(false)
@@ -96,10 +103,11 @@ async function handleAddMember() {
       login_username: newMember.value.login_username,
       password: newMember.value.password,
       role_id: newMember.value.role_id,
+      uses_schedule: newMember.value.uses_schedule,
     })
     addMemberSuccessName.value = newMember.value.display_name
     addMemberSuccess.value = true
-    newMember.value = { display_name: '', email: '', login_username: '', password: '', role_id: 'employee' }
+    newMember.value = { display_name: '', email: '', login_username: '', password: '', role_id: 'employee', uses_schedule: false }
     // Notify parent to reset filters and reload members list
     emit('created', addMemberSuccessName.value)
   } catch (err) {
