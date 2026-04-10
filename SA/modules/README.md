@@ -22,14 +22,18 @@
 
 ### 想先理解整個系統
 1. `SA/README.md`
-2. `SA/architecture/SYSTEM_SDD.md`
-3. `SA/architecture/MODULE_BOUNDARY_MATRIX.md`
-4. `SA/governance/DOCUMENTATION_GOVERNANCE.md`
-5. `SA/governance/MODULE_SPEC_TEMPLATE.md`
+2. `SA/SDD學習文件.md`
+3. `SA/architecture/SYSTEM_SDD.md`
+4. `SA/architecture/MODULE_BOUNDARY_MATRIX.md`
+5. `SA/governance/DOCUMENTATION_GOVERNANCE.md`
+6. `SA/governance/MODULE_SPEC_TEMPLATE.md`
+7. `SA/governance/MODULE_INTAKE_TEMPLATE.md`
+8. `SA/SDD_PROGRESS_TRACKER.md`
 
 ### 想改某個模組
 先讀對應模組文件：
 
+- `upstream-streaming.md`
 - `attendance.md`
 - `attendance-capture.md`
 - `attendance-reporting.md`
@@ -73,11 +77,12 @@
 
 | 文件 | 這份文件是講什麼的 | 你什麼時候該看 |
 |---|---|---|
+| `upstream-streaming.md` | upstream / SSE / streaming / provider adapter 正式 owner 與 contract | 要開始做 upstream、webhook、SSE、前端串流 consume 時 |
 | `attendance.md` | 出勤模組總覽 | 不確定 attendance 功能歸屬時 |
 | `attendance-capture.md` | 打卡與 session 寫入流程 | 改打卡主流程時 |
 | `attendance-reporting.md` | 出勤報表與查詢 | 改 summary / sessions / boundary 時 |
 | `attendance-policy.md` | 政策規則與 schedule-aware | 改 policy / canonical semantic 時 |
-| `schedule.md` | 排班模板與班表指派 | 改排班資料時 |
+| `schedule.md` | 排班模板、班表指派與 baseline contract | 改排班資料與 schedule baseline 時 |
 | `auth.md` | 登入與 JWT | 改登入或 token 時 |
 | `tenants.md` | 公司、成員、entitlements | 改公司管理或會員時 |
 | `leave.md` | 請假與審批 | 改請假流程時 |
@@ -100,26 +105,33 @@
 - 新增事件或修改事件契約
 - query contract 改變
 - canonical semantic 改變
+- 與其他模組的 integration contract 改變
 
 ---
 
 ## 6. Spec 模板與未來 spec-kit 接軌
 
-本專案現在已建立模組 spec 模板：
+本專案現在已建立兩種核心模板：
 
 - `SA/governance/MODULE_SPEC_TEMPLATE.md`
+- `SA/governance/MODULE_INTAKE_TEMPLATE.md`
 
 使用方式：
 
-1. 新模組或新子域，先複製模板
-2. 先填 metadata（如 `spec:id`、`source_of_truth`、`related_code_paths`）
-3. 再填核心原則、功能規格、Formalized Semantic Block、驗證流程
-4. 現在先用 Markdown 跑順
-5. 之後若導入 `spec-kit`，就讓工具承接這套既有格式
+1. 若你還在分析需求，先用 intake template
+2. 若需求已較穩定，再用 spec template 生成正式 SDD
+3. 先填 metadata（如 `spec:id`、`source_of_truth`、`related_code_paths`）
+4. 再填核心原則、功能規格、Formalized Semantic Block、驗證流程
+5. 現在先用 Markdown 跑順
+6. 之後若導入 `spec-kit`，就讓工具承接這套既有格式
 
-目前第一份正式 spec 化範例是：
+目前正式 spec 化範例包括：
 
+- `SA/modules/upstream-streaming.md`
 - `SA/modules/attendance-capture.md`
+- `SA/modules/attendance-reporting.md`
+- `SA/modules/attendance-policy.md`
+- `SA/modules/schedule.md`
 
 ---
 
@@ -140,10 +152,12 @@
 
 ---
 
-## 8. 已依目前 baseline 補充的閱讀指引（2026-04-08）
+## 8. 已依目前 baseline 補充的閱讀指引（2026-04-09）
 
 - 如果你在看 `attendance`，請先分清楚：`capture`（寫入）、`reporting`（唯讀查詢）、`policy`（規則與語意）
 - 如果你在看平台能力，請一起對照：`auth`、`tenants`、`audit`、`backup`、`customer_service`
 - `reporting`（報表）目前先視為 `attendance` 內的唯讀子域，不急著獨立模組
 - `schedule`（排班）是預期工作時間來源，`attendance` 只消費它，不應改寫它
 - 前端與前端 `precheck`（預檢）都不是最終安全邊界，最終合法性仍以後端為準
+- 若你要開始做 `SSE` / upstream / webhook / streaming consume，先讀 `upstream-streaming.md`，不要直接從既有業務 service 或 view 開接
+- 若你要避免踩到既有風險票，請搭配 `SA/SDD_PROGRESS_TRACKER.md` 一起看

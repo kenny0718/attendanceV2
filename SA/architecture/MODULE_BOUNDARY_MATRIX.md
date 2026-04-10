@@ -37,6 +37,13 @@
 - 模組直接操作其他模組資料表
 - 模組直接承接其他模組 service 主責任
 - 將跨模組協調邏輯長期放在 API 層
+- 將 internal EventBus 誤當成前端串流協定或 upstream gateway
+
+### 3.3 streaming / upstream 邊界預設規則
+- `frontend` 若新增 `SSE` / `EventSource` / streaming consume，只能作為 UI consumer，不得成為業務語意 owner
+- `backend/app/core/event_bus.py` 只負責 internal synchronous event delivery，不升格為對外 upstream adapter
+- 未來若新增對外 upstream HTTP client / provider adapter / webhook 驗證層，應優先落在 `core` 或新平台整合模組，不應直接塞進 `attendance`、`auth`、`tenants` 的既有 service
+- 若 upstream 是明確業務域專屬，再由對應模組持有 domain mapping，但 transport / retry / provider contract 仍應先明確定義 owner
 
 ---
 
@@ -107,3 +114,4 @@
 - 一個模組開始讀寫另一模組主資料
 - 模組內出現第二條平行實作路徑
 - API 層不再只是薄層，而成為實質 orchestrator
+- 新增 upstream provider adapter / webhook integration / streaming response path

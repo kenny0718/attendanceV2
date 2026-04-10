@@ -15,7 +15,7 @@ related_code_paths:
   - backend/app/modules/schedule/schemas.py
 ---
 
-# Schedule 模組開發規格
+# Schedule 模組開發規格 排班模組
 
 > 本文件定義 `schedule` 模組的正式 SDD / Spec。  
 > 這個模組是系統中的「排班資料來源」，負責提供預期工作時間、班表指派與可被 `attendance` 消費的班表基線。

@@ -6,14 +6,15 @@
 
 ## 1. 單一權威原則
 
-從現在起，`SA/` 的正式文件入口只保留這一套結構：
+從現在起，`SA/` 的**正式開發入口**以這一套核心結構為主：
 
 ```text
 SA/
 ├── README.md
 ├── architecture/
 │   ├── SYSTEM_SDD.md
-│   └── MODULE_BOUNDARY_MATRIX.md
+│   ├── MODULE_BOUNDARY_MATRIX.md
+│   └── PLANNED_VS_IMPLEMENTED_MATRIX.md
 ├── governance/
 │   ├── DOCUMENTATION_GOVERNANCE.md
 │   ├── MODULE_SPEC_TEMPLATE.md
@@ -34,6 +35,7 @@ SA/
 │   ├── customer_service.md
 │   └── frontend.md
 ├── SDD學習文件.md
+├── SDD_PROGRESS_TRACKER.md
 └── legacy-import/
     └── README.md
 ```
@@ -44,6 +46,8 @@ SA/
   - 系統級架構、核心原則、主要流程、跨模組關係
 - `architecture/MODULE_BOUNDARY_MATRIX.md`
   - 模組責任、依賴方向、禁止事項、邊界矩陣
+- `architecture/PLANNED_VS_IMPLEMENTED_MATRIX.md`
+  - 已規劃與已落地能力的對照與差距追蹤
 - `governance/DOCUMENTATION_GOVERNANCE.md`
   - 文件回寫規範
 - `governance/MODULE_SPEC_TEMPLATE.md`
@@ -54,8 +58,13 @@ SA/
   - 各模組與子域的開發導向 Spec / SDD
 - `SDD學習文件.md`
   - 長期參考的 SDD 實戰學習與操作指南
+- `SDD_PROGRESS_TRACKER.md`
+  - SDD / remediation 狀態總追蹤
 - `legacy-import/`
   - 僅保留歷史來源與追溯說明，不是現況權威
+
+> `SA/` 根目錄目前仍保留一些 baseline / 拆解 / 索引輔助文件。  
+> 這些可作為整理過程參考，但**正式開發判準仍以 `architecture/`、`governance/`、`modules/` 與 tracker 為主**。
 
 ---
 
@@ -66,12 +75,14 @@ SA/
 2. `SA/SDD學習文件.md`
 3. `SA/architecture/SYSTEM_SDD.md`
 4. `SA/architecture/MODULE_BOUNDARY_MATRIX.md`
-5. `SA/governance/DOCUMENTATION_GOVERNANCE.md`
-6. `SA/governance/MODULE_SPEC_TEMPLATE.md`
-7. `SA/governance/MODULE_INTAKE_TEMPLATE.md`
+5. `SA/architecture/PLANNED_VS_IMPLEMENTED_MATRIX.md`
+6. `SA/governance/DOCUMENTATION_GOVERNANCE.md`
+7. `SA/governance/MODULE_SPEC_TEMPLATE.md`
+8. `SA/governance/MODULE_INTAKE_TEMPLATE.md`
+9. `SA/SDD_PROGRESS_TRACKER.md`
 
 ### 開發某個模組前
-1. 先讀上面 7 份
+1. 先讀上面 9 份
 2. 再讀對應模組文件，例如：
    - `SA/modules/attendance.md`
    - `SA/modules/attendance-capture.md`
@@ -118,9 +129,10 @@ SA/
 - 已建立模組 spec 模板：`SA/governance/MODULE_SPEC_TEMPLATE.md`
 - 已建立模組需求 intake 模板：`SA/governance/MODULE_INTAKE_TEMPLATE.md`
 - 已建立 SDD 操作學習文件：`SA/SDD學習文件.md`
-- `attendance-capture.md` 已升級成第一份正式 spec 化範例
-- SA 內重複的舊版編號文件已清掉，避免 AI 同時讀到兩套互相衝突的說法
-- 正式文件入口改為 `architecture/`、`modules/`、`governance/`
+- 已建立 SDD 狀態追蹤檔：`SA/SDD_PROGRESS_TRACKER.md`
+- `attendance-capture.md` 與 `schedule.md` 已升級成正式 spec 化範例
+- SA 內重複的舊版編號文件已大幅清理，避免 AI 同時讀到多套互相衝突的說法
+- 正式文件入口已收斂到 `architecture/`、`modules/`、`governance/` 與 tracker
 
 ### 4.2 目前最重要的使用原則
 - 不要再把新設計寫回舊 `docs/`
@@ -128,6 +140,8 @@ SA/
 - 若修 attendance，先讀 `SA/modules/attendance.md`
 - 若是交易寫入流程，優先讀 `SA/modules/attendance-capture.md`
 - 若牽涉跨模組邊界，先讀 `SA/architecture/MODULE_BOUNDARY_MATRIX.md`
+- 若在規劃功能而非直接寫 code，先看 `SA/governance/MODULE_INTAKE_TEMPLATE.md`
+- 若怕踩到既有 remediation / canonical contract，先看 `SA/SDD_PROGRESS_TRACKER.md`
 
 ---
 
@@ -158,6 +172,7 @@ SA/
 - 修改 reporting contract
 - 修改排班與出勤的整合方式
 - 修改 spec metadata / semantic block / validation 流程
+- 修改 remediation 判定或風險狀態
 
 ---
 
@@ -168,13 +183,14 @@ SA/
 1. `SA/SDD學習文件.md`
 2. `SA/governance/MODULE_INTAKE_TEMPLATE.md`
 3. `SA/governance/MODULE_SPEC_TEMPLATE.md`
-4. 對應的 `SA/modules/<module>.md`
+4. `SA/SDD_PROGRESS_TRACKER.md`
+5. 對應的 `SA/modules/<module>.md`
 
 建議操作順序：
 
 - 先用 `MODULE_INTAKE_TEMPLATE.md` 整理需求
 - 再用 `MODULE_SPEC_TEMPLATE.md` 生成正式 SDD
-- 開發前先讀模組文件
+- 寫 code 前先看 tracker 與模組文件
 - 改完後回寫 `SA/`
 
 ---

@@ -94,7 +94,14 @@
 
 限制：
 - 目前為記憶體內實作，不是持久化事件系統
-- 適合目前規模，但未來若要做可靠事件投遞需升級
+- 目前不是 `SSE`（server-sent events）、不是 `EventSource` 回應層、也不是外部 upstream streaming gateway
+- 適合目前規模，但未來若要做可靠事件投遞或串流型 consumer contract，需先補正式設計
+
+已確認的真實 code inventory（2026-04-09）：
+- `backend/app/core/event_bus.py` 只提供 `subscribe()` / `emit()` / registry 查詢，無 HTTP stream response
+- `backend/app/modules/debug_event_api.py` 只提供 debug JSON 查詢與手動 emit 端點，不提供 `text/event-stream`
+- `backend/app/modules/notifications/event_handlers.py` 以 startup subscribe 方式消費 `attendance.approved`，屬 internal consumer
+- `backend/app/main.py` startup 只做 subscriber wiring，未建立 upstream client、webhook provider adapter 或串流 gateway
 
 ### 4.5 其他 core 元件
 - `config.py`：系統設定
@@ -239,6 +246,7 @@
 - Authorization Bearer token
 - 錯誤處理
 - 401 後 session 清理與導回登入
+- 目前屬一般 request/response client，未見 `SSE` / `EventSource` / `event-stream` consume path
 
 #### `src/stores/`
 - `auth.js`：登入狀態、角色、公司資訊、session restore
@@ -330,6 +338,16 @@
 策略：
 - 強制每次改動回寫 `SA/`
 
+### 8.5 串流與 upstream 語意漂移風險
+問題：
+- 目前系統內只有 internal EventBus，沒有正式 upstream client、provider adapter、SSE gateway
+- 若未先定義 owner，未來容易把 event bus、debug API、notifications subscriber 誤判成串流架構基礎
+
+策略：
+- EventBus 維持 internal synchronous event bus 定位
+- 若未來新增 upstream 整合，先定義 transport owner、provider contract、retry / auth / observability 邊界
+- 若未來新增前端串流，先定義 consumer contract，不得直接從既有 debug/event wiring 擴寫
+
 ---
 
 ## 9. 正式文件維護原則
@@ -352,10 +370,14 @@
    - reporting 是否應獨立子模組
    - policy engine 是否需要正式 domain boundary
    - location policy 是否應持續留在 attendance 或成為獨立能力
+4. 若未來要導入 upstream：
+   - 先決定放在 `core` 還是新平台整合模組
+   - 再決定哪些業務模組只負責 domain mapping
+   - 最後才實作 HTTP client / webhook / streaming response
 
 ---
 
-## 11. 已依目前 baseline 回寫的系統級結論（2026-04-08）
+## 11. 已依目前 baseline 回寫的系統級結論（2026-04-09）
 
 ### 11.1 多租戶底板
 - 系統採 `multi-tenant architecture`（多租戶架構）
@@ -377,3 +399,9 @@
 ### 11.4 治理能力
 - `feature gate`（功能閘門）、`audit`（稽核）、`backup / restore`（備份 / 還原）屬 SaaS 核心治理能力
 - `backup / restore` 需包含 `company consistency check`（公司一致性檢查）與 `FK closure check`（外鍵閉包檢查）
+
+### 11.5 streaming / upstream inventory 結論
+- 前端目前是 `Axios request/response` consume，不是串流前端
+- 後端目前沒有對外 upstream HTTP client / provider adapter / webhook verification layer 的正式 owner
+- 現況最接近事件流能力的是 `backend/app/core/event_bus.py`，但它只屬 internal synchronous event delivery
+- 若未來需要導入 `SSE`、upstream provider、streaming gateway，應先新增正式 owner spec，再進 code

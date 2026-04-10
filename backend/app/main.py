@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from app.core.event_bus import get_event_bus
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
+from app.core.streaming import router as streaming_router
 # from app.core.database import init_db  # Deprecated: Use alembic upgrade head instead
 from app.modules.attendance.api import router as attendance_router, router_v1 as attendance_router_v1
 from app.modules.router_wiring import register_demo_routers
@@ -71,24 +72,24 @@ app.include_router(customer_service_router)
 app.include_router(leave_router_v1)  # WP-11-08
 app.include_router(schedule_router)  # WP-S1-04B
 app.include_router(debug_event_router, prefix="/api")
+app.include_router(streaming_router)
 
 
 @app.on_event("startup")
 async def startup_event():
     """應用啟動時初始化資料庫與 EventBus"""
     logger.info("應用啟動 - 確保已執行 alembic upgrade head")
-    
+
     # 初始化 EventBus
     event_bus = get_event_bus()
-    
+
     # 註冊 demo 訂閱者
     register_demo_startup_handlers(event_bus)
-    
+
     # 註冊 notifications 事件處理器
     register_production_startup_handlers()
-    
-    logger.info("EventBus 已初始化，所有訂閱者已註冊")
 
+    logger.info("EventBus 已初始化，所有訂閱者已註冊")
 
 
 @app.get("/")
@@ -103,12 +104,11 @@ async def root():
         "api_base": "/api/v1"
     }
 
+
 @app.get("/health")
 async def health_check():
     """健康檢查端點"""
     return {"status": "ok", "service": settings.app_name}
-
-
 
 
 if __name__ == "__main__":
