@@ -44,6 +44,9 @@
 | 2026-04-09 15:15:00 +08:00 | 公司登入識別規則跨模組文件對齊 | `docs_aligned` | `tenants`, `auth`, `tracker` | `no` | `SA/modules/tenants.md`, `SA/modules/auth.md`, `SA/SDD_PROGRESS_TRACKER.md` | 補齊 `auth` 與追蹤文件，使 `company_id` / `tax_id` 的欄位責任、登入識別與文件邊界一致。 |
 | 2026-04-09 15:25:00 +08:00 | 公司後端欄位與管理畫面規劃補齊 | `docs_aligned` | `tenants`, `frontend`, `backend schema`, `tracker` | `no` | `SA/modules/tenants.md`, `SA/SDD_PROGRESS_TRACKER.md` | 依目前 code baseline 補齊 company model/schema 與 admin 公司管理畫面的欄位缺口與後續對齊規劃。 |
 | 2026-04-10 10:30:00 +08:00 | Membership uses_schedule 與 login bootstrap 正式落地 | `code_updated` | `auth`, `tenants`, `frontend` | `yes` | `SA/modules/auth.md`, `SA/modules/tenants.md`, `backend/app/modules/auth/schemas.py`, `backend/app/modules/auth/service.py`, `backend/app/modules/tenants/api_members.py` | 將 `uses_schedule` 正式落到 membership、登入回應加入 membership bootstrap，並讓首頁依該欄位顯示「我的班表」。 |
+| 2026-04-13 13:49:00 +08:00 | SA tenants 規格分流比對檔建立（Plan A / Plan B） | `docs_aligned` | `tenants`, `comparison`, `recovery` | `yes` | `SA/modules/TENANTS.MD_PlanA`, `SA/modules/tenants.mb_planB`, `SA/modules/tenants.md`, `SA/CHANGELOG.md` | 從 Git 提交 `014a52a` 抽出 `tenants.md` 完整版作為 Plan A，並切出第 9 章以後的重點規格作為 Plan B，供人工比對是否回填正式 `tenants.md`。 |
+| 2026-04-13 14:05:30 +08:00 | tenants 正式檔回填 Plan A 完整版 | `docs_aligned` | `tenants`, `recovery`, `comparison` | `yes` | `SA/modules/tenants.md`, `SA/modules/TENANTS.MD_PlanA`, `SA/modules/tenants-v3-waiting-handoff.md`, `SA/CHANGELOG.md` | 依人工確認，將 `TENANTS.MD_PlanA` 的完整內容覆蓋回正式 `tenants.md`，使正式 SDD 恢復到包含 company detail、tax_id lookup、多據點 location 分流與 Phase 1 管理摘要規格的版本。 |
+
 
 ---
 

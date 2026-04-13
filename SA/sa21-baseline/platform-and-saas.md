@@ -56,7 +56,7 @@
 - `company_user`（公司使用者）
 
 公司內部還可能再拆：
-- `admin`（管理者）
+- `company_admin`（公司管理員）
 - `hr_manager`（HR 管理）
 - `employee`（員工）
 

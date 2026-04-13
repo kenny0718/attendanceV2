@@ -9,7 +9,7 @@
 
 你目前的核心問題不是「沒有文件」，而是：
 
-- `docs/01_ARCHITECTURE/SA_MODULE_SPEC_v2.1.md` 太偏舊版基線，不夠支撐模組級開發
+- `SA/legacy-import/docs/01_ARCHITECTURE/SA_MODULE_SPEC_v2.1.md` 太偏舊版基線，不夠支撐模組級開發
 - 你腦中知道每個模組要做什麼，但沒有固定方式餵給 AI
 - AI 即使能寫文件，如果輸入格式不固定，產出就會忽大忽小、忽深忽淺
 - 沒有模組專屬文件時，AI 很容易把功能放錯地方
@@ -28,8 +28,8 @@
 
 ### 2.1 文件角色重新分工
 
-- `docs/01_ARCHITECTURE/SA_MODULE_SPEC_v2.1.md`
-  - 當歷史架構基線 / 舊版總規格參考
+- `SA/legacy-import/docs/01_ARCHITECTURE/SA_MODULE_SPEC_v2.1.md`
+  - 當歷史架構基線 / 舊版總規格追溯材料
 - `SA/modules/*.md`
   - 當每個模組真正的開發 SDD / Spec
 - `SA/governance/MODULE_SPEC_TEMPLATE.md`

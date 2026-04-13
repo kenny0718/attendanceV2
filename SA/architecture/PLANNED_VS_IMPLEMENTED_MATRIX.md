@@ -24,9 +24,11 @@
 
 ## 2. 對照來源
 
-### 原始藍圖來源
-- `docs/01_ARCHITECTURE/SA_MODULE_SPEC_v2.1.md`
-- `docs/01_ARCHITECTURE/SYSTEM_BLUEPRINT_SAAS_MULTI_TENANT_v1.md`
+### 原始藍圖來源（歷史追溯）
+- `SA/legacy-import/docs/01_ARCHITECTURE/SA_MODULE_SPEC_v2.1.md`
+- `SA/legacy-import/docs/01_ARCHITECTURE/SYSTEM_BLUEPRINT_SAAS_MULTI_TENANT_v1.md`
+
+> 以上僅保留為歷史藍圖來源與追溯材料，不作為現況正式判準。
 
 ### 現況正式來源
 - `SA/architecture/SYSTEM_SDD.md`
