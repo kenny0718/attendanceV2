@@ -1,6 +1,9 @@
 <template>
   <div class="page-shell">
-    <div class="page-container" :style="containerStyle">
+    <div
+      class="page-container"
+      :style="containerStyle"
+    >
       <slot />
     </div>
   </div>

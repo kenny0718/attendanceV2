@@ -1,10 +1,17 @@
 <template>
   <div class="summary-card">
-    <div class="summary-label">{{ label }}</div>
+    <div class="summary-label">
+      {{ label }}
+    </div>
     <div :class="['summary-value', { empty: value === null || value === undefined || value === '—' }]">
       {{ displayValue }}
     </div>
-    <div v-if="sub" class="summary-sub">{{ sub }}</div>
+    <div
+      v-if="sub"
+      class="summary-sub"
+    >
+      {{ sub }}
+    </div>
   </div>
 </template>
 

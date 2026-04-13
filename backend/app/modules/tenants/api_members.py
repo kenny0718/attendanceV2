@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 import uuid as _uuid
 
 from app.core.database import get_db
@@ -21,8 +20,7 @@ from app.modules.tenants.schemas_members import (
     ResetMemberPasswordRequest,
     ResetMemberPasswordResponse,
 )
-from app.modules.auth.models import Membership as MembershipModel, User as UserModel, Role as RoleModel
-from app.modules.auth.repo import AuthRepository
+from app.modules.auth.models import Membership as MembershipModel, User as UserModel
 
 
 def _assert_admin_company_access(actor: Actor, company_id: str, db: Session) -> None:
@@ -108,36 +106,30 @@ def register_routes(router: APIRouter) -> None:
         _assert_admin_company_access(actor, company_id, db)
 
         tenant_svc = get_tenant_service(db)
-        if not tenant_svc.tenant_exists(company_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"})
-
-        role = db.query(RoleModel).filter(RoleModel.id == request.role_id).first()
-        if role is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_ROLE", "message": f"Role '{request.role_id}' does not exist"})
-
-        auth_repo = AuthRepository(db)
         try:
-            user = auth_repo.create_user_no_commit(display_name=request.display_name, plain_password=request.password, email=request.email)
-            membership = auth_repo.create_membership_no_commit(
-                user_id=user.id,
+            result = tenant_svc.create_member(
                 company_id=company_id,
+                display_name=request.display_name,
+                password=request.password,
                 role_id=request.role_id,
                 login_username=request.login_username,
-                login_email=request.email,
+                email=request.email,
                 uses_schedule=request.uses_schedule,
             )
-            db.commit()
-            db.refresh(user)
-            db.refresh(membership)
-        except IntegrityError as e:
-            db.rollback()
-            err_str = str(e.orig) if hasattr(e, 'orig') else str(e)
-            if 'uq_memberships_company_login' in err_str:
+        except ValueError as e:
+            err = str(e)
+            if err == "COMPANY_NOT_FOUND":
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"})
+            if "INVALID_ROLE" in err:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_ROLE", "message": err})
+            if err == "DUPLICATE_LOGIN_USERNAME":
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": "DUPLICATE_LOGIN_USERNAME", "message": "Login username already exists in this company"})
-            if 'uq_memberships_user_company' in err_str:
+            if err == "DUPLICATE_MEMBERSHIP":
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": "DUPLICATE_MEMBERSHIP", "message": "User already has membership in this company"})
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": "INTEGRITY_ERROR", "message": "Data conflict: " + err_str[:200]})
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": "INTEGRITY_ERROR", "message": err})
 
+        user = result["user"]
+        membership = result["membership"]
         return CreateMemberResponse(
             membership_id=str(membership.id),
             user_id=str(user.id),
@@ -154,41 +146,39 @@ def register_routes(router: APIRouter) -> None:
     def update_company_member(company_id: str, membership_id: str, request: UpdateMemberRequest, actor: Actor = Depends(get_current_actor), db: Session = Depends(get_db)):
         _assert_admin_company_access(actor, company_id, db)
 
-        tenant_svc = get_tenant_service(db)
-        if not tenant_svc.tenant_exists(company_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"})
-
         update_fields = {}
         if request.display_name is not None:
-            update_fields['display_name'] = request.display_name
+            update_fields["display_name"] = request.display_name
         if request.role_id is not None:
-            update_fields['role_id'] = request.role_id
-        if 'email' in request.model_fields_set:
-            update_fields['email'] = request.email
+            update_fields["role_id"] = request.role_id
+        if "email" in request.model_fields_set:
+            update_fields["email"] = request.email
         if request.login_username is not None:
-            update_fields['login_username'] = request.login_username
+            update_fields["login_username"] = request.login_username
         if request.uses_schedule is not None:
-            update_fields['uses_schedule'] = request.uses_schedule
+            update_fields["uses_schedule"] = request.uses_schedule
 
-        if not update_fields:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "NO_FIELDS_TO_UPDATE", "message": "At least one field must be provided"})
-
+        tenant_svc = get_tenant_service(db)
         try:
             result = tenant_svc.update_member(membership_id=membership_id, company_id=company_id, **update_fields)
         except ValueError as e:
             err = str(e)
-            if 'MEMBERSHIP_NOT_FOUND' in err:
+            if err == "COMPANY_NOT_FOUND":
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"})
+            if err == "NO_FIELDS_TO_UPDATE":
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "NO_FIELDS_TO_UPDATE", "message": "At least one field must be provided"})
+            if "MEMBERSHIP_NOT_FOUND" in err:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "MEMBERSHIP_NOT_FOUND", "message": f"Membership '{membership_id}' not found in company '{company_id}'"})
-            if 'INVALID_ROLE' in err:
+            if "INVALID_ROLE" in err:
                 raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_ROLE", "message": str(e)})
-            if 'INVALID_MEMBERSHIP_ID' in err:
+            if "INVALID_MEMBERSHIP_ID" in err:
                 raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
-            if 'DUPLICATE_LOGIN_USERNAME' in err:
+            if "DUPLICATE_LOGIN_USERNAME" in err:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": "DUPLICATE_LOGIN_USERNAME", "message": "此登入帳號在該公司已被使用，請換一個"})
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"code": "INTERNAL_ERROR", "message": str(e)})
 
-        user = result['user']
-        membership = result['membership']
+        user = result["user"]
+        membership = result["membership"]
         return UpdateMemberResponse(
             membership_id=str(membership.id),
             user_id=str(user.id),
@@ -206,19 +196,18 @@ def register_routes(router: APIRouter) -> None:
         _assert_admin_company_access(actor, company_id, db)
 
         tenant_svc = get_tenant_service(db)
-        if not tenant_svc.tenant_exists(company_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"})
-
         try:
             result = tenant_svc.reset_member_password(membership_id=membership_id, company_id=company_id, new_plain_password=request.new_password)
         except ValueError as e:
             err = str(e)
-            if 'MEMBERSHIP_NOT_FOUND' in err:
+            if err == "COMPANY_NOT_FOUND":
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "COMPANY_NOT_FOUND", "message": f"Company '{company_id}' not found"})
+            if "MEMBERSHIP_NOT_FOUND" in err:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "MEMBERSHIP_NOT_FOUND", "message": f"Membership '{membership_id}' not found in company '{company_id}'"})
-            if 'PASSWORD_TOO_SHORT' in err:
+            if "PASSWORD_TOO_SHORT" in err:
                 raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "PASSWORD_TOO_SHORT", "message": "Password must be at least 6 characters"})
-            if 'INVALID_MEMBERSHIP_ID' in err:
+            if "INVALID_MEMBERSHIP_ID" in err:
                 raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"code": "INTERNAL_ERROR", "message": "An unexpected error occurred"})
 
-        return ResetMemberPasswordResponse(membership_id=result['membership_id'], user_id=result['user_id'], message='密碼已成功重設')
+        return ResetMemberPasswordResponse(membership_id=result["membership_id"], user_id=result["user_id"], message="密碼已成功重設")

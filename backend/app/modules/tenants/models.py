@@ -30,6 +30,13 @@ class Tenant(Base):
     # Company information
     name = Column(String(255), nullable=False, comment="Company name")
     tax_id = Column(String(20), nullable=True, unique=True, comment="Company tax ID")
+    display_name = Column(String(255), nullable=True, comment="Company display name")
+    owner_name = Column(String(255), nullable=True, comment="Company owner name")
+    registered_address = Column(String(500), nullable=True, comment="Company registered address")
+    contact_address = Column(String(500), nullable=True, comment="Company contact address")
+    contact_phone = Column(String(50), nullable=True, comment="Company contact phone")
+    contact_email = Column(String(255), nullable=True, comment="Company contact email")
+    logo_url = Column(String(500), nullable=True, comment="Company logo URL")
     is_active = Column(Boolean, nullable=False, default=True, comment="Active status")
     timezone = Column(String(50), nullable=False, default="UTC", comment="Company timezone")
     

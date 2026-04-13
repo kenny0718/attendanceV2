@@ -21,7 +21,14 @@ from app.modules.tenants.schemas_companies import (
     CreateCompanyRequest,
     UpdateCompanyRequest,
     CompanyResponse,
+    CompanyMemberSummaryResponse,
+    CompanyDetailResponse,
     CompanyListResponse,
+    LookupCompanyByTaxIdRequest,
+    LookupCompanyByTaxIdResponse,
+    UploadCompanyLogoRequest,
+    UploadCompanyLogoResponse,
+    DeleteCompanyLogoResponse,
 )
 
 router = APIRouter(prefix="/api/admin/companies", tags=["admin", "entitlements"])
@@ -113,6 +120,12 @@ def create_company(
             name=request.name,
             timezone=request.timezone,
             tax_id=request.tax_id,
+            display_name=request.display_name,
+            owner_name=request.owner_name,
+            registered_address=request.registered_address,
+            contact_address=request.contact_address,
+            contact_phone=request.contact_phone,
+            contact_email=request.contact_email,
         )
     except ValueError as e:
         message = str(e)
@@ -128,6 +141,50 @@ def create_company(
     return CompanyResponse.model_validate(tenant)
 
 
+@router.get('/{company_id}', response_model=CompanyDetailResponse)
+def get_company_detail(
+    company_id: str,
+    actor: Actor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+):
+    """Get a single company with member summary."""
+    _assert_admin_company_access(actor, company_id, db)
+
+    service = get_tenant_service(db)
+    detail = service.get_company_detail(company_id)
+    if detail is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "COMPANY_NOT_FOUND", "message": f"Company {company_id!r} not found"}
+        )
+
+    return CompanyDetailResponse(
+        company=CompanyResponse.model_validate(detail["company"]),
+        member_summary=CompanyMemberSummaryResponse.model_validate(detail["member_summary"]),
+    )
+
+
+@router.post('/lookup-by-tax-id', response_model=LookupCompanyByTaxIdResponse)
+def lookup_company_by_tax_id(
+    request: LookupCompanyByTaxIdRequest,
+    actor: Actor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+):
+    """Lookup company registration info by tax id.
+
+    Current implementation is a stub provider and returns found=false by default.
+    """
+    if not actor.is_super_admin():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "SCOPE_FORBIDDEN", "message": "Only super_admin can lookup company data by tax id"}
+        )
+
+    service = get_tenant_service(db)
+    result = service.lookup_company_by_tax_id(request.tax_id)
+    return LookupCompanyByTaxIdResponse.model_validate(result)
+
+
 @router.patch('/{company_id}', response_model=CompanyResponse)
 def update_company(
     company_id: str,
@@ -136,7 +193,7 @@ def update_company(
     db: Session = Depends(get_db),
 ):
     """
-    更新公司基本資訊（name / timezone / is_active）
+    更新公司基本資訊（不含 Logo 上傳）
 
     權限：
     - super_admin：可更新任意公司
@@ -166,6 +223,59 @@ def update_company(
             detail={"code": "DUPLICATE_TAX_ID", "message": str(e)}
         )
     return CompanyResponse.model_validate(tenant)
+
+
+@router.post('/{company_id}/logo', response_model=UploadCompanyLogoResponse)
+def upload_company_logo(
+    company_id: str,
+    request: UploadCompanyLogoRequest,
+    actor: Actor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+):
+    """Upload company logo and update logo_url."""
+    _assert_admin_company_access(actor, company_id, db)
+
+    service = get_tenant_service(db)
+    try:
+        result = service.upload_company_logo(
+            company_id=company_id,
+            filename=request.filename,
+            content_type=request.content_type,
+            content_base64=request.content_base64,
+        )
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "COMPANY_NOT_FOUND", "message": f"Company {company_id!r} not found"}
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"code": "INVALID_LOGO_UPLOAD", "message": str(e)}
+        )
+
+    return UploadCompanyLogoResponse.model_validate(result)
+
+
+@router.delete('/{company_id}/logo', response_model=DeleteCompanyLogoResponse)
+def delete_company_logo(
+    company_id: str,
+    actor: Actor = Depends(get_current_actor),
+    db: Session = Depends(get_db),
+):
+    """Delete company logo and clear logo_url."""
+    _assert_admin_company_access(actor, company_id, db)
+
+    service = get_tenant_service(db)
+    try:
+        result = service.delete_company_logo(company_id)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "COMPANY_NOT_FOUND", "message": f"Company {company_id!r} not found"}
+        )
+
+    return DeleteCompanyLogoResponse.model_validate(result)
 
 
 from app.modules.tenants.api_entitlements import register_routes as _reg_entitlements

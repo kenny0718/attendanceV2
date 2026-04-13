@@ -1,24 +1,48 @@
 <template>
   <div class="stack-layout">
     <div class="panel">
-      <div class="panel-header"><h2 class="panel-title">查詢條件</h2></div>
+      <div class="panel-header">
+        <h2 class="panel-title">
+          查詢條件
+        </h2>
+      </div>
       <div class="filter-body">
         <div class="filter-row">
           <div class="filter-group">
             <label class="filter-label">開始日期 <span class="required">*</span></label>
-            <input v-model="filters.start_date" type="date" class="filter-input" />
+            <input
+              v-model="filters.start_date"
+              type="date"
+              class="filter-input"
+            >
           </div>
           <div class="filter-group">
             <label class="filter-label">結束日期 <span class="required">*</span></label>
-            <input v-model="filters.end_date" type="date" class="filter-input" />
+            <input
+              v-model="filters.end_date"
+              type="date"
+              class="filter-input"
+            >
           </div>
           <div class="filter-group">
             <label class="filter-label">員工 ID（選填）</label>
-            <input v-model="filters.user_id" type="text" class="filter-input" placeholder="輸入員工 ID" />
+            <input
+              v-model="filters.user_id"
+              type="text"
+              class="filter-input"
+              placeholder="輸入員工 ID"
+            >
           </div>
           <div class="filter-group filter-group-action">
-            <button class="btn-query" :disabled="loading || !filters.start_date || !filters.end_date" @click="loadSessions">
-              <span v-if="loading" class="btn-spinner-sm"></span>
+            <button
+              class="btn-query"
+              :disabled="loading || !filters.start_date || !filters.end_date"
+              @click="loadSessions"
+            >
+              <span
+                v-if="loading"
+                class="btn-spinner-sm"
+              />
               <span v-else>查詢</span>
             </button>
           </div>
@@ -28,37 +52,115 @@
 
     <div class="panel">
       <div class="panel-header">
-        <h2 class="panel-title">打卡紀錄</h2>
-        <button class="btn-refresh" :disabled="loading" @click="loadSessions" title="重新整理">
-          <svg :class="{ spinning: loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        <h2 class="panel-title">
+          打卡紀錄
+        </h2>
+        <button
+          class="btn-refresh"
+          :disabled="loading"
+          title="重新整理"
+          @click="loadSessions"
+        >
+          <svg
+            :class="{ spinning: loading }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
         </button>
       </div>
-      <div v-if="isSuperAdminNoScope" class="state-box state-notice">
+      <div
+        v-if="isSuperAdminNoScope"
+        class="state-box state-notice"
+      >
         <div>
-          <p class="state-title">需要公司範圍才能查詢</p>
-          <p class="state-msg">目前帳號未選定公司範圍，無法查詢打卡資料。請先切換至特定公司後再使用此功能。</p>
+          <p class="state-title">
+            需要公司範圍才能查詢
+          </p>
+          <p class="state-msg">
+            目前帳號未選定公司範圍，無法查詢打卡資料。請先切換至特定公司後再使用此功能。
+          </p>
         </div>
       </div>
-      <div v-else-if="loading" class="state-box"><div class="spinner"></div><span>載入中…</span></div>
-      <div v-else-if="error" class="state-box state-error"><div><p class="state-title">載入失敗</p><p class="state-msg">{{ error }}</p></div></div>
-      <div v-else-if="!queried" class="state-box"><div><p class="state-title">請選擇日期範圍後查詢</p><p class="state-msg">設定開始與結束日期，按下「查詢」開始查看打卡紀錄。</p></div></div>
-      <div v-else-if="sessions.length === 0" class="state-box"><div><p class="state-title">此期間無打卡紀錄</p><p class="state-msg">請調整日期範圍後重新查詢。</p></div></div>
-      <div v-else class="table-wrapper">
+      <div
+        v-else-if="loading"
+        class="state-box"
+      >
+        <div class="spinner" /><span>載入中…</span>
+      </div>
+      <div
+        v-else-if="error"
+        class="state-box state-error"
+      >
+        <div>
+          <p class="state-title">
+            載入失敗
+          </p><p class="state-msg">
+            {{ error }}
+          </p>
+        </div>
+      </div>
+      <div
+        v-else-if="!queried"
+        class="state-box"
+      >
+        <div>
+          <p class="state-title">
+            請選擇日期範圍後查詢
+          </p><p class="state-msg">
+            設定開始與結束日期，按下「查詢」開始查看打卡紀錄。
+          </p>
+        </div>
+      </div>
+      <div
+        v-else-if="sessions.length === 0"
+        class="state-box"
+      >
+        <div>
+          <p class="state-title">
+            此期間無打卡紀錄
+          </p><p class="state-msg">
+            請調整日期範圍後重新查詢。
+          </p>
+        </div>
+      </div>
+      <div
+        v-else
+        class="table-wrapper"
+      >
         <table class="sessions-table">
           <thead><tr><th>員工名稱</th><th>日期</th><th>上班時間</th><th>下班時間</th><th>狀態</th></tr></thead>
           <tbody>
-            <tr v-for="s in sessions" :key="s.session_id">
-              <td class="cell-name">{{ s.display_name || s.user_id }}</td>
-              <td class="cell-date">{{ formatDate(s.punch_in_time) }}</td>
-              <td class="cell-time">{{ formatTime(s.punch_in_time) }}</td>
-              <td class="cell-time">{{ formatTime(s.punch_out_time) }}</td>
+            <tr
+              v-for="s in sessions"
+              :key="s.session_id"
+            >
+              <td class="cell-name">
+                {{ s.display_name || s.user_id }}
+              </td>
+              <td class="cell-date">
+                {{ formatDate(s.punch_in_time) }}
+              </td>
+              <td class="cell-time">
+                {{ formatTime(s.punch_in_time) }}
+              </td>
+              <td class="cell-time">
+                {{ formatTime(s.punch_out_time) }}
+              </td>
               <td><span :class="statusClass(s)">{{ statusLabel(s) }}</span></td>
             </tr>
           </tbody>
         </table>
-        <p class="total-count">共 {{ sessions.length }} 筆紀錄</p>
+        <p class="total-count">
+          共 {{ sessions.length }} 筆紀錄
+        </p>
       </div>
     </div>
   </div>

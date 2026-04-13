@@ -21,8 +21,13 @@ WP-S1-09A: Added company list / create schemas
 # Companies
 from app.modules.tenants.schemas_companies import (
     CreateCompanyRequest,
+    UpdateCompanyRequest,
     CompanyResponse,
+    CompanyMemberSummaryResponse,
+    CompanyDetailResponse,
     CompanyListResponse,
+    LookupCompanyByTaxIdRequest,
+    LookupCompanyByTaxIdResponse,
 )
 
 # Entitlements
@@ -52,13 +57,22 @@ from app.modules.tenants.schemas_members import (
     ToggleMembershipActiveResponse,
     CreateMemberRequest,
     CreateMemberResponse,
+    UpdateMemberRequest,
+    UpdateMemberResponse,
+    ResetMemberPasswordRequest,
+    ResetMemberPasswordResponse,
 )
 
 __all__ = [
     # Companies
     "CreateCompanyRequest",
+    "UpdateCompanyRequest",
     "CompanyResponse",
+    "CompanyMemberSummaryResponse",
+    "CompanyDetailResponse",
     "CompanyListResponse",
+    "LookupCompanyByTaxIdRequest",
+    "LookupCompanyByTaxIdResponse",
     # Entitlements
     "UpdateEntitlementRequest",
     "ApplyPlanRequest",
@@ -79,4 +93,8 @@ __all__ = [
     "ToggleMembershipActiveResponse",
     "CreateMemberRequest",
     "CreateMemberResponse",
+    "UpdateMemberRequest",
+    "UpdateMemberResponse",
+    "ResetMemberPasswordRequest",
+    "ResetMemberPasswordResponse",
 ]

@@ -1,37 +1,42 @@
 <template>
   <div class="break-reason-section">
-    <h3 class="subsection-title">外出原因</h3>
+    <h3 class="subsection-title">
+      外出原因
+    </h3>
     <div class="reason-input-area">
       <!-- 常用原因快速選擇 -->
       <div class="reason-chips">
         <button
           v-for="reason in reasonPresets"
           :key="reason"
-          @click="$emit('select-reason', reason)"
           :class="[
             'reason-chip',
             { 'selected': selectedReason === reason }
           ]"
+          @click="$emit('select-reason', reason)"
         >
           {{ reason }}
         </button>
       </div>
       
       <!-- 自訂原因 -->
-      <div v-if="reasonCustoms.length > 0" class="custom-reasons">
+      <div
+        v-if="reasonCustoms.length > 0"
+        class="custom-reasons"
+      >
         <button
           v-for="reason in reasonCustoms"
           :key="reason"
-          @click="$emit('select-reason', reason)"
           :class="[
             'reason-chip custom',
             { 'selected': selectedReason === reason }
           ]"
+          @click="$emit('select-reason', reason)"
         >
           {{ reason }}
           <span 
-            @click.stop="$emit('remove-custom-reason', reason)"
             class="remove-btn"
+            @click.stop="$emit('remove-custom-reason', reason)"
           >
             ✕
           </span>
@@ -41,28 +46,28 @@
       <!-- 原因輸入欄 -->
       <input
         :value="selectedReason"
-        @input="$emit('update:selected-reason', $event.target.value)"
         type="text"
         class="reason-input"
         placeholder="請輸入外出原因"
         maxlength="50"
-      />
+        @input="$emit('update:selected-reason', $event.target.value)"
+      >
       
       <!-- 新增自訂原因 -->
       <div class="add-custom-reason">
         <input
           :value="newCustomReason"
-          @input="$emit('update:new-custom-reason', $event.target.value)"
-          @keyup.enter="$emit('add-custom-reason')"
           type="text"
           placeholder="新增常用原因..."
           class="custom-input"
           maxlength="20"
-        />
+          @input="$emit('update:new-custom-reason', $event.target.value)"
+          @keyup.enter="$emit('add-custom-reason')"
+        >
         <button
-          @click="$emit('add-custom-reason')"
           :disabled="!newCustomReason.trim()"
           class="add-btn"
+          @click="$emit('add-custom-reason')"
         >
           ＋新增
         </button>

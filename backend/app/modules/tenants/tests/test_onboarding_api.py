@@ -8,7 +8,6 @@ from uuid import uuid4
 from app.core.scope import Actor, UserRole
 from app.core.dependencies import get_current_actor
 from app.modules.tenants.models import Tenant
-from app.modules.auth.models import User, Membership
 from app.main import app
 
 
@@ -47,9 +46,9 @@ def _clear():
 TEST_ROLE_ID = "company_admin"
 
 
-def _payload(suffix=None, role_id=TEST_ROLE_ID, tax_id=None):
+def _payload(suffix=None, role_id=TEST_ROLE_ID, tax_id=None, company_fields=None):
     s = suffix or str(uuid4())[:8]
-    return {
+    payload = {
         "company": {
             "id": f"onb-co-{s}",
             "name": f"Onboard Co {s}",
@@ -64,6 +63,9 @@ def _payload(suffix=None, role_id=TEST_ROLE_ID, tax_id=None):
             "role_id": role_id,
         },
     }
+    if company_fields:
+        payload["company"].update(company_fields)
+    return payload
 
 
 URL = "/api/admin/companies/onboarding"
@@ -98,6 +100,44 @@ class TestAdminOnboarding:
         tenant = db_session.query(Tenant).filter(Tenant.id == company_id).first()
         assert tenant is not None
         assert tenant.tax_id == "24536806"
+
+    def test_onboarding_persists_company_profile_fields(self, db_session, client):
+        payload = _payload(
+            tax_id="24536806",
+            company_fields={
+                "display_name": "展示名稱",
+                "owner_name": "負責人測試",
+                "registered_address": "台北市中山區南京東路 1 號",
+                "contact_address": "台北市中山區南京東路 2 號",
+                "contact_phone": "02-12345678",
+                "contact_email": "company@example.com",
+            },
+        )
+        _override(client, _super_admin())
+        try:
+            resp = client.post(URL, json=payload)
+        finally:
+            _clear()
+
+        assert resp.status_code == 201, resp.text
+        data = resp.json()
+        assert data["company"]["display_name"] == "展示名稱"
+        assert data["company"]["owner_name"] == "負責人測試"
+        assert data["company"]["registered_address"] == "台北市中山區南京東路 1 號"
+        assert data["company"]["contact_address"] == "台北市中山區南京東路 2 號"
+        assert data["company"]["contact_phone"] == "02-12345678"
+        assert data["company"]["contact_email"] == "company@example.com"
+        assert data["company"]["logo_url"] is None
+
+    def test_onboarding_rejects_logo_url_input(self, client):
+        payload = _payload(company_fields={"logo_url": "https://example.com/logo.png"})
+        _override(client, _super_admin())
+        try:
+            resp = client.post(URL, json=payload)
+        finally:
+            _clear()
+
+        assert resp.status_code == 422
 
     def test_invalid_tax_id_rejected(self, client):
         payload = _payload(tax_id="12345678")

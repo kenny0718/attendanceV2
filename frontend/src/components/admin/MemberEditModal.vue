@@ -1,46 +1,111 @@
 <template>
-  <div v-if="open" class="modal-overlay" @click.self="$emit('close')">
+  <div
+    v-if="open"
+    class="modal-overlay"
+    @click.self="$emit('close')"
+  >
     <div class="modal-box">
       <div class="modal-header">
-        <h3 class="modal-title">編輯成員資料</h3>
-        <button class="modal-close" @click="$emit('close')">✕</button>
+        <h3 class="modal-title">
+          編輯成員資料
+        </h3>
+        <button
+          class="modal-close"
+          @click="$emit('close')"
+        >
+          ✕
+        </button>
       </div>
       <div class="modal-body">
         <div class="form-group">
           <label class="form-label">顯示名稱</label>
-          <input v-model="localDisplayName" class="form-input" type="text" maxlength="100" />
+          <input
+            v-model="localDisplayName"
+            class="form-input"
+            type="text"
+            maxlength="100"
+          >
         </div>
         <div class="form-group">
           <label class="form-label">Email（選填）</label>
-          <input v-model="localEmail" class="form-input" type="email" maxlength="255" placeholder="留空表示不更改" />
+          <input
+            v-model="localEmail"
+            class="form-input"
+            type="email"
+            maxlength="255"
+            placeholder="留空表示不更改"
+          >
         </div>
         <div class="form-group">
           <label class="form-label">角色</label>
-          <select v-model="localRoleId" class="form-input">
-            <option value="employee">employee</option>
-            <option value="hr_manager">hr_manager</option>
-            <option value="company_admin">company_admin</option>
+          <select
+            v-model="localRoleId"
+            class="form-input"
+          >
+            <option value="employee">
+              employee
+            </option>
+            <option value="hr_manager">
+              hr_manager
+            </option>
+            <option value="company_admin">
+              company_admin
+            </option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">登入帳號</label>
-          <input v-model="localLoginUsername" class="form-input" type="text" maxlength="100" placeholder="不修改請留原帳號" />
-          <p class="form-hint">修改後，該成員下次登入需使用新的登入帳號</p>
+          <input
+            v-model="localLoginUsername"
+            class="form-input"
+            type="text"
+            maxlength="100"
+            placeholder="不修改請留原帳號"
+          >
+          <p class="form-hint">
+            修改後，該成員下次登入需使用新的登入帳號
+          </p>
         </div>
         <div class="form-group">
           <label class="form-label">我的班表顯示</label>
           <label class="form-hint checkbox-row">
-            <input v-model="localUsesSchedule" type="checkbox" />
+            <input
+              v-model="localUsesSchedule"
+              type="checkbox"
+            >
             <span>此成員顯示「我的班表」</span>
           </label>
         </div>
-        <div v-if="error" class="modal-error">{{ error }}</div>
-        <div v-if="success" class="modal-success">已儲存</div>
+        <div
+          v-if="error"
+          class="modal-error"
+        >
+          {{ error }}
+        </div>
+        <div
+          v-if="success"
+          class="modal-success"
+        >
+          已儲存
+        </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" @click="$emit('close')" :disabled="loading">取消</button>
-        <button class="btn-save" @click="saveEdit" :disabled="loading || !localDisplayName">
-          <span v-if="loading" class="btn-spinner-sm"></span>
+        <button
+          class="btn-cancel"
+          :disabled="loading"
+          @click="$emit('close')"
+        >
+          取消
+        </button>
+        <button
+          class="btn-save"
+          :disabled="loading || !localDisplayName"
+          @click="saveEdit"
+        >
+          <span
+            v-if="loading"
+            class="btn-spinner-sm"
+          />
           <span v-else>儲存</span>
         </button>
       </div>

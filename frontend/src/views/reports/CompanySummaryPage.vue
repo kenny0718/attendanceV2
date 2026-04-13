@@ -4,8 +4,12 @@
 
     <div class="page-container">
       <div class="page-header">
-        <h1 class="page-title">公司出勤摘要</h1>
-        <p class="page-sub">公司整體出勤統計數字</p>
+        <h1 class="page-title">
+          公司出勤摘要
+        </h1>
+        <p class="page-sub">
+          公司整體出勤統計數字
+        </p>
       </div>
 
       <!-- 篩選區 -->
@@ -14,13 +18,19 @@
       </div>
 
       <!-- 載入中 -->
-      <div v-if="store.companySummaryLoading" class="state-box">
-        <div class="spinner"></div>
+      <div
+        v-if="store.companySummaryLoading"
+        class="state-box"
+      >
+        <div class="spinner" />
         <span>載入中...</span>
       </div>
 
       <!-- 錯誤 -->
-      <div v-else-if="store.companySummaryError" class="state-box error">
+      <div
+        v-else-if="store.companySummaryError"
+        class="state-box error"
+      >
         <span>⚠ {{ store.companySummaryError }}</span>
       </div>
 
@@ -33,13 +43,31 @@
       </div>
 
       <!-- 摘要卡片 -->
-      <div v-else-if="store.companySummary" class="summary-section">
+      <div
+        v-else-if="store.companySummary"
+        class="summary-section"
+      >
         <div class="summary-grid">
-          <SummaryCard label="有出勤記錄人數" :value="store.companySummary.total_users_with_sessions" />
-          <SummaryCard label="總 Sessions"    :value="store.companySummary.total_sessions" />
-          <SummaryCard label="已完成"         :value="store.companySummary.closed_sessions" />
-          <SummaryCard label="進行中"         :value="store.companySummary.open_sessions" />
-          <SummaryCard label="總工時"         :value="formatDuration(store.companySummary.total_work_minutes)" />
+          <SummaryCard
+            label="有出勤記錄人數"
+            :value="store.companySummary.total_users_with_sessions"
+          />
+          <SummaryCard
+            label="總 Sessions"
+            :value="store.companySummary.total_sessions"
+          />
+          <SummaryCard
+            label="已完成"
+            :value="store.companySummary.closed_sessions"
+          />
+          <SummaryCard
+            label="進行中"
+            :value="store.companySummary.open_sessions"
+          />
+          <SummaryCard
+            label="總工時"
+            :value="formatDuration(store.companySummary.total_work_minutes)"
+          />
           <SummaryCard
             label="平均每次工時"
             :value="formatAvg(store.companySummary.average_minutes_per_session)"

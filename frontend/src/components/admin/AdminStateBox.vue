@@ -1,11 +1,34 @@
 <template>
-  <div class="state-box" :class="variantClass">
-    <svg v-if="iconPath" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-      <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath" />
+  <div
+    class="state-box"
+    :class="variantClass"
+  >
+    <svg
+      v-if="iconPath"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      stroke-width="2"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        :d="iconPath"
+      />
     </svg>
     <div>
-      <p v-if="title" class="state-title">{{ title }}</p>
-      <p v-if="message" class="state-msg">{{ message }}</p>
+      <p
+        v-if="title"
+        class="state-title"
+      >
+        {{ title }}
+      </p>
+      <p
+        v-if="message"
+        class="state-msg"
+      >
+        {{ message }}
+      </p>
       <slot />
     </div>
   </div>

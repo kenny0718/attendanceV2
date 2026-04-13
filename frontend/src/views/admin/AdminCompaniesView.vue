@@ -12,6 +12,7 @@
 
     <CompanyDetailPanel
       :company="selectedCompany"
+      :member-summary="selectedCompanySummary"
       :form="editForm"
       :loading="detailLoading"
       :error="detailError || ''"
@@ -20,6 +21,8 @@
       @submit="handleUpdate"
       @toggle-active="handleToggleActive"
       @update:form="updateEditForm"
+      @upload-logo="handleUploadLogo"
+      @remove-logo="handleRemoveLogo"
     />
 
     <CompanyMembersPanel
@@ -71,7 +74,18 @@ async function loadCompanies() {
 onMounted(loadCompanies)
 
 const selectedCompany = ref(null)
-const editForm = reactive({ name: '', tax_id: '', timezone: 'UTC' })
+const selectedCompanySummary = ref(null)
+const editForm = reactive({
+  name: '',
+  tax_id: '',
+  display_name: '',
+  owner_name: '',
+  registered_address: '',
+  contact_address: '',
+  contact_phone: '',
+  contact_email: '',
+  timezone: 'UTC',
+})
 const detailLoading = ref(false)
 const detailError = ref(null)
 const detailSuccess = ref(null)
@@ -79,20 +93,41 @@ const detailSuccess = ref(null)
 function updateEditForm(next) {
   editForm.name = next.name ?? ''
   editForm.tax_id = next.tax_id ?? ''
+  editForm.display_name = next.display_name ?? ''
+  editForm.owner_name = next.owner_name ?? ''
+  editForm.registered_address = next.registered_address ?? ''
+  editForm.contact_address = next.contact_address ?? ''
+  editForm.contact_phone = next.contact_phone ?? ''
+  editForm.contact_email = next.contact_email ?? ''
   editForm.timezone = next.timezone ?? 'UTC'
+}
+
+async function loadCompanyDetail(companyId) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    const data = await adminApi.getCompany(companyId)
+    selectedCompany.value = data.company
+    selectedCompanySummary.value = data.member_summary || null
+    updateEditForm(data.company)
+  } catch (err) {
+    detailError.value = err.message || '無法載入公司詳情，請稍後再試'
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 function selectCompany(company) {
   selectedCompany.value = company
-  editForm.name = company.name
-  editForm.tax_id = company.tax_id || ''
-  editForm.timezone = company.timezone
+  selectedCompanySummary.value = null
+  updateEditForm(company)
   detailError.value = null
   detailSuccess.value = null
   members.value = []
   showAddMember.value = false
   addMemberSuccess.value = null
   addMemberError.value = null
+  loadCompanyDetail(company.id)
   loadMembers()
 }
 
@@ -102,12 +137,18 @@ async function handleUpdate() {
   detailSuccess.value = null
   detailLoading.value = true
   try {
-    const updated = await adminApi.updateCompany(selectedCompany.value.id, {
+    await adminApi.updateCompany(selectedCompany.value.id, {
       name: editForm.name,
       tax_id: editForm.tax_id || null,
+      display_name: editForm.display_name || null,
+      owner_name: editForm.owner_name || null,
+      registered_address: editForm.registered_address || null,
+      contact_address: editForm.contact_address || null,
+      contact_phone: editForm.contact_phone || null,
+      contact_email: editForm.contact_email || null,
       timezone: editForm.timezone,
     })
-    selectedCompany.value = updated
+    await loadCompanyDetail(selectedCompany.value.id)
     detailSuccess.value = '變更已儲存'
     await loadCompanies()
   } catch (err) {
@@ -122,6 +163,71 @@ async function handleUpdate() {
   }
 }
 
+async function handleUploadLogo(file) {
+  if (!selectedCompany.value || !file) return
+
+  const allowedTypes = ['image/png', 'image/jpeg']
+  if (!allowedTypes.includes(file.type)) {
+    detailError.value = 'Logo 僅支援 PNG / JPG / JPEG'
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    detailError.value = 'Logo 檔案大小不可超過 2MB'
+    return
+  }
+
+  detailError.value = null
+  detailSuccess.value = null
+  detailLoading.value = true
+  try {
+    const contentBase64 = await fileToBase64(file)
+    await adminApi.uploadCompanyLogo(selectedCompany.value.id, {
+      filename: file.name,
+      content_type: file.type,
+      content_base64: contentBase64,
+    })
+    await loadCompanyDetail(selectedCompany.value.id)
+    detailSuccess.value = 'Logo 已上傳'
+    await loadCompanies()
+  } catch (err) {
+    detailError.value = err.data?.detail?.message || err.message || 'Logo 上傳失敗'
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+async function handleRemoveLogo() {
+  if (!selectedCompany.value) return
+  if (!confirm(`確認要移除公司「${selectedCompany.value.name}」的 Logo？`)) return
+
+  detailError.value = null
+  detailSuccess.value = null
+  detailLoading.value = true
+  try {
+    await adminApi.deleteCompanyLogo(selectedCompany.value.id)
+    await loadCompanyDetail(selectedCompany.value.id)
+    detailSuccess.value = 'Logo 已移除'
+    await loadCompanies()
+  } catch (err) {
+    detailError.value = err.data?.detail?.message || err.message || 'Logo 移除失敗'
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      const base64 = result.includes(',') ? result.split(',')[1] : result
+      resolve(base64)
+    }
+    reader.onerror = () => reject(new Error('檔案讀取失敗'))
+    reader.readAsDataURL(file)
+  })
+}
+
 async function handleToggleActive() {
   if (!selectedCompany.value) return
   const target = !selectedCompany.value.is_active
@@ -131,8 +237,8 @@ async function handleToggleActive() {
   detailSuccess.value = null
   detailLoading.value = true
   try {
-    const updated = await adminApi.updateCompany(selectedCompany.value.id, { is_active: target })
-    selectedCompany.value = updated
+    await adminApi.updateCompany(selectedCompany.value.id, { is_active: target })
+    await loadCompanyDetail(selectedCompany.value.id)
     detailSuccess.value = `公司已${label}`
     await loadCompanies()
   } catch (err) {
@@ -189,6 +295,7 @@ async function handleToggleMembership(member) {
   try {
     await adminApi.toggleMembershipActive(selectedCompany.value.id, member.membership_id, target)
     await loadMembers()
+    await loadCompanyDetail(selectedCompany.value.id)
   } catch (err) {
     alert(err.message || `${label}失敗`)
   } finally {
@@ -215,6 +322,7 @@ async function handleAddMember() {
     addMemberSuccess.value = `成員「${created.display_name}」已新增`
     updateAddForm({ display_name: '', login_username: '', password: '', email: '', role_id: 'employee' })
     await loadMembers()
+    await loadCompanyDetail(selectedCompany.value.id)
   } catch (err) {
     const code = err.data?.detail?.code
     if (code === 'DUPLICATE_LOGIN_USERNAME') {

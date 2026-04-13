@@ -1,7 +1,19 @@
 <template>
-  <PageIntroCard :eyebrow="eyebrow" :title="title" :description="description">
-    <p v-if="backTo" class="back-row">
-      <router-link :to="backTo" class="back-link">{{ backLabel }}</router-link>
+  <PageIntroCard
+    :eyebrow="eyebrow"
+    :title="title"
+    :description="description"
+  >
+    <p
+      v-if="backTo"
+      class="back-row"
+    >
+      <router-link
+        :to="backTo"
+        class="back-link"
+      >
+        {{ backLabel }}
+      </router-link>
     </p>
     <slot />
   </PageIntroCard>

@@ -1,5 +1,8 @@
 <template>
-  <Card title="今日打卡總覽" class="attendance-overview-card">
+  <Card
+    title="今日打卡總覽"
+    class="attendance-overview-card"
+  >
     <!-- 區塊 A：今日狀態 -->
     <TodayStatusSection 
       :punch-in="todayStatus.punch_in"

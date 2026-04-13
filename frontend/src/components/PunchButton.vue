@@ -6,7 +6,12 @@
     @click="handleClick"
   >
     <div class="button-content">
-      <svg v-if="icon" class="button-icon" viewBox="0 0 24 24" fill="currentColor">
+      <svg
+        v-if="icon"
+        class="button-icon"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+      >
         <path :d="iconPath" />
       </svg>
       <span class="button-text">{{ label }}</span>

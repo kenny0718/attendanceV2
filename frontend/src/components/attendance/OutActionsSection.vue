@@ -1,38 +1,67 @@
 <template>
   <div class="break-actions-section">
-    <h3 class="subsection-title">外出 / 返回</h3>
+    <h3 class="subsection-title">
+      外出 / 返回
+    </h3>
     <div class="punch-grid-break">
       <!-- 外出打卡 -->
       <div 
-        @click="$emit('break-out')"
         :class="[
           'punch-card',
           { 'disabled': !canBreakOut || isLoading }
         ]"
+        @click="$emit('break-out')"
       >
         <div class="card-icon">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          <svg
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2.5"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M17 8l4 4m0 0l-4 4m4-4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+            />
           </svg>
         </div>
-        <div class="card-label">外出打卡</div>
-        <div v-if="isOnBreak" class="status-badge active">外出中</div>
+        <div class="card-label">
+          外出打卡
+        </div>
+        <div
+          v-if="isOnBreak"
+          class="status-badge active"
+        >
+          外出中
+        </div>
       </div>
 
       <!-- 返回打卡 -->
       <div 
-        @click="$emit('break-in')"
         :class="[
           'punch-card',
           { 'disabled': !canBreakIn || isLoading }
         ]"
+        @click="$emit('break-in')"
       >
         <div class="card-icon">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+          <svg
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2.5"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+            />
           </svg>
         </div>
-        <div class="card-label">返回打卡</div>
+        <div class="card-label">
+          返回打卡
+        </div>
       </div>
     </div>
   </div>

@@ -2,55 +2,118 @@
   <section class="panel panel-create">
     <div class="panel-header">
       <h2 class="panel-title">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        <svg
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+          />
         </svg>
         新增成員
       </h2>
     </div>
 
     <div class="panel-body">
-      <div v-if="success" class="alert alert-success">{{ success }}</div>
-      <div v-if="error" class="alert alert-error">{{ error }}</div>
+      <div
+        v-if="success"
+        class="alert alert-success"
+      >
+        {{ success }}
+      </div>
+      <div
+        v-if="error"
+        class="alert alert-error"
+      >
+        {{ error }}
+      </div>
 
-      <form class="create-form" @submit.prevent="submitCreate">
+      <form
+        class="create-form"
+        @submit.prevent="submitCreate"
+      >
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">顯示名稱</label>
-            <input v-model.trim="form.display_name" class="form-input" type="text" maxlength="100" />
+            <input
+              v-model.trim="form.display_name"
+              class="form-input"
+              type="text"
+              maxlength="100"
+            >
           </div>
           <div class="form-group">
             <label class="form-label">登入帳號</label>
-            <input v-model.trim="form.login_username" class="form-input" type="text" maxlength="100" autocomplete="off" />
+            <input
+              v-model.trim="form.login_username"
+              class="form-input"
+              type="text"
+              maxlength="100"
+              autocomplete="off"
+            >
           </div>
           <div class="form-group">
             <label class="form-label">初始密碼</label>
-            <input v-model="form.password" class="form-input" type="password" maxlength="255" autocomplete="new-password" />
+            <input
+              v-model="form.password"
+              class="form-input"
+              type="password"
+              maxlength="255"
+              autocomplete="new-password"
+            >
           </div>
           <div class="form-group">
             <label class="form-label">電子郵件（選填）</label>
-            <input v-model.trim="form.email" class="form-input" type="email" maxlength="255" />
+            <input
+              v-model.trim="form.email"
+              class="form-input"
+              type="email"
+              maxlength="255"
+            >
           </div>
           <div class="form-group">
             <label class="form-label">角色</label>
-            <select v-model="form.role_id" class="form-input">
-              <option value="employee">員工</option>
-              <option value="hr_manager">HR 管理員</option>
-              <option value="company_admin">公司管理員</option>
+            <select
+              v-model="form.role_id"
+              class="form-input"
+            >
+              <option value="employee">
+                員工
+              </option>
+              <option value="hr_manager">
+                HR 管理員
+              </option>
+              <option value="company_admin">
+                公司管理員
+              </option>
             </select>
           </div>
           <div class="form-group form-group-checkbox">
             <label class="form-label">我的班表顯示</label>
             <label class="checkbox-row">
-              <input v-model="form.uses_schedule" type="checkbox" />
+              <input
+                v-model="form.uses_schedule"
+                type="checkbox"
+              >
               <span>此成員顯示「我的班表」</span>
             </label>
           </div>
         </div>
 
         <div class="actions-row">
-          <button class="btn-submit" type="submit" :disabled="loading">
-            <span v-if="loading" class="btn-spinner-sm"></span>
+          <button
+            class="btn-submit"
+            type="submit"
+            :disabled="loading"
+          >
+            <span
+              v-if="loading"
+              class="btn-spinner-sm"
+            />
             <span v-else>新增成員</span>
           </button>
         </div>

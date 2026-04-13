@@ -5,12 +5,19 @@
     <div class="page-container">
       <!-- Page Header -->
       <div class="page-header">
-        <h1 class="page-title">Schedule Management</h1>
-        <p class="page-sub">班別模板與指派管理</p>
+        <h1 class="page-title">
+          Schedule Management
+        </h1>
+        <p class="page-sub">
+          班別模板與指派管理
+        </p>
       </div>
 
       <!-- Feature Gate Error -->
-      <div v-if="featureDisabled" class="state-box error">
+      <div
+        v-if="featureDisabled"
+        class="state-box error"
+      >
         Schedule feature 尚未啟用，請聯絡管理員。
       </div>
 
@@ -18,73 +25,162 @@
         <!-- Section A: Shift Templates -->
         <div class="section-card">
           <div class="section-header">
-            <h2 class="section-title">Shift Templates（班別模板）</h2>
+            <h2 class="section-title">
+              Shift Templates（班別模板）
+            </h2>
             <div class="header-actions">
               <span class="section-badge">{{ templates.length }} 筆</span>
-              <button class="btn-add" @click="toggleCreateForm" :disabled="tplLoading">
+              <button
+                class="btn-add"
+                :disabled="tplLoading"
+                @click="toggleCreateForm"
+              >
                 {{ showCreateForm ? "收起" : "+ 新增模板" }}
               </button>
             </div>
           </div>
 
           <!-- Inline Create Form -->
-          <div v-if="showCreateForm" class="create-form-panel">
-            <h3 class="form-title">建立新班別模板</h3>
-            <div v-if="createError" class="form-msg form-msg--error">⚠ {{ createError }}</div>
-            <div v-if="createSuccess" class="form-msg form-msg--success">✓ 班別模板建立成功</div>
+          <div
+            v-if="showCreateForm"
+            class="create-form-panel"
+          >
+            <h3 class="form-title">
+              建立新班別模板
+            </h3>
+            <div
+              v-if="createError"
+              class="form-msg form-msg--error"
+            >
+              ⚠ {{ createError }}
+            </div>
+            <div
+              v-if="createSuccess"
+              class="form-msg form-msg--success"
+            >
+              ✓ 班別模板建立成功
+            </div>
             <div class="form-grid">
               <div class="form-field">
                 <label class="field-label">Code <span class="required">*</span></label>
-                <input v-model="form.code" class="field-input" type="text" placeholder="e.g. DAY_SHIFT" maxlength="32" />
+                <input
+                  v-model="form.code"
+                  class="field-input"
+                  type="text"
+                  placeholder="e.g. DAY_SHIFT"
+                  maxlength="32"
+                >
               </div>
               <div class="form-field">
                 <label class="field-label">名稱 <span class="required">*</span></label>
-                <input v-model="form.name" class="field-input" type="text" placeholder="e.g. 日班" maxlength="64" />
+                <input
+                  v-model="form.name"
+                  class="field-input"
+                  type="text"
+                  placeholder="e.g. 日班"
+                  maxlength="64"
+                >
               </div>
               <div class="form-field">
                 <label class="field-label">上班時間 <span class="required">*</span></label>
-                <input v-model="form.start_time" class="field-input" type="time" />
+                <input
+                  v-model="form.start_time"
+                  class="field-input"
+                  type="time"
+                >
               </div>
               <div class="form-field">
                 <label class="field-label">下班時間 <span class="required">*</span></label>
-                <input v-model="form.end_time" class="field-input" type="time" />
+                <input
+                  v-model="form.end_time"
+                  class="field-input"
+                  type="time"
+                >
               </div>
               <div class="form-field">
                 <label class="field-label">休息時間（分鐘）</label>
-                <input v-model.number="form.break_minutes" class="field-input" type="number" min="0" placeholder="0" />
+                <input
+                  v-model.number="form.break_minutes"
+                  class="field-input"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                >
               </div>
               <div class="form-field form-field--check">
                 <label class="field-label-check">
-                  <input v-model="form.is_overnight" type="checkbox" />
+                  <input
+                    v-model="form.is_overnight"
+                    type="checkbox"
+                  >
                   過夜班
                 </label>
               </div>
               <div class="form-field form-field--check">
                 <label class="field-label-check">
-                  <input v-model="form.is_active" type="checkbox" />
+                  <input
+                    v-model="form.is_active"
+                    type="checkbox"
+                  >
                   啟用
                 </label>
               </div>
             </div>
             <div class="form-actions">
-              <button class="btn-submit" @click="submitCreate" :disabled="createLoading">
+              <button
+                class="btn-submit"
+                :disabled="createLoading"
+                @click="submitCreate"
+              >
                 <span v-if="createLoading">提交中...</span>
                 <span v-else>建立</span>
               </button>
-              <button class="btn-cancel" @click="cancelCreate" :disabled="createLoading">取消</button>
+              <button
+                class="btn-cancel"
+                :disabled="createLoading"
+                @click="cancelCreate"
+              >
+                取消
+              </button>
             </div>
           </div>
 
           <div class="section-body">
-            <div v-if="editError" class="form-msg form-msg--error">⚠ {{ editError }}</div>
-            <div v-if="editSuccess" class="form-msg form-msg--success">✓ 班別模板更新成功</div>
-            <div v-if="tplLoading" class="state-box">
-              <div class="spinner"></div>
+            <div
+              v-if="editError"
+              class="form-msg form-msg--error"
+            >
+              ⚠ {{ editError }}
+            </div>
+            <div
+              v-if="editSuccess"
+              class="form-msg form-msg--success"
+            >
+              ✓ 班別模板更新成功
+            </div>
+            <div
+              v-if="tplLoading"
+              class="state-box"
+            >
+              <div class="spinner" />
               <span>載入中...</span>
             </div>
-            <div v-else-if="tplError" class="state-box error">⚠ {{ tplError }}</div>
-            <div v-else-if="templates.length === 0" class="state-box empty">目前無班別模板資料</div>
-            <div v-else class="table-wrap">
+            <div
+              v-else-if="tplError"
+              class="state-box error"
+            >
+              ⚠ {{ tplError }}
+            </div>
+            <div
+              v-else-if="templates.length === 0"
+              class="state-box empty"
+            >
+              目前無班別模板資料
+            </div>
+            <div
+              v-else
+              class="table-wrap"
+            >
               <table class="data-table">
                 <thead>
                   <tr>
@@ -99,40 +195,74 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="t in templates" :key="t.id">
+                  <tr
+                    v-for="t in templates"
+                    :key="t.id"
+                  >
                     <td><code class="code-chip">{{ t.code }}</code></td>
                     <td>
                       <template v-if="editingTemplateId === t.id">
-                        <input v-model="editForm.name" class="field-input field-input--inline" type="text" maxlength="64" />
+                        <input
+                          v-model="editForm.name"
+                          class="field-input field-input--inline"
+                          type="text"
+                          maxlength="64"
+                        >
                       </template>
-                      <template v-else>{{ t.name }}</template>
+                      <template v-else>
+                        {{ t.name }}
+                      </template>
                     </td>
                     <td>
                       <template v-if="editingTemplateId === t.id">
-                        <input v-model="editForm.start_time" class="field-input field-input--inline" type="time" />
+                        <input
+                          v-model="editForm.start_time"
+                          class="field-input field-input--inline"
+                          type="time"
+                        >
                       </template>
-                      <template v-else>{{ t.start_time }}</template>
+                      <template v-else>
+                        {{ t.start_time }}
+                      </template>
                     </td>
                     <td>
                       <template v-if="editingTemplateId === t.id">
-                        <input v-model="editForm.end_time" class="field-input field-input--inline" type="time" />
+                        <input
+                          v-model="editForm.end_time"
+                          class="field-input field-input--inline"
+                          type="time"
+                        >
                       </template>
-                      <template v-else>{{ t.end_time }}</template>
+                      <template v-else>
+                        {{ t.end_time }}
+                      </template>
                     </td>
                     <td>
                       <template v-if="editingTemplateId === t.id">
-                        <input v-model.number="editForm.break_minutes" class="field-input field-input--inline" type="number" min="0" />
+                        <input
+                          v-model.number="editForm.break_minutes"
+                          class="field-input field-input--inline"
+                          type="number"
+                          min="0"
+                        >
                       </template>
-                      <template v-else>{{ t.break_minutes }}</template>
+                      <template v-else>
+                        {{ t.break_minutes }}
+                      </template>
                     </td>
                     <td>
                       <template v-if="editingTemplateId === t.id">
                         <label class="inline-check">
-                          <input v-model="editForm.is_overnight" type="checkbox" />
+                          <input
+                            v-model="editForm.is_overnight"
+                            type="checkbox"
+                          >
                           過夜
                         </label>
                       </template>
-                      <template v-else>{{ t.is_overnight ? "是" : "否" }}</template>
+                      <template v-else>
+                        {{ t.is_overnight ? "是" : "否" }}
+                      </template>
                     </td>
                     <td>
                       <span :class="t.is_active ? 'badge-active' : 'badge-inactive'">
@@ -141,10 +271,20 @@
                     </td>
                     <td>
                       <template v-if="editingTemplateId === t.id">
-                        <button class="btn-action btn-save" :disabled="editLoading" @click="submitEditTemplate(t)">
+                        <button
+                          class="btn-action btn-save"
+                          :disabled="editLoading"
+                          @click="submitEditTemplate(t)"
+                        >
                           {{ editLoading ? "儲存中..." : "儲存" }}
                         </button>
-                        <button class="btn-action btn-inline-cancel" :disabled="editLoading" @click="cancelEditTemplate">取消</button>
+                        <button
+                          class="btn-action btn-inline-cancel"
+                          :disabled="editLoading"
+                          @click="cancelEditTemplate"
+                        >
+                          取消
+                        </button>
                       </template>
                       <template v-else>
                         <button
@@ -182,67 +322,158 @@
         <!-- Section B: Shift Assignments -->
         <div class="section-card">
           <div class="section-header">
-            <h2 class="section-title">Shift Assignments（班別指派）</h2>
+            <h2 class="section-title">
+              Shift Assignments（班別指派）
+            </h2>
             <div class="header-actions">
               <span class="section-badge">{{ assignments.length }} 筆</span>
-              <button class="btn-add" @click="toggleCreateAsgForm" :disabled="asgLoading || tplLoading">
+              <button
+                class="btn-add"
+                :disabled="asgLoading || tplLoading"
+                @click="toggleCreateAsgForm"
+              >
                 {{ showCreateAsgForm ? "收起" : "+ 新增指派" }}
               </button>
             </div>
           </div>
 
           <!-- Inline Create Assignment Form -->
-          <div v-if="showCreateAsgForm" class="create-form-panel">
-            <h3 class="form-title">建立新班別指派</h3>
-            <div v-if="createAsgError" class="form-msg form-msg--error">⚠ {{ createAsgError }}</div>
-            <div v-if="createAsgSuccess" class="form-msg form-msg--success">✓ 班別指派建立成功</div>
-            <div v-if="templates.length === 0" class="form-msg form-msg--error">請先載入班別模板再新增指派</div>
-            <div v-else class="form-grid">
+          <div
+            v-if="showCreateAsgForm"
+            class="create-form-panel"
+          >
+            <h3 class="form-title">
+              建立新班別指派
+            </h3>
+            <div
+              v-if="createAsgError"
+              class="form-msg form-msg--error"
+            >
+              ⚠ {{ createAsgError }}
+            </div>
+            <div
+              v-if="createAsgSuccess"
+              class="form-msg form-msg--success"
+            >
+              ✓ 班別指派建立成功
+            </div>
+            <div
+              v-if="templates.length === 0"
+              class="form-msg form-msg--error"
+            >
+              請先載入班別模板再新增指派
+            </div>
+            <div
+              v-else
+              class="form-grid"
+            >
               <div class="form-field">
                 <label class="field-label">員工 ID <span class="required">*</span></label>
-                <input v-model="asgForm.user_id" class="field-input" type="text" placeholder="輸入 User UUID" />
+                <input
+                  v-model="asgForm.user_id"
+                  class="field-input"
+                  type="text"
+                  placeholder="輸入 User UUID"
+                >
               </div>
               <div class="form-field">
                 <label class="field-label">班別模板 <span class="required">*</span></label>
-                <select v-model="asgForm.shift_template_id" class="field-input">
-                  <option value="" disabled>請選擇模板</option>
-                  <option v-for="t in templates" :key="t.id" :value="t.id">
+                <select
+                  v-model="asgForm.shift_template_id"
+                  class="field-input"
+                >
+                  <option
+                    value=""
+                    disabled
+                  >
+                    請選擇模板
+                  </option>
+                  <option
+                    v-for="t in templates"
+                    :key="t.id"
+                    :value="t.id"
+                  >
                     {{ t.code }} — {{ t.name }}
                   </option>
                 </select>
               </div>
               <div class="form-field">
                 <label class="field-label">工作日期 <span class="required">*</span></label>
-                <input v-model="asgForm.work_date" class="field-input" type="date" />
+                <input
+                  v-model="asgForm.work_date"
+                  class="field-input"
+                  type="date"
+                >
               </div>
               <div class="form-field">
                 <label class="field-label">狀態</label>
-                <select v-model="asgForm.status" class="field-input">
-                  <option value="scheduled">scheduled</option>
-                  <option value="confirmed">confirmed</option>
+                <select
+                  v-model="asgForm.status"
+                  class="field-input"
+                >
+                  <option value="scheduled">
+                    scheduled
+                  </option>
+                  <option value="confirmed">
+                    confirmed
+                  </option>
                 </select>
               </div>
-              <div class="form-field" style="grid-column: span 2">
+              <div
+                class="form-field"
+                style="grid-column: span 2"
+              >
                 <label class="field-label">備註</label>
-                <input v-model="asgForm.notes" class="field-input" type="text" placeholder="可留空" />
+                <input
+                  v-model="asgForm.notes"
+                  class="field-input"
+                  type="text"
+                  placeholder="可留空"
+                >
               </div>
             </div>
             <div class="form-actions">
-              <button class="btn-submit" @click="submitCreateAsg" :disabled="createAsgLoading || templates.length === 0">
+              <button
+                class="btn-submit"
+                :disabled="createAsgLoading || templates.length === 0"
+                @click="submitCreateAsg"
+              >
                 <span v-if="createAsgLoading">提交中...</span>
                 <span v-else>建立</span>
               </button>
-              <button class="btn-cancel" @click="cancelCreateAsg" :disabled="createAsgLoading">取消</button>
+              <button
+                class="btn-cancel"
+                :disabled="createAsgLoading"
+                @click="cancelCreateAsg"
+              >
+                取消
+              </button>
             </div>
           </div>
           <div class="section-body">
-            <div v-if="asgLoading" class="state-box">
-              <div class="spinner"></div>
+            <div
+              v-if="asgLoading"
+              class="state-box"
+            >
+              <div class="spinner" />
               <span>載入中...</span>
             </div>
-            <div v-else-if="asgError" class="state-box error">⚠ {{ asgError }}</div>
-            <div v-else-if="assignments.length === 0" class="state-box empty">目前無班別指派資料</div>
-            <div v-else class="table-wrap">
+            <div
+              v-else-if="asgError"
+              class="state-box error"
+            >
+              ⚠ {{ asgError }}
+            </div>
+            <div
+              v-else-if="assignments.length === 0"
+              class="state-box empty"
+            >
+              目前無班別指派資料
+            </div>
+            <div
+              v-else
+              class="table-wrap"
+            >
               <table class="data-table">
                 <thead>
                   <tr>
@@ -255,7 +486,10 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="a in assignments" :key="a.id">
+                  <tr
+                    v-for="a in assignments"
+                    :key="a.id"
+                  >
                     <td>{{ a.work_date }}</td>
                     <td><code class="uuid-chip">{{ a.user_id.slice(0, 8) }}...</code></td>
                     <td><code class="uuid-chip">{{ a.shift_template_id.slice(0, 8) }}...</code></td>
@@ -270,7 +504,10 @@
                       >
                         {{ asgActionId === a.id ? "處理中..." : "取消" }}
                       </button>
-                      <span v-else class="text-cancelled">已取消</span>
+                      <span
+                        v-else
+                        class="text-cancelled"
+                      >已取消</span>
                     </td>
                   </tr>
                 </tbody>

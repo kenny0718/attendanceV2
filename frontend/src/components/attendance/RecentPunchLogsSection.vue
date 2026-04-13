@@ -4,9 +4,14 @@
       class="records-header-inline"
       @click="toggleExpanded"
     >
-      <h3 class="subsection-title">最近打卡記錄</h3>
+      <h3 class="subsection-title">
+        最近打卡記錄
+      </h3>
       <div class="header-right">
-        <span v-if="logs.length > 0" class="count-badge">
+        <span
+          v-if="logs.length > 0"
+          class="count-badge"
+        >
           {{ logs.length }} 筆
         </span>
         <svg 
@@ -17,16 +22,29 @@
           viewBox="0 0 24 24"
           stroke-width="2"
         >
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </div>
     </div>
     
-    <div v-show="isExpanded" class="records-content">
-      <div v-if="logs.length === 0" class="empty-state">
+    <div
+      v-show="isExpanded"
+      class="records-content"
+    >
+      <div
+        v-if="logs.length === 0"
+        class="empty-state"
+      >
         <p>尚無打卡記錄</p>
       </div>
-      <div v-else class="log-list">
+      <div
+        v-else
+        class="log-list"
+      >
         <div 
           v-for="log in logs" 
           :key="log.id"

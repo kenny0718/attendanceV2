@@ -4,7 +4,9 @@
       <Navbar />
 
       <section class="intro-card">
-        <p class="eyebrow">ATTENDANCE SESSIONS</p>
+        <p class="eyebrow">
+          ATTENDANCE SESSIONS
+        </p>
         <h1>出勤紀錄</h1>
         <p>依月份、日期區間與狀態查詢自己的出勤 Session，維持與請假頁相同的頁面骨架與卡片語言。</p>
       </section>
@@ -12,44 +14,82 @@
       <section class="filter-card">
         <div class="filter-grid">
           <div class="field-block">
-            <p class="field-title">月份快速篩選</p>
+            <p class="field-title">
+              月份快速篩選
+            </p>
             <MonthPicker @select="onMonthSelect" />
           </div>
 
           <div class="field-block wide">
-            <p class="field-title">日期區間</p>
+            <p class="field-title">
+              日期區間
+            </p>
             <DateRangeFilter @change="onDateRangeChange" />
           </div>
 
           <div class="field-block status-block">
-            <label class="field-title" for="session-status">狀態篩選</label>
-            <select id="session-status" v-model="filterStatus" class="select-input" @change="applyFilters">
-              <option value="">全部</option>
-              <option value="open">進行中</option>
-              <option value="closed">已完成</option>
-              <option value="pending">審核中</option>
-              <option value="approved">已核准</option>
-              <option value="rejected">已拒絕</option>
-              <option value="missing_punch_out">缺下班卡</option>
+            <label
+              class="field-title"
+              for="session-status"
+            >狀態篩選</label>
+            <select
+              id="session-status"
+              v-model="filterStatus"
+              class="select-input"
+              @change="applyFilters"
+            >
+              <option value="">
+                全部
+              </option>
+              <option value="open">
+                進行中
+              </option>
+              <option value="closed">
+                已完成
+              </option>
+              <option value="pending">
+                審核中
+              </option>
+              <option value="approved">
+                已核准
+              </option>
+              <option value="rejected">
+                已拒絕
+              </option>
+              <option value="missing_punch_out">
+                缺下班卡
+              </option>
             </select>
           </div>
         </div>
       </section>
 
-      <section v-if="store.sessionsLoading" class="state-card">
-        <div class="spinner"></div>
+      <section
+        v-if="store.sessionsLoading"
+        class="state-card"
+      >
+        <div class="spinner" />
         <span>載入中...</span>
       </section>
 
-      <section v-else-if="store.sessionsError" class="state-card error">
+      <section
+        v-else-if="store.sessionsError"
+        class="state-card error"
+      >
         <span>⚠ {{ store.sessionsError }}</span>
       </section>
 
-      <section v-else-if="store.sessions.length === 0" class="state-card empty">
+      <section
+        v-else-if="store.sessions.length === 0"
+        class="state-card empty"
+      >
         <span>本期間無出勤記錄</span>
       </section>
 
-      <section v-else class="table-card">
+      <section
+        v-else
+        class="table-card"
+      >
         <div class="table-card-header">
           <div>
             <h2>查詢結果</h2>
@@ -68,7 +108,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="s in store.sessions" :key="s.session_id">
+              <tr
+                v-for="s in store.sessions"
+                :key="s.session_id"
+              >
                 <td>{{ formatTime(s.punch_in_time) }}</td>
                 <td>{{ s.punch_out_time ? formatTime(s.punch_out_time) : '進行中' }}</td>
                 <td>{{ formatDuration(s.duration_minutes) }}</td>

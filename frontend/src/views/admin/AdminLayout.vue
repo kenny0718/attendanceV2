@@ -7,7 +7,11 @@
       :title="currentPage.title"
       :description="currentPage.description"
     >
-      <div class="admin-tabs" role="tablist" aria-label="Admin sections">
+      <div
+        class="admin-tabs"
+        role="tablist"
+        aria-label="Admin sections"
+      >
         <router-link
           v-for="item in visibleTabs"
           :key="item.to"

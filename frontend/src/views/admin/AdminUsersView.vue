@@ -3,44 +3,103 @@
     <div class="panel selector-panel">
       <div class="panel-header">
         <h2 class="panel-title">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
+          <svg
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"
+            />
           </svg>
           選擇公司
         </h2>
-        <button class="btn-refresh" :disabled="companiesLoading" @click="loadCompanies" title="重新整理公司列表">
-          <svg :class="{ spinning: companiesLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        <button
+          class="btn-refresh"
+          :disabled="companiesLoading"
+          title="重新整理公司列表"
+          @click="loadCompanies"
+        >
+          <svg
+            :class="{ spinning: companiesLoading }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
         </button>
       </div>
       <div class="selector-body">
-        <div v-if="companiesLoading" class="state-box">
-          <div class="spinner"></div><span>載入公司列表中…</span>
+        <div
+          v-if="companiesLoading"
+          class="state-box"
+        >
+          <div class="spinner" /><span>載入公司列表中…</span>
         </div>
-        <div v-else-if="companiesError" class="state-box state-error">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <div
+          v-else-if="companiesError"
+          class="state-box state-error"
+        >
+          <svg
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
-          <div><p class="state-title">載入失敗</p><p class="state-msg">{{ companiesError }}</p></div>
+          <div>
+            <p class="state-title">
+              載入失敗
+            </p><p class="state-msg">
+              {{ companiesError }}
+            </p>
+          </div>
         </div>
-        <div v-else class="selector-row">
-          <select v-model="selectedCompanyId" class="company-select" @change="onCompanyChange">
-            <option value="">— 請選擇公司 —</option>
-            <option v-for="co in companies" :key="co.id" :value="co.id">
+        <div
+          v-else
+          class="selector-row"
+        >
+          <select
+            v-model="selectedCompanyId"
+            class="company-select"
+            @change="onCompanyChange"
+          >
+            <option value="">
+              — 請選擇公司 —
+            </option>
+            <option
+              v-for="co in companies"
+              :key="co.id"
+              :value="co.id"
+            >
               {{ co.name }} ({{ co.id }})
             </option>
           </select>
-          <span v-if="companies.length > 0" class="company-count">共 {{ companies.length }} 間公司</span>
+          <span
+            v-if="companies.length > 0"
+            class="company-count"
+          >共 {{ companies.length }} 間公司</span>
         </div>
       </div>
     </div>
 
     <MemberCreatePanel
       v-if="selectedCompanyId"
-      :companyId="selectedCompanyId"
+      :company-id="selectedCompanyId"
       @created="onMemberCreated"
     />
 
@@ -49,23 +108,40 @@
       :members="members"
       :loading="membersLoading"
       :error="membersError"
-      :companyId="selectedCompanyId"
-      :togglingId="togglingId"
-      :toggleError="toggleError"
+      :company-id="selectedCompanyId"
+      :toggling-id="togglingId"
+      :toggle-error="toggleError"
       @edit="openEdit"
       @password="openPwd"
       @toggle="handleToggle"
       @reload="loadMembers"
-      @update:toggleError="toggleError = $event"
+      @update:toggle-error="toggleError = $event"
     />
 
-    <div v-else class="panel panel-state">
+    <div
+      v-else
+      class="panel panel-state"
+    >
       <div class="state-box state-initial">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+        <svg
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M8 9l4-4 4 4m0 6l-4 4-4-4"
+          />
         </svg>
-        <div><p class="state-title">請先選擇公司</p><p class="state-msg">從上方下拉選單選擇要查看的公司。</p></div>
+        <div>
+          <p class="state-title">
+            請先選擇公司
+          </p><p class="state-msg">
+            從上方下拉選單選擇要查看的公司。
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -73,7 +149,7 @@
   <MemberEditModal
     :open="editModalOpen"
     :member="editModalMember"
-    :companyId="selectedCompanyId"
+    :company-id="selectedCompanyId"
     @close="editModalOpen = false"
     @saved="onMemberSaved"
   />
@@ -81,7 +157,7 @@
   <MemberPasswordModal
     :open="pwdModalOpen"
     :member="pwdModalMember"
-    :companyId="selectedCompanyId"
+    :company-id="selectedCompanyId"
     @close="pwdModalOpen = false"
   />
 </template>

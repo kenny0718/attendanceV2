@@ -27,6 +27,13 @@ class OnboardingCompanyResult(BaseModel):
     id: str
     name: str
     tax_id: Optional[str] = None
+    display_name: Optional[str] = None
+    owner_name: Optional[str] = None
+    registered_address: Optional[str] = None
+    contact_address: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_email: Optional[str] = None
+    logo_url: Optional[str] = None
     timezone: str
     is_active: bool
     created_at: datetime

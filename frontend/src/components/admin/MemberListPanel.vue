@@ -2,23 +2,82 @@
   <section class="panel">
     <div class="panel-header">
       <h2 class="panel-title">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        <svg
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+          />
         </svg>
         成員列表
       </h2>
-      <button class="btn-refresh" :disabled="loading" @click="$emit('reload')" title="重新整理成員列表">
-        <svg :class="{ spinning: loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      <button
+        class="btn-refresh"
+        :disabled="loading"
+        title="重新整理成員列表"
+        @click="$emit('reload')"
+      >
+        <svg
+          :class="{ spinning: loading }"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
         </svg>
       </button>
     </div>
 
-    <div v-if="loading" class="state-box"><div class="spinner"></div><span>載入成員中…</span></div>
-    <div v-else-if="error" class="state-box state-error"><div><p class="state-title">載入失敗</p><p class="state-msg">{{ error }}</p></div></div>
-    <div v-else-if="members.length === 0" class="state-box"><div><p class="state-title">尚無成員</p><p class="state-msg">請先使用上方表單新增成員。</p></div></div>
-    <div v-else class="table-wrap">
-      <div v-if="toggleError" class="inline-error">{{ toggleError }}</div>
+    <div
+      v-if="loading"
+      class="state-box"
+    >
+      <div class="spinner" /><span>載入成員中…</span>
+    </div>
+    <div
+      v-else-if="error"
+      class="state-box state-error"
+    >
+      <div>
+        <p class="state-title">
+          載入失敗
+        </p><p class="state-msg">
+          {{ error }}
+        </p>
+      </div>
+    </div>
+    <div
+      v-else-if="members.length === 0"
+      class="state-box"
+    >
+      <div>
+        <p class="state-title">
+          尚無成員
+        </p><p class="state-msg">
+          請先使用上方表單新增成員。
+        </p>
+      </div>
+    </div>
+    <div
+      v-else
+      class="table-wrap"
+    >
+      <div
+        v-if="toggleError"
+        class="inline-error"
+      >
+        {{ toggleError }}
+      </div>
       <table class="members-table">
         <thead>
           <tr>
@@ -31,9 +90,16 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="member in members" :key="member.membership_id">
-            <td class="mono">{{ member.login_username }}</td>
-            <td class="name">{{ member.display_name || '—' }}</td>
+          <tr
+            v-for="member in members"
+            :key="member.membership_id"
+          >
+            <td class="mono">
+              {{ member.login_username }}
+            </td>
+            <td class="name">
+              {{ member.display_name || '—' }}
+            </td>
             <td>{{ member.role_id }}</td>
             <td>{{ member.uses_schedule ? '顯示' : '隱藏' }}</td>
             <td>
@@ -43,9 +109,23 @@
             </td>
             <td>
               <div class="action-row">
-                <button class="btn-secondary" @click="$emit('edit', member)">編輯</button>
-                <button class="btn-secondary" @click="$emit('password', member)">重設密碼</button>
-                <button class="btn-toggle" :disabled="togglingId === member.membership_id" @click="$emit('toggle', member, !member.membership_is_active)">
+                <button
+                  class="btn-secondary"
+                  @click="$emit('edit', member)"
+                >
+                  編輯
+                </button>
+                <button
+                  class="btn-secondary"
+                  @click="$emit('password', member)"
+                >
+                  重設密碼
+                </button>
+                <button
+                  class="btn-toggle"
+                  :disabled="togglingId === member.membership_id"
+                  @click="$emit('toggle', member, !member.membership_is_active)"
+                >
                   {{ member.membership_is_active ? '停用' : '啟用' }}
                 </button>
               </div>

@@ -1,104 +1,446 @@
 <template>
   <div class="stack-layout">
-    <div v-if="isSuperAdmin" class="panel onboarding-section">
+    <div
+      v-if="isSuperAdmin"
+      class="panel onboarding-section"
+    >
       <div class="panel-header">
         <div>
-          <h2 class="onboarding-title">公司資料與初始管理者</h2>
-          <p class="onboarding-desc">建立新租戶的唯一入口，含統一編號檢核、初始管理員帳號與 Membership。</p>
+          <h2 class="onboarding-title">
+            公司資料與初始管理者
+          </h2>
+          <p class="onboarding-desc">
+            建立新租戶的唯一入口，含統一編號檢核、公司資料帶入、初始管理員帳號與 Membership。
+          </p>
         </div>
       </div>
       <div class="onboarding-body">
-        <div v-if="obSuccess" class="ob-result-card">
+        <div
+          v-if="obSuccess"
+          class="ob-result-card"
+        >
           <div class="ob-result-header">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <svg
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+            ><path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            /></svg>
             <span>Onboarding 完成！</span>
           </div>
           <div class="ob-result-grid">
             <div class="ob-result-group">
-              <p class="ob-result-label">公司</p>
-              <p class="ob-result-val">{{ obSuccess.company.name }}</p>
-              <p class="ob-result-sub">ID: {{ obSuccess.company.id }}</p>
-              <p v-if="obSuccess.company.tax_id" class="ob-result-sub">統編: {{ obSuccess.company.tax_id }}</p>
+              <p class="ob-result-label">
+                公司
+              </p>
+              <p class="ob-result-val">
+                {{ obSuccess.company.display_name || obSuccess.company.name }}
+              </p>
+              <p class="ob-result-sub">
+                ID: {{ obSuccess.company.id }}
+              </p>
+              <p
+                v-if="obSuccess.company.tax_id"
+                class="ob-result-sub"
+              >
+                統編: {{ obSuccess.company.tax_id }}
+              </p>
             </div>
             <div class="ob-result-group">
-              <p class="ob-result-label">使用者</p>
-              <p class="ob-result-val">{{ obSuccess.user.display_name }}</p>
-              <p class="ob-result-sub">{{ obSuccess.user.email || '（無 email）' }}</p>
+              <p class="ob-result-label">
+                公司主資料
+              </p>
+              <p class="ob-result-val">
+                {{ obSuccess.company.owner_name || '—' }}
+              </p>
+              <p class="ob-result-sub">
+                {{ obSuccess.company.registered_address || '（無登記地址）' }}
+              </p>
             </div>
             <div class="ob-result-group">
-              <p class="ob-result-label">登入帳號</p>
-              <p class="ob-result-val">{{ obSuccess.membership.login_username }}</p>
-              <p class="ob-result-sub">角色: {{ obSuccess.membership.role_id }}</p>
+              <p class="ob-result-label">
+                登入帳號
+              </p>
+              <p class="ob-result-val">
+                {{ obSuccess.membership.login_username }}
+              </p>
+              <p class="ob-result-sub">
+                角色: {{ obSuccess.membership.role_id }}
+              </p>
             </div>
           </div>
-          <button class="btn-ob-again" @click="resetOnboarding">再建立一個</button>
+          <div class="onboarding-note">
+            Logo 請於公司建立完成後，到公司詳情頁使用上傳功能設定。
+          </div>
+          <button
+            class="btn-ob-again"
+            @click="resetOnboarding"
+          >
+            再建立一個
+          </button>
         </div>
 
-        <div v-else class="ob-form-wrap">
-          <div v-if="obError" class="alert alert-error ob-alert">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <div
+          v-else
+          class="ob-form-wrap"
+        >
+          <div
+            v-if="obError"
+            class="alert alert-error ob-alert"
+          >
+            <svg
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+            ><path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            /></svg>
             <span>{{ obError }}</span>
           </div>
-          <form @submit.prevent="handleOnboard" class="ob-form" novalidate>
+          <form
+            class="ob-form"
+            novalidate
+            @submit.prevent="handleOnboard"
+          >
             <div class="ob-cols">
               <div class="ob-col">
-                <p class="ob-col-title">公司資料</p>
-                <div class="form-group">
-                  <label class="form-label" for="ob-co-id">公司 ID <span class="label-hint">必填，最多 50 字</span></label>
-                  <input id="ob-co-id" v-model.trim="obForm.company.id" type="text" class="form-input" :class="{'input-error':obErr.company_id}" placeholder="e.g. acme-corp" maxlength="50" autocomplete="off" />
-                  <p v-if="obErr.company_id" class="field-error">{{ obErr.company_id }}</p>
+                <div class="ob-col-head">
+                  <p class="ob-col-title">
+                    公司資料
+                  </p>
+                  <button
+                    type="button"
+                    class="btn-lookup"
+                    :disabled="lookupLoading"
+                    @click="handleLookupTaxId"
+                  >
+                    <span
+                      v-if="lookupLoading"
+                      class="btn-spinner"
+                    />
+                    <span>{{ lookupLoading ? '查詢中…' : '查詢統編資料' }}</span>
+                  </button>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="ob-co-name">公司名稱 <span class="label-hint">必填</span></label>
-                  <input id="ob-co-name" v-model.trim="obForm.company.name" type="text" class="form-input" :class="{'input-error':obErr.company_name}" placeholder="e.g. Acme Corp Ltd" maxlength="255" />
-                  <p v-if="obErr.company_name" class="field-error">{{ obErr.company_name }}</p>
+                  <label
+                    class="form-label"
+                    for="ob-co-id"
+                  >公司 ID <span class="label-hint">必填，最多 50 字</span></label>
+                  <input
+                    id="ob-co-id"
+                    v-model.trim="obForm.company.id"
+                    type="text"
+                    class="form-input"
+                    :class="{'input-error':obErr.company_id}"
+                    placeholder="e.g. acme-corp"
+                    maxlength="50"
+                    autocomplete="off"
+                  >
+                  <p
+                    v-if="obErr.company_id"
+                    class="field-error"
+                  >
+                    {{ obErr.company_id }}
+                  </p>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="ob-co-tax-id">統一編號 <span class="label-hint">選填，8 碼且需通過檢查碼</span></label>
-                  <input id="ob-co-tax-id" v-model.trim="obForm.company.tax_id" type="text" inputmode="numeric" class="form-input" :class="{'input-error':obErr.tax_id}" placeholder="e.g. 24536806" maxlength="8" autocomplete="off" />
-                  <p v-if="obErr.tax_id" class="field-error">{{ obErr.tax_id }}</p>
-                  <p v-else class="field-hint">若有填寫，系統會做統編格式與檢查碼驗證。</p>
+                  <label
+                    class="form-label"
+                    for="ob-co-name"
+                  >公司名稱 <span class="label-hint">必填</span></label>
+                  <input
+                    id="ob-co-name"
+                    v-model.trim="obForm.company.name"
+                    type="text"
+                    class="form-input"
+                    :class="{'input-error':obErr.company_name}"
+                    placeholder="e.g. Acme Corp Ltd"
+                    maxlength="255"
+                  >
+                  <p
+                    v-if="obErr.company_name"
+                    class="field-error"
+                  >
+                    {{ obErr.company_name }}
+                  </p>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="ob-co-tz">時區</label>
-                  <select id="ob-co-tz" v-model="obForm.company.timezone" class="form-input">
-                    <option value="UTC">UTC</option>
-                    <option value="Asia/Taipei">Asia/Taipei（台北）</option>
+                  <label
+                    class="form-label"
+                    for="ob-co-tax-id"
+                  >統一編號 <span class="label-hint">選填，8 碼且需通過檢查碼</span></label>
+                  <input
+                    id="ob-co-tax-id"
+                    v-model.trim="obForm.company.tax_id"
+                    type="text"
+                    inputmode="numeric"
+                    class="form-input"
+                    :class="{'input-error':obErr.tax_id}"
+                    placeholder="e.g. 24536806"
+                    maxlength="8"
+                    autocomplete="off"
+                  >
+                  <p
+                    v-if="obErr.tax_id"
+                    class="field-error"
+                  >
+                    {{ obErr.tax_id }}
+                  </p>
+                  <p
+                    v-else
+                    class="field-hint"
+                  >
+                    若有填寫，可查詢工商資料並自動帶入公司名稱、負責人與登記地址。
+                  </p>
+                </div>
+                <div
+                  v-if="lookupMessage"
+                  class="lookup-state"
+                >
+                  {{ lookupMessage }}
+                </div>
+                <div class="form-grid form-grid-double">
+                  <div class="form-group">
+                    <label
+                      class="form-label"
+                      for="ob-co-display-name"
+                    >顯示名稱</label>
+                    <input
+                      id="ob-co-display-name"
+                      v-model.trim="obForm.company.display_name"
+                      type="text"
+                      class="form-input"
+                      maxlength="255"
+                      placeholder="前台顯示名稱"
+                    >
+                  </div>
+                  <div class="form-group">
+                    <label
+                      class="form-label"
+                      for="ob-co-owner-name"
+                    >負責人</label>
+                    <input
+                      id="ob-co-owner-name"
+                      v-model.trim="obForm.company.owner_name"
+                      type="text"
+                      class="form-input"
+                      maxlength="255"
+                      placeholder="公司負責人"
+                    >
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label
+                    class="form-label"
+                    for="ob-co-registered-address"
+                  >登記地址</label>
+                  <input
+                    id="ob-co-registered-address"
+                    v-model.trim="obForm.company.registered_address"
+                    type="text"
+                    class="form-input"
+                    maxlength="500"
+                    placeholder="公司工商登記地址"
+                  >
+                </div>
+                <div class="form-group">
+                  <label
+                    class="form-label"
+                    for="ob-co-contact-address"
+                  >聯絡地址</label>
+                  <input
+                    id="ob-co-contact-address"
+                    v-model.trim="obForm.company.contact_address"
+                    type="text"
+                    class="form-input"
+                    maxlength="500"
+                    placeholder="對外聯絡或收件地址"
+                  >
+                </div>
+                <div class="form-grid form-grid-double">
+                  <div class="form-group">
+                    <label
+                      class="form-label"
+                      for="ob-co-contact-phone"
+                    >聯絡電話</label>
+                    <input
+                      id="ob-co-contact-phone"
+                      v-model.trim="obForm.company.contact_phone"
+                      type="text"
+                      class="form-input"
+                      maxlength="50"
+                      placeholder="02-12345678"
+                    >
+                  </div>
+                  <div class="form-group">
+                    <label
+                      class="form-label"
+                      for="ob-co-contact-email"
+                    >聯絡 Email</label>
+                    <input
+                      id="ob-co-contact-email"
+                      v-model.trim="obForm.company.contact_email"
+                      type="email"
+                      class="form-input"
+                      maxlength="255"
+                      placeholder="service@example.com"
+                    >
+                  </div>
+                </div>
+                <div class="logo-note-box">
+                  <p class="logo-note-title">
+                    Logo 不是開通欄位
+                  </p>
+                  <p class="logo-note-text">
+                    公司建立完成後，請到公司詳情頁使用 Logo 上傳功能；這裡不需要輸入任何 URL。
+                  </p>
+                </div>
+                <div class="form-group">
+                  <label
+                    class="form-label"
+                    for="ob-co-tz"
+                  >時區</label>
+                  <select
+                    id="ob-co-tz"
+                    v-model="obForm.company.timezone"
+                    class="form-input"
+                  >
+                    <option value="UTC">
+                      UTC
+                    </option>
+                    <option value="Asia/Taipei">
+                      Asia/Taipei（台北）
+                    </option>
                   </select>
                 </div>
               </div>
               <div class="ob-col">
-                <p class="ob-col-title">初始管理者</p>
+                <p class="ob-col-title">
+                  初始管理者
+                </p>
                 <div class="form-group">
-                  <label class="form-label" for="ob-u-name">顯示名稱 <span class="label-hint">必填</span></label>
-                  <input id="ob-u-name" v-model.trim="obForm.initial_user.display_name" type="text" class="form-input" :class="{'input-error':obErr.display_name}" placeholder="e.g. Alice Wang" maxlength="100" />
-                  <p v-if="obErr.display_name" class="field-error">{{ obErr.display_name }}</p>
+                  <label
+                    class="form-label"
+                    for="ob-u-name"
+                  >顯示名稱 <span class="label-hint">必填</span></label>
+                  <input
+                    id="ob-u-name"
+                    v-model.trim="obForm.initial_user.display_name"
+                    type="text"
+                    class="form-input"
+                    :class="{'input-error':obErr.display_name}"
+                    placeholder="e.g. Alice Wang"
+                    maxlength="100"
+                  >
+                  <p
+                    v-if="obErr.display_name"
+                    class="field-error"
+                  >
+                    {{ obErr.display_name }}
+                  </p>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="ob-u-login">登入帳號 <span class="label-hint">必填，公司內唯一</span></label>
-                  <input id="ob-u-login" v-model.trim="obForm.initial_user.login_username" type="text" class="form-input" :class="{'input-error':obErr.login_username}" placeholder="e.g. alice" maxlength="100" autocomplete="off" />
-                  <p v-if="obErr.login_username" class="field-error">{{ obErr.login_username }}</p>
+                  <label
+                    class="form-label"
+                    for="ob-u-login"
+                  >登入帳號 <span class="label-hint">必填，公司內唯一</span></label>
+                  <input
+                    id="ob-u-login"
+                    v-model.trim="obForm.initial_user.login_username"
+                    type="text"
+                    class="form-input"
+                    :class="{'input-error':obErr.login_username}"
+                    placeholder="e.g. alice"
+                    maxlength="100"
+                    autocomplete="off"
+                  >
+                  <p
+                    v-if="obErr.login_username"
+                    class="field-error"
+                  >
+                    {{ obErr.login_username }}
+                  </p>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="ob-u-email">Email <span class="label-hint">選填</span></label>
-                  <input id="ob-u-email" v-model.trim="obForm.initial_user.email" type="email" class="form-input" placeholder="alice@example.com" maxlength="255" />
+                  <label
+                    class="form-label"
+                    for="ob-u-email"
+                  >Email <span class="label-hint">選填</span></label>
+                  <input
+                    id="ob-u-email"
+                    v-model.trim="obForm.initial_user.email"
+                    type="email"
+                    class="form-input"
+                    placeholder="alice@example.com"
+                    maxlength="255"
+                  >
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="ob-u-pwd">密碼 <span class="label-hint">必填，至少 6 字</span></label>
-                  <input id="ob-u-pwd" v-model="obForm.initial_user.password" type="password" class="form-input" :class="{'input-error':obErr.password}" placeholder="••••••••" maxlength="255" autocomplete="new-password" />
-                  <p v-if="obErr.password" class="field-error">{{ obErr.password }}</p>
+                  <label
+                    class="form-label"
+                    for="ob-u-pwd"
+                  >密碼 <span class="label-hint">必填，至少 6 字</span></label>
+                  <input
+                    id="ob-u-pwd"
+                    v-model="obForm.initial_user.password"
+                    type="password"
+                    class="form-input"
+                    :class="{'input-error':obErr.password}"
+                    placeholder="••••••••"
+                    maxlength="255"
+                    autocomplete="new-password"
+                  >
+                  <p
+                    v-if="obErr.password"
+                    class="field-error"
+                  >
+                    {{ obErr.password }}
+                  </p>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="ob-u-role">角色</label>
-                  <select id="ob-u-role" v-model="obForm.initial_user.role_id" class="form-input">
-                    <option value="company_admin">company_admin（公司管理員）</option>
+                  <label
+                    class="form-label"
+                    for="ob-u-role"
+                  >角色</label>
+                  <select
+                    id="ob-u-role"
+                    v-model="obForm.initial_user.role_id"
+                    class="form-input"
+                  >
+                    <option value="company_admin">
+                      company_admin（公司管理員）
+                    </option>
                   </select>
                 </div>
               </div>
             </div>
-            <button type="submit" class="btn-submit btn-ob-submit" :disabled="obLoading">
-              <span v-if="obLoading" class="btn-spinner"></span>
-              <svg v-else fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+            <button
+              type="submit"
+              class="btn-submit btn-ob-submit"
+              :disabled="obLoading"
+            >
+              <span
+                v-if="obLoading"
+                class="btn-spinner"
+              />
+              <svg
+                v-else
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+              /></svg>
               {{ obLoading ? '建立中…' : '開通公司' }}
             </button>
           </form>
@@ -106,14 +448,30 @@
       </div>
     </div>
 
-    <div v-else class="panel panel-state">
+    <div
+      v-else
+      class="panel panel-state"
+    >
       <div class="state-box state-error">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
         <div>
-          <p class="state-title">權限不足</p>
-          <p class="state-msg">此頁僅開放 super_admin。</p>
+          <p class="state-title">
+            權限不足
+          </p>
+          <p class="state-msg">
+            此頁僅開放 super_admin。
+          </p>
         </div>
       </div>
     </div>
@@ -130,7 +488,18 @@ const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 const TAX_ID_WEIGHTS = [1, 2, 1, 2, 1, 2, 4, 1]
 
 const obForm = reactive({
-  company: { id: '', name: '', tax_id: '', timezone: 'UTC' },
+  company: {
+    id: '',
+    name: '',
+    tax_id: '',
+    display_name: '',
+    owner_name: '',
+    registered_address: '',
+    contact_address: '',
+    contact_phone: '',
+    contact_email: '',
+    timezone: 'UTC'
+  },
   initial_user: { display_name: '', login_username: '', email: '', password: '', role_id: 'company_admin' }
 })
 const obErr = reactive({
@@ -140,9 +509,12 @@ const obErr = reactive({
 const obLoading = ref(false)
 const obError = ref(null)
 const obSuccess = ref(null)
+const lookupLoading = ref(false)
+const lookupMessage = ref('')
 
 function resetObAlerts() {
   obError.value = null
+  lookupMessage.value = ''
   Object.keys(obErr).forEach(k => { obErr[k] = '' })
 }
 
@@ -179,6 +551,43 @@ function validateObForm() {
   return valid
 }
 
+async function handleLookupTaxId() {
+  resetObAlerts()
+  if (!obForm.company.tax_id) {
+    obErr.tax_id = '請先輸入統一編號'
+    return
+  }
+  if (!/^\d{8}$/.test(obForm.company.tax_id)) {
+    obErr.tax_id = '統一編號需為 8 位數字'
+    return
+  }
+  if (!isValidTaxId(obForm.company.tax_id)) {
+    obErr.tax_id = '統一編號檢查碼不正確'
+    return
+  }
+
+  lookupLoading.value = true
+  try {
+    const result = await adminApi.lookupCompanyByTaxId(obForm.company.tax_id)
+    if (!result.found) {
+      lookupMessage.value = '目前查無可帶入資料，可手動填寫。'
+      return
+    }
+    obForm.company.name = result.name || obForm.company.name
+    obForm.company.owner_name = result.owner_name || obForm.company.owner_name
+    obForm.company.registered_address = result.registered_address || obForm.company.registered_address
+    lookupMessage.value = '已帶入公司名稱、負責人與登記地址。'
+  } catch (err) {
+    if (err.status === 403) {
+      obError.value = '權限不足：只有 super_admin 可查詢統編資料'
+    } else {
+      obError.value = err.message || '統編查詢失敗，請稍後再試'
+    }
+  } finally {
+    lookupLoading.value = false
+  }
+}
+
 async function handleOnboard() {
   resetObAlerts()
   if (!validateObForm()) return
@@ -189,6 +598,12 @@ async function handleOnboard() {
         id: obForm.company.id,
         name: obForm.company.name,
         tax_id: obForm.company.tax_id || null,
+        display_name: obForm.company.display_name || null,
+        owner_name: obForm.company.owner_name || null,
+        registered_address: obForm.company.registered_address || null,
+        contact_address: obForm.company.contact_address || null,
+        contact_phone: obForm.company.contact_phone || null,
+        contact_email: obForm.company.contact_email || null,
         timezone: obForm.company.timezone || 'UTC'
       },
       initial_user: {
@@ -232,7 +647,7 @@ async function handleOnboard() {
     } else if (err.status === 401) {
       obError.value = '登入已過期，請重新登入'
     } else if (err.status === 403) {
-      obError.value = '權限不足：只有 super_admin 可執行 開通新公司'
+      obError.value = '權限不足：只有 super_admin 可執行開通新公司'
     } else {
       obError.value = err.message || 'Onboarding 失敗，請稍後再試'
     }
@@ -247,6 +662,12 @@ function resetOnboarding() {
   obForm.company.id = ''
   obForm.company.name = ''
   obForm.company.tax_id = ''
+  obForm.company.display_name = ''
+  obForm.company.owner_name = ''
+  obForm.company.registered_address = ''
+  obForm.company.contact_address = ''
+  obForm.company.contact_phone = ''
+  obForm.company.contact_email = ''
   obForm.company.timezone = 'UTC'
   obForm.initial_user.display_name = ''
   obForm.initial_user.login_username = ''
@@ -321,11 +742,43 @@ function resetOnboarding() {
   border: 1px solid rgba(226, 232, 240, 0.9);
 }
 
+.ob-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .ob-col-title {
   margin: 0;
   font-size: 14px;
   font-weight: 800;
   color: #0f172a;
+}
+
+.btn-lookup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.08);
+  color: #0369a1;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.form-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.form-grid-double {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .form-group {
@@ -348,6 +801,38 @@ function resetOnboarding() {
   font-size: 12px;
   color: #64748b;
   font-weight: 500;
+}
+
+.lookup-state,
+.logo-note-box,
+.onboarding-note {
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.lookup-state {
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(14, 165, 233, 0.14);
+  color: #0369a1;
+}
+
+.logo-note-box,
+.onboarding-note {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #334155;
+}
+
+.logo-note-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.logo-note-text {
+  margin: 0;
 }
 
 .form-input {
@@ -429,7 +914,8 @@ function resetOnboarding() {
 }
 
 .btn-submit:disabled,
-.btn-ob-again:disabled {
+.btn-ob-again:disabled,
+.btn-lookup:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -449,17 +935,17 @@ function resetOnboarding() {
 }
 
 .ob-result-header {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
-  color: #15803d;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 800;
+  color: #15803d;
 }
 
 .ob-result-header svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .ob-result-grid {
@@ -469,29 +955,29 @@ function resetOnboarding() {
 }
 
 .ob-result-group {
-  padding: 16px;
+  padding: 18px;
   border-radius: 18px;
-  background: rgba(248, 250, 252, 0.92);
+  background: rgba(248, 250, 252, 0.9);
   border: 1px solid rgba(226, 232, 240, 0.9);
 }
 
 .ob-result-label {
-  margin: 0 0 6px;
-  font-size: 12px;
+  margin: 0 0 8px;
+  font-size: 13px;
   font-weight: 700;
   color: #64748b;
 }
 
 .ob-result-val {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
   color: #0f172a;
 }
 
 .ob-result-sub {
   margin: 6px 0 0;
-  font-size: 13px;
+  font-size: 12px;
   color: #64748b;
 }
 
@@ -500,17 +986,8 @@ function resetOnboarding() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  text-align: left;
-}
-
-.state-box svg {
-  width: 24px;
-  height: 24px;
-}
-
-.state-error {
-  color: #dc2626;
+  gap: 12px;
+  padding: 24px;
 }
 
 .state-title {
@@ -521,8 +998,11 @@ function resetOnboarding() {
 
 .state-msg {
   margin: 0;
-  font-size: 14px;
-  color: #64748b;
+  font-size: 13px;
+}
+
+.state-error {
+  color: #dc2626;
 }
 
 @keyframes spin {
@@ -531,7 +1011,8 @@ function resetOnboarding() {
 
 @media (max-width: 960px) {
   .ob-cols,
-  .ob-result-grid {
+  .ob-result-grid,
+  .form-grid-double {
     grid-template-columns: 1fr;
   }
 }

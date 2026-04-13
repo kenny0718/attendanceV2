@@ -1,5 +1,8 @@
 <template>
-  <Card title="外出管理" class="break-management-card">
+  <Card
+    title="外出管理"
+    class="break-management-card"
+  >
     <!-- 外出原因 -->
     <OutReasonSection 
       :reason-presets="reasonPresets"

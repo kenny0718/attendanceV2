@@ -1,27 +1,75 @@
 <template>
-  <div v-if="open" class="modal-overlay" @click.self="$emit('close')">
+  <div
+    v-if="open"
+    class="modal-overlay"
+    @click.self="$emit('close')"
+  >
     <div class="modal-box">
       <div class="modal-header">
-        <h3 class="modal-title">重設密碼</h3>
-        <button class="modal-close" @click="$emit('close')">✕</button>
+        <h3 class="modal-title">
+          重設密碼
+        </h3>
+        <button
+          class="modal-close"
+          @click="$emit('close')"
+        >
+          ✕
+        </button>
       </div>
       <div class="modal-body">
-        <p class="pwd-member-name">為「{{ member?.display_name }}」重設登入密碼</p>
+        <p class="pwd-member-name">
+          為「{{ member?.display_name }}」重設登入密碼
+        </p>
         <div class="form-group">
           <label class="form-label">新密碼</label>
-          <input v-model="newPassword" class="form-input" type="password" maxlength="255" placeholder="至少6個字元" />
+          <input
+            v-model="newPassword"
+            class="form-input"
+            type="password"
+            maxlength="255"
+            placeholder="至少6個字元"
+          >
         </div>
         <div class="form-group">
           <label class="form-label">確認新密碼</label>
-          <input v-model="confirmPassword" class="form-input" type="password" maxlength="255" placeholder="再輸入一次" />
+          <input
+            v-model="confirmPassword"
+            class="form-input"
+            type="password"
+            maxlength="255"
+            placeholder="再輸入一次"
+          >
         </div>
-        <div v-if="error" class="modal-error">{{ error }}</div>
-        <div v-if="success" class="modal-success">密碼已成功重設</div>
+        <div
+          v-if="error"
+          class="modal-error"
+        >
+          {{ error }}
+        </div>
+        <div
+          v-if="success"
+          class="modal-success"
+        >
+          密碼已成功重設
+        </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" @click="$emit('close')" :disabled="loading">取消</button>
-        <button class="btn-save" @click="savePwd" :disabled="loading">
-          <span v-if="loading" class="btn-spinner-sm"></span>
+        <button
+          class="btn-cancel"
+          :disabled="loading"
+          @click="$emit('close')"
+        >
+          取消
+        </button>
+        <button
+          class="btn-save"
+          :disabled="loading"
+          @click="savePwd"
+        >
+          <span
+            v-if="loading"
+            class="btn-spinner-sm"
+          />
           <span v-else>確認重設</span>
         </button>
       </div>

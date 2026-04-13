@@ -1,14 +1,30 @@
 <template>
-  <div class="section-header" :class="{ 'section-header-between': align === 'between' }">
+  <div
+    class="section-header"
+    :class="{ 'section-header-between': align === 'between' }"
+  >
     <h2 class="section-title">
-      <svg v-if="iconPath" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath" />
+      <svg
+        v-if="iconPath"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        stroke-width="2"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          :d="iconPath"
+        />
       </svg>
       {{ title }}
     </h2>
-      <div v-if="$slots.actions" class="section-actions">
-        <slot name="actions" />
-      </div>
+    <div
+      v-if="$slots.actions"
+      class="section-actions"
+    >
+      <slot name="actions" />
+    </div>
   </div>
 </template>
 

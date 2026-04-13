@@ -4,8 +4,12 @@
 
     <div class="page-container">
       <div class="page-header">
-        <h1 class="page-title">個人出勤摘要</h1>
-        <p class="page-sub">個人出勤統計數字</p>
+        <h1 class="page-title">
+          個人出勤摘要
+        </h1>
+        <p class="page-sub">
+          個人出勤統計數字
+        </p>
       </div>
 
       <!-- 篩選區 -->
@@ -14,13 +18,19 @@
       </div>
 
       <!-- 載入中 -->
-      <div v-if="store.userSummaryLoading" class="state-box">
-        <div class="spinner"></div>
+      <div
+        v-if="store.userSummaryLoading"
+        class="state-box"
+      >
+        <div class="spinner" />
         <span>載入中...</span>
       </div>
 
       <!-- 錯誤 -->
-      <div v-else-if="store.userSummaryError" class="state-box error">
+      <div
+        v-else-if="store.userSummaryError"
+        class="state-box error"
+      >
         <span>⚠ {{ store.userSummaryError }}</span>
       </div>
 
@@ -33,12 +43,27 @@
       </div>
 
       <!-- 摘要卡片 -->
-      <div v-else-if="store.userSummary" class="summary-section">
+      <div
+        v-else-if="store.userSummary"
+        class="summary-section"
+      >
         <div class="summary-grid">
-          <SummaryCard label="總 Sessions"  :value="store.userSummary.total_sessions" />
-          <SummaryCard label="已完成"       :value="store.userSummary.closed_sessions" />
-          <SummaryCard label="進行中"       :value="store.userSummary.open_sessions" />
-          <SummaryCard label="總工時"       :value="formatDuration(store.userSummary.total_work_minutes)" />
+          <SummaryCard
+            label="總 Sessions"
+            :value="store.userSummary.total_sessions"
+          />
+          <SummaryCard
+            label="已完成"
+            :value="store.userSummary.closed_sessions"
+          />
+          <SummaryCard
+            label="進行中"
+            :value="store.userSummary.open_sessions"
+          />
+          <SummaryCard
+            label="總工時"
+            :value="formatDuration(store.userSummary.total_work_minutes)"
+          />
           <SummaryCard
             label="平均每次工時"
             :value="formatAvg(store.userSummary.average_session_minutes)"

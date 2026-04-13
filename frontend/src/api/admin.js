@@ -18,14 +18,17 @@ export const adminApi = {
   // WP-S1-09D: Onboarding — company + initial user + membership (atomic)
   // POST /api/admin/companies/onboarding
   onboardCompany: (data) =>
-    apiClient.post('/admin/companies/onboarding', data)
-,
+    apiClient.post('/admin/companies/onboarding', data),
+
+  // Companies v3: Lookup company registration data by tax id
+  // POST /api/admin/companies/lookup-by-tax-id
+  lookupCompanyByTaxId: (taxId) =>
+    apiClient.post('/admin/companies/lookup-by-tax-id', { tax_id: taxId }),
 
   // WP-S1-10B: List users + memberships for a company (read-only)
   // GET /api/admin/companies/{company_id}/members
   listCompanyMembers: (companyId) =>
-    apiClient.get(`/admin/companies/${companyId}/members`)
-,
+    apiClient.get(`/admin/companies/${companyId}/members`),
 
   // WP-S1-10C: Toggle membership active state (super_admin only)
   // PATCH /api/admin/companies/{company_id}/members/{membership_id}/active
@@ -47,13 +50,23 @@ export const adminApi = {
   createCompanyMember: (companyId, payload) =>
     apiClient.post(`/admin/companies/${companyId}/members`, payload),
 
-  // S1-11A: Get single company detail
+  // Companies v3: Get single company detail + member summary
   // GET /api/admin/companies/{company_id}
   getCompany: (companyId) =>
     apiClient.get(`/admin/companies/${companyId}`),
 
-  // S1-11A: Update company basic info (name / timezone / is_active)
+  // S1-11A: Update company basic info
   // PATCH /api/admin/companies/{company_id}
   updateCompany: (companyId, payload) =>
-    apiClient.patch(`/admin/companies/${companyId}`, payload)
+    apiClient.patch(`/admin/companies/${companyId}`, payload),
+
+  // Companies v3: Upload company logo
+  // POST /api/admin/companies/{company_id}/logo
+  uploadCompanyLogo: (companyId, payload) =>
+    apiClient.post(`/admin/companies/${companyId}/logo`, payload),
+
+  // Companies v3: Delete company logo
+  // DELETE /api/admin/companies/{company_id}/logo
+  deleteCompanyLogo: (companyId) =>
+    apiClient.delete(`/admin/companies/${companyId}/logo`),
 }

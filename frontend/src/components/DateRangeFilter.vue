@@ -7,7 +7,7 @@
         class="date-input"
         :value="localStart"
         @change="onStartChange"
-      />
+      >
     </div>
     <span class="range-sep">～</span>
     <div class="date-field">
@@ -17,9 +17,15 @@
         class="date-input"
         :value="localEnd"
         @change="onEndChange"
-      />
+      >
     </div>
-    <button class="clear-btn" @click="clear" title="清除日期篩選">✕ 清除</button>
+    <button
+      class="clear-btn"
+      title="清除日期篩選"
+      @click="clear"
+    >
+      ✕ 清除
+    </button>
   </div>
 </template>
 

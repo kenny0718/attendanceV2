@@ -1,10 +1,13 @@
 <template>
   <div class="card surface-card">
-    <h2 v-if="title" class="card-title">
+    <h2
+      v-if="title"
+      class="card-title"
+    >
       {{ title }}
     </h2>
     <div class="card-content">
-      <slot></slot>
+      <slot />
     </div>
   </div>
 </template>

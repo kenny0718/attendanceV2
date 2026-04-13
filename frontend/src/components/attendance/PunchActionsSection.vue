@@ -1,41 +1,75 @@
 <template>
   <div class="punch-actions-section">
-    <h3 class="subsection-title">打卡操作</h3>
+    <h3 class="subsection-title">
+      打卡操作
+    </h3>
     <div class="punch-grid-main">
       <!-- 上班打卡 -->
       <div 
-        @click="canPunchIn && !isLoading && $emit('punch-in')"
         :class="[
           'punch-card',
           { 'disabled': !canPunchIn || isLoading },
           { 'completed': hasPunchedIn }
         ]"
+        @click="canPunchIn && !isLoading && $emit('punch-in')"
       >
         <div class="card-icon">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+          <svg
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2.5"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+            />
           </svg>
         </div>
-        <div class="card-label">上班打卡</div>
-        <div v-if="hasPunchedIn" class="status-badge completed">✓</div>
+        <div class="card-label">
+          上班打卡
+        </div>
+        <div
+          v-if="hasPunchedIn"
+          class="status-badge completed"
+        >
+          ✓
+        </div>
       </div>
 
       <!-- 下班打卡 -->
       <div 
-        @click="canPunchOut && !isLoading && $emit('punch-out')"
         :class="[
           'punch-card',
           { 'disabled': !canPunchOut || isLoading },
           { 'completed': hasPunchedOut }
         ]"
+        @click="canPunchOut && !isLoading && $emit('punch-out')"
       >
         <div class="card-icon">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          <svg
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2.5"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+            />
           </svg>
         </div>
-        <div class="card-label">下班打卡</div>
-        <div v-if="hasPunchedOut" class="status-badge completed">✓</div>
+        <div class="card-label">
+          下班打卡
+        </div>
+        <div
+          v-if="hasPunchedOut"
+          class="status-badge completed"
+        >
+          ✓
+        </div>
       </div>
     </div>
   </div>

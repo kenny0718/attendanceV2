@@ -3,36 +3,69 @@
     <AdminSectionHeader
       title="公司列表"
       align="between"
-      iconPath="M4 6h16M4 10h16M4 14h16M4 18h16"
+      icon-path="M4 6h16M4 10h16M4 14h16M4 18h16"
     >
       <template #actions>
-        <router-link to="/admin/onboarding" class="btn-link">前往新公司開通</router-link>
-        <button class="btn-refresh" :disabled="loading" title="重新整理" @click="$emit('reload')">
-          <svg :class="{ spinning: loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        <router-link
+          to="/admin/onboarding"
+          class="btn-link"
+        >
+          前往新公司開通
+        </router-link>
+        <button
+          class="btn-refresh"
+          :disabled="loading"
+          title="重新整理"
+          @click="$emit('reload')"
+        >
+          <svg
+            :class="{ spinning: loading }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
         </button>
       </template>
     </AdminSectionHeader>
 
-    <div v-if="loading" class="state-loading"><div class="spinner"></div><span>載入中…</span></div>
+    <div
+      v-if="loading"
+      class="state-loading"
+    >
+      <div class="spinner" /><span>載入中…</span>
+    </div>
     <AdminStateBox
       v-else-if="error"
       variant="error"
       title="載入失敗"
       :message="error"
-      iconPath="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      icon-path="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
     />
     <AdminStateBox
       v-else-if="companies.length === 0"
       variant="empty"
       title="尚無公司"
       message="目前尚未建立任何公司。"
-      iconPath="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+      icon-path="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
     >
-      <router-link to="/admin/onboarding" class="btn-link inline-link">前往新公司開通</router-link>
+      <router-link
+        to="/admin/onboarding"
+        class="btn-link inline-link"
+      >
+        前往新公司開通
+      </router-link>
     </AdminStateBox>
-    <div v-else class="list-stack">
+    <div
+      v-else
+      class="list-stack"
+    >
       <button
         v-for="company in companies"
         :key="company.id"
@@ -43,7 +76,9 @@
       >
         <div class="company-head">
           <div class="company-title-block">
-            <p class="company-name">{{ company.name }}</p>
+            <p class="company-name">
+              {{ company.name }}
+            </p>
             <div class="company-meta-inline">
               <span class="company-id">ID: {{ company.id }}</span>
               <span class="meta-dot">•</span>
@@ -53,7 +88,9 @@
           <span :class="company.is_active ? 'badge-active' : 'badge-inactive'">{{ company.is_active ? '啟用' : '停用' }}</span>
         </div>
       </button>
-      <p class="total-count">共 {{ companies.length }} 間公司</p>
+      <p class="total-count">
+        共 {{ companies.length }} 間公司
+      </p>
     </div>
   </PageCard>
 </template>

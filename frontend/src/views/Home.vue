@@ -37,21 +37,40 @@
 
       <PersonalServiceCard />
 
-      <div v-if="showSuccessMessage" class="toast success">
+      <div
+        v-if="showSuccessMessage"
+        class="toast success"
+      >
         ✓ {{ successMessage }}
       </div>
 
-      <div v-if="showErrorMessage" class="toast error">
-        <svg fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+      <div
+        v-if="showErrorMessage"
+        class="toast error"
+      >
+        <svg
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+            clip-rule="evenodd"
+          />
         </svg>
         <span>{{ errorMessage }}</span>
       </div>
     </div>
 
-    <div v-if="showEditDialog" class="dialog-overlay" @click.self="cancelEdit">
+    <div
+      v-if="showEditDialog"
+      class="dialog-overlay"
+      @click.self="cancelEdit"
+    >
       <div class="dialog-content">
-        <h3 class="dialog-title">編輯外出原因</h3>
+        <h3 class="dialog-title">
+          編輯外出原因
+        </h3>
 
         <div class="dialog-body">
           <label class="dialog-label">原因說明</label>
@@ -62,13 +81,25 @@
             placeholder="例如：拜訪客戶-A客戶"
             @keyup.enter="saveEditedNote"
             @keyup.esc="cancelEdit"
-          />
-          <p class="dialog-hint">提示：可以在原因後面加上詳細說明</p>
+          >
+          <p class="dialog-hint">
+            提示：可以在原因後面加上詳細說明
+          </p>
         </div>
 
         <div class="dialog-actions">
-          <button @click="cancelEdit" class="dialog-btn cancel">取消</button>
-          <button @click="saveEditedNote" class="dialog-btn confirm">保存</button>
+          <button
+            class="dialog-btn cancel"
+            @click="cancelEdit"
+          >
+            取消
+          </button>
+          <button
+            class="dialog-btn confirm"
+            @click="saveEditedNote"
+          >
+            保存
+          </button>
         </div>
       </div>
     </div>

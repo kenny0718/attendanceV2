@@ -1,10 +1,15 @@
 <template>
-  <div v-if="breakPunches.length > 0" class="break-records-section">
+  <div
+    v-if="breakPunches.length > 0"
+    class="break-records-section"
+  >
     <div 
       class="records-header-inline"
       @click="toggleExpanded"
     >
-      <h3 class="subsection-title">今日外出 / 返回紀錄</h3>
+      <h3 class="subsection-title">
+        今日外出 / 返回紀錄
+      </h3>
       <div class="header-right">
         <span class="count-badge">
           {{ breakPunches.length }} 筆
@@ -17,12 +22,19 @@
           viewBox="0 0 24 24"
           stroke-width="2"
         >
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </div>
     </div>
     
-    <div v-show="isExpanded" class="records-content">
+    <div
+      v-show="isExpanded"
+      class="records-content"
+    >
       <div class="break-list">
         <div
           v-for="punch in breakPunches.slice(0, 10)"
@@ -30,11 +42,27 @@
           class="break-item"
         >
           <div class="break-icon">
-            <svg v-if="punch.punch_type === 'break_start'" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+            <svg
+              v-if="punch.punch_type === 'break_start'"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z"
+                clip-rule="evenodd"
+              />
             </svg>
-            <svg v-else fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            <svg
+              v-else
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clip-rule="evenodd"
+              />
             </svg>
           </div>
           
@@ -47,7 +75,10 @@
                 {{ formatTime(punch.punch_time) }}
               </span>
             </div>
-            <div v-if="punch.notes" class="break-notes">
+            <div
+              v-if="punch.notes"
+              class="break-notes"
+            >
               {{ punch.notes }}
             </div>
           </div>
@@ -61,20 +92,36 @@
               class="map-link"
               title="在 Google Maps 開啟"
             >
-              <svg fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+              <svg
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                  clip-rule="evenodd"
+                />
               </svg>
               <span>地圖</span>
             </a>
             
             <button
               v-if="punch.punch_type === 'break_start'"
-              @click="$emit('edit-note', punch)"
               class="edit-btn"
               title="編輯原因"
+              @click="$emit('edit-note', punch)"
             >
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              <svg
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                />
               </svg>
             </button>
           </div>

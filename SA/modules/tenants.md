@@ -1,65 +1,265 @@
 # tenants 模組 SDD
 
 **模組名稱**：`tenants`  
-**你可以把它理解成**：系統的「公司與租戶管理中心」  
+**定位**：公司 / 租戶層級的管理中心  
 **程式位置**：`backend/app/modules/tenants`
 
 ---
 
-## 1. 這個模組是做什麼的？
+## 1. 模組目的
 
-`tenants` 管理的是「公司這個租戶單位」本身。
+`tenants` 負責管理「公司這個租戶單位」本身，以及所有直接屬於公司層級的設定與管理能力。
 
 白話說：
 
-- 公司資料在這裡管理
+- 公司主資料在這裡管理
 - 公司成員在這裡管理
-- 功能開關（entitlements）也在這裡管理
-- onboarding 也屬於這裡
-
----
-
-## 2. 主要功能
-
-### 2.1 Company CRUD
-用途：建立與管理公司資料。
-
-### 2.2 Members 管理
-用途：管理公司內有哪些成員、成員的基本設定。
-
-### 2.3 Onboarding
-用途：處理公司開通或初始設定流程。
-
-### 2.4 Feature Entitlements
-用途：決定這家公司能不能用某些功能。
-
-### 2.5 Company Branding
-用途：管理公司前台顯示所需的品牌資訊，例如公司正式名稱、顯示名稱與 Logo。
-
----
-
-## 3. 模組邊界
-
-### `tenants` 負責
-- 公司資料
-- 公司成員
-- onboarding
-- entitlements
-- 公司品牌資訊
-
-### `tenants` 不負責
-- 登入驗證本身 → `auth`
-- 出勤規則 → `attendance`
-- 請假流程 → `leave`
-- 前端 navbar 呈現細節 → `frontend`
+- onboarding 在這裡管理
+- entitlements 在這裡管理
+- 公司品牌資訊在這裡管理
 
 一句話：
 
-> 只要是「公司這個租戶單位的設定」，優先看是不是應該放在 `tenants`。
+> 只要是「公司這個租戶單位的正式設定」，優先判斷是否屬於 `tenants`。
 
 ---
 
-## 4. 常見相關檔案
+## 2. 模組邊界
+
+### `tenants` 負責
+
+- 公司主資料
+- 公司成員
+- onboarding
+- feature entitlements
+- 公司品牌資訊（例如 `display_name`、`logo_url`）
+- 公司層級識別欄位（例如 `company_id`、`tax_id`）
+
+### `tenants` 不負責
+
+- 登入驗證本身 → `auth`
+- 出勤規則本身 → `attendance`
+- 請假流程本身 → `leave`
+- 前端 navbar 呈現細節 → `frontend`
+- 多據點打卡地點規則本身 → 未來應屬 location / attendance 類別模組
+
+---
+
+## 3. 主要功能
+
+### 3.1 Company CRUD
+建立與管理公司主資料。
+
+### 3.2 Members 管理
+管理公司內有哪些成員，以及成員基本設定。
+
+### 3.3 Onboarding
+處理公司開通與初始設定流程。
+
+### 3.4 Feature Entitlements
+管理公司可使用哪些功能。
+
+### 3.5 Company Branding
+管理公司品牌資訊，例如正式名稱、顯示名稱、Logo。
+
+---
+
+## 4. 功能拆分治理原則（正式）
+
+本模組後續開發正式採以下原則：
+
+> 一個功能一個模組 / 一組檔案；不是每個小功能、每支 API、每個小互動都拆一個檔。
+
+這是 `tenants` 模組後續新增功能時的正式判斷依據。
+
+### 4.1 什麼叫「功能」
+
+這裡的「功能」指的是：
+
+- 一組有共同資料語意的能力
+- 一組會一起被維護、一起變更、一起討論的 use case
+- 一組可被明確命名的子領域
+- 一組未來需求會持續長在同一塊的能力
+
+在 `tenants` 內，以下屬於「功能級」：
+
+- company CRUD
+- onboarding
+- members 管理
+- entitlements
+- branding
+
+### 4.2 什麼不算功能級
+
+以下通常**不構成獨立拆檔理由**：
+
+- 單一欄位驗證
+- 單一按鈕行為
+- 單一 API endpoint
+- 單一 helper function
+- 單一錯誤處理分支
+- 單一 upload / lookup / patch 動作
+
+例如：
+
+- `Logo upload API` 本身通常不算一個完整功能
+- `tax id lookup API` 本身通常不算一個完整功能
+- `company detail endpoint` 本身通常不算一個完整功能
+
+它們通常只是既有功能底下的一個能力。
+
+---
+
+## 5. 後端拆分原則
+
+後端正式採：
+
+> `api.py` 主入口 + 功能級子模組
+
+### 5.1 `api.py` 的角色
+
+`api.py` 必須是 `tenants` 模組的 API 主入口 / 聚合點。
+
+正式責任：
+
+- 作為 `tenants` 對外 API 的統一入口
+- 匯入並註冊功能級 router
+- 保持模組對外入口一致
+- 避免路由入口四散
+
+也就是：
+
+- 外部看 `tenants`，先看 `api.py`
+- 即使有子檔案，仍由 `api.py` 統一掛載
+
+### 5.2 何時才拆出 `api_xxx.py`
+
+只有當某一塊已形成**明確功能邊界**時，才可拆出：
+
+- `api_onboarding.py`
+- `api_members.py`
+- `api_entitlements.py`
+- 未來若 branding 持續成長，才考慮 `api_branding.py`
+
+### 5.3 不應該怎麼拆
+
+正式禁止以下拆法：
+
+- 每個 endpoint 一個檔案
+- 每新增 1~2 支 API 就新增一個 `api_xxx.py`
+- 因為單一 upload / lookup / delete 動作就拆新模組
+- 只為了把檔案行數變少而拆檔
+
+### 5.4 當前建議粒度
+
+`tenants` 後端目前建議維持以下粒度：
+
+- `api.py`：company 主資料 / router 聚合入口
+- `api_onboarding.py`：onboarding
+- `api_members.py`：members
+- `api_entitlements.py`：entitlements
+- `service.py`：主要業務協調
+- `repo.py`：主要資料存取
+
+補充原則：
+
+- 若某能力仍屬 company 主資料的一部分，先留在 `api.py`
+- 若 branding 還只是少量能力，不要因為 `logo upload` 就先拆 `api_logo.py`
+- 只有 branding 成長成明確子領域時，才拆 `api_branding.py`
+
+---
+
+## 6. 前端拆分原則
+
+前端正式採：
+
+> 頁面容器 + 功能區塊元件
+
+### 6.1 View 的責任
+
+主 View 負責：
+
+- 頁面狀態
+- 資料流
+- submit 流程
+- 權限判斷
+- success / error 控制
+
+### 6.2 子元件的責任
+
+子元件應對應「功能區塊」，例如：
+
+- 公司列表區
+- 公司詳情 / 編輯區
+- 成員管理區
+- onboarding 表單區
+- onboarding 成功結果區
+
+### 6.3 不應該怎麼拆
+
+正式禁止以下拆法：
+
+- 每個 input 一個元件
+- 每個小互動一個元件
+- 每個小按鈕流程一個 composable
+- 因為區塊裡有 2~3 個欄位，就獨立拆成很碎的檔案
+
+### 6.4 何時才拆子元件
+
+符合以下情況，才建議拆：
+
+- 畫面中已存在明確功能區塊
+- 該區塊可以被獨立命名
+- 該區塊有自己的 state / submit / 顯示責任
+- 後續需求會持續加在該區塊
+
+---
+
+## 7. 拆新檔的判斷標準
+
+符合以下任兩項以上，可視為應拆：
+
+- 已形成可被獨立命名的子功能
+- 後續需求會持續集中在這一塊
+- 與同檔其他內容耦合度低
+- 已有自己的 request / response / state / UI 區域
+- 維護時會被單獨討論與指稱
+
+符合以下任一項，原則上不拆：
+
+- 只是單一欄位或單一按鈕邏輯
+- 只是新增一支 API
+- 拆出後只剩薄薄一層轉呼叫
+- 名稱過碎，無法一眼看出功能邊界
+- 拆分理由只是想縮短檔案長度
+
+---
+
+## 8. 新功能應該放哪裡
+
+### 應放在 `tenants`
+
+- company CRUD
+- members 管理
+- entitlement 管理
+- onboarding
+- 公司品牌欄位（`name`、`display_name`、`logo_url`）
+- 公司 Logo 上傳能力與 Logo 顯示欄位治理
+- 公司詳情 / 編輯可維護的品牌資訊欄位
+- 公司主資料 detail API
+- 公司統編查詢帶入規則
+
+### 不應放在 `tenants`
+
+- login token 發放
+- attendance policy
+- leave approval lifecycle
+- navbar 元件外觀樣式本身
+- 多據點打卡地點規則本身
+
+---
+
+## 9. 常見相關檔案
 
 - `api.py`
 - `api_members.py`
@@ -68,41 +268,284 @@
 - `service.py`
 - `repo.py`
 - `models.py`
+- `schemas.py`
+- `schemas_companies.py`
+- `schemas_members.py`
+- `schemas_entitlements.py`
+- `schemas_onboarding.py`
 
 ---
 
-## 5. 新功能應該放哪裡？
+## 10. 目前後端現況對照分析（2026-04-13）
 
-### 應放在 `tenants`
-- company CRUD
-- members 管理
-- entitlement 管理
-- onboarding
-- 公司品牌欄位（`name`、`display_name`、`logo_url`）
-- 公司詳情 / 編輯可維護的品牌資訊欄位
-- 公司主資料 detail API
-- 公司統編查詢帶入規則
+本段是依照目前 `backend/app/modules/tenants` 實際結構，對照本文件第 4～7 節拆分治理原則後得到的正式分析結論。
 
-### 不應放在 `tenants`
-- login token 發放
-- attendance policy
-- leave approval lifecycle
-- navbar 元件外觀樣式本身
-- 多據點打卡地點規則本身（未來應拆到獨立 location / attendance 模型）
+### 10.1 目前實際檔案結構
+
+目前後端主要檔案如下：
+
+- `api.py`
+- `api_onboarding.py`
+- `api_members.py`
+- `api_entitlements.py`
+- `service.py`
+- `repo.py`
+- `schemas.py`
+- `schemas_companies.py`
+- `schemas_members.py`
+- `schemas_entitlements.py`
+- `schemas_onboarding.py`
+
+### 10.2 目前屬於「合理」的地方
+
+以下拆分目前判定為合理，符合「主入口 + 功能級子模組」原則：
+
+#### 1. `api.py` 作為主入口，方向正確
+目前 `api.py` 仍是 `tenants` 的主要 router 入口，且由它統一掛載其他功能路由。這一點符合本文件要求，應繼續維持。
+
+#### 2. `api_onboarding.py` 獨立，合理
+`onboarding` 是完整流程，不是單一 API 動作，包含：
+- 建立 company
+- 建立初始 user
+- 建立 membership
+- 原子交易與 rollback
+
+因此它已屬明確功能級子模組，獨立合理。
+
+#### 3. `api_members.py` 獨立，合理
+`members` 已經是一整組公司成員管理能力，包含：
+- list members
+- create member
+- update member
+- toggle active
+- reset password
+
+這是一組會持續增長、可獨立命名、可單獨維護的子功能，獨立合理。
+
+#### 4. `api_entitlements.py` 獨立，合理
+`entitlements` 是明確子領域，且權限、資料模型、操作邏輯都與 company CRUD 不同，因此獨立合理。
+
+#### 5. company 主資料、tax id lookup、logo upload 仍留在 `api.py`，目前合理
+依照本文件原則，單一 lookup、單一 upload、單一 patch 動作本身不構成拆檔理由。
+
+因此目前把以下能力留在 `api.py`：
+- company list / create / detail / update
+- tax id lookup
+- logo upload / delete
+
+目前判定為合理，因為它們仍屬 company 主資料 / branding 附屬能力的一部分，尚未長成獨立功能級模組。
+
+### 10.3 目前屬於「偏碎，但尚可接受」的地方
+
+以下目前不是立即要改，但已出現碎裂傾向，後續新增時不應再往下拆。
+
+#### 1. `schemas.py` + 功能級 schema 多檔
+目前 schema 已拆成多檔，另外保留一個 `schemas.py` 作為 re-export façade。
+
+正式判定：
+- 這不算嚴重過碎
+- 但已經接近「一個子功能一組 schema 檔」的上限
+- 在目前規模下可接受
+- 不應再繼續往 `schemas_logo.py`、`schemas_tax_lookup.py`、`schemas_company_detail.py` 這種更細方向拆
+
+正式原則：
+
+> schema 拆分目前先停在「功能級 schema」，不要再往「單一 API schema」細拆。
+
+#### 2. `service.py` 內已混有多個子領域邏輯
+目前 `service.py` 內同時存在：
+- tenant / company 主資料邏輯
+- logo upload / delete
+- tax id lookup provider
+- member update / reset password
+- entitlement service 類別
+
+正式判定：
+- 目前仍可接受
+- 但已呈現「多子領域共存」狀態
+- 後續若再持續增加 onboarding / members / branding / entitlements 細節，`service.py` 很容易變成過胖協調檔
+
+因此目前結論不是立刻拆，而是：
+
+> `service.py` 暫時可維持，但後續新增邏輯必須先判斷是否已達到真正功能級，再決定是否拆 `service_xxx.py`；不可因單一小功能就繼續細拆。
+
+### 10.4 目前屬於「過碎風險點」的地方
+
+以下雖未必已經錯，但若再往同方向發展，會明顯違反本文件治理原則。
+
+#### 1. `api_members.py` 內有部分邏輯直接操作 `auth` repository / model
+目前 `api_members.py` 內直接引用：
+- `Membership`
+- `User`
+- `Role`
+- `AuthRepository`
+
+正式判定：
+- 功能邊界本身仍算 `members`
+- 但實作責任略有下沉到 API 層
+- 若未來再把 members 底下每個操作各自再拆 service / helper / repo，會很容易變成碎片化
+
+因此建議：
+- 短期可接受
+- 後續若 members 再持續增長，應優先考慮整理成「members 功能級 service」，而不是把每個 members 動作各拆一檔
+
+#### 2. `schemas.py` façade 屬於兼容層，短期可留，長期不應再擴散
+目前 `schemas.py` 是 re-export 相容層，這在過渡期可接受。
+
+但正式要求：
+- 不應再新增更多 façade / shim 檔
+- 新程式若可直接引用功能級 schema 檔，應優先直接引用
+- 避免模組內同時出現太多「轉出口檔」造成結構判讀成本提高
+
+### 10.5 目前不建議調整的地方
+
+以下目前不建議重構，避免為了整理而整理：
+
+#### 1. 不建議把 `logo upload/delete` 再拆成 `api_logo.py`
+理由：
+- 目前只是 branding 底下的一小部分能力
+- 尚未形成完整 branding 子模組
+- 若現在拆，屬於以單一 API 動作拆檔，違反本文件原則
+
+#### 2. 不建議把 `lookup-by-tax-id` 再拆成 `api_lookup.py`
+理由：
+- 單一 lookup 動作不構成功能級模組
+- 目前仍屬 company 主資料輔助能力
+
+#### 3. 不建議把 company detail / update 再拆成 `api_company_detail.py` 或 `api_company_update.py`
+理由：
+- 這是標準 CRUD / detail 行為
+- 屬 company 主資料主體
+- 若拆出只會讓模組入口更碎
+
+### 10.6 目前正式結論
+
+依本次盤點結果，`tenants` 後端目前整體結構判定如下：
+
+#### 合理
+- `api.py` 作為主入口
+- `api_onboarding.py`
+- `api_members.py`
+- `api_entitlements.py`
+- company 主資料與 branding 附屬能力仍集中在 `api.py`
+
+#### 偏碎但可接受
+- 功能級 schema 多檔拆分
+- `schemas.py` façade 過渡層
+- `service.py` 內多子領域共存
+
+#### 目前不應再往下拆
+- logo upload / delete
+- tax id lookup
+- company detail / update
+- members 底下單一操作
+
+### 10.7 後續調整優先順序
+
+若未來要調整 `tenants` 後端結構，正式優先順序如下：
+
+1. **先維持 `api.py` 為單一主入口**
+2. **先避免新增小型 `api_xxx.py`**
+3. **若 `members` 持續變大，優先考慮整理其 service 邊界，而不是把單一 members 動作再切碎**
+4. **若 `branding` 持續增長成一組穩定能力，再評估 `api_branding.py` / `service_branding.py`**
+5. **schema 拆分停在功能級，不再往單一 API 細拆**
+
+本文件因此正式認定：
+
+> `tenants` 目前 API 結構整體方向是合理的；真正需要防止的是「從現在開始再往更細的小功能檔案繼續拆」。
 
 ---
 
-## 6. 最容易寫錯的地方
+## 11. 最容易寫錯的地方
 
 1. 把 `tenants` 跟 `auth` 混在一起
-2. 把公司管理頁面的所有東西都塞進 `tenants`，導致它變成超大管理後台雜物箱
-3. entitlements 改了卻沒同步確認 feature gate 使用者
-4. 把公司前台顯示規則硬寫在前端，卻沒有在 `tenants` 定義正式欄位與語意
-5. 把公司主資料與未來多據點打卡資料混成同一組欄位
+2. 把公司管理頁面的所有東西都塞進 `tenants`，變成後台雜物箱
+3. 把每個小功能都拆成一個檔，導致結構過碎
+4. 把單一 API 誤判成一個完整子模組
+5. 把 company 主資料、branding、members 的邊界混在一起
+6. 把 schema 繼續往單一 API 細拆
+7. 把 `logo_url` 當成 onboarding 時要人工輸入的欄位，而不是 Logo 資產結果欄位
 
 ---
 
-## 7. 什麼情況一定要更新這份文件？
+## 12. 調整決策清單（正式）
+
+本段定義目前 `tenants` 模組的正式調整策略，用來約束後續實作，避免在沒有必要時繼續細拆。
+
+### 12.1 現在應調整的方向
+
+#### 1. 維持 `api.py` 為唯一主入口
+正式要求：
+- `tenants` 對外 API 入口維持由 `api.py` 統一承接
+- 子功能 router 一律由 `api.py` 掛載
+- 不應繞過 `api.py` 分散註冊入口
+
+#### 2. `members` 若持續成長，優先整理成功能級 service
+正式要求：
+- 若 `members` 後續需求持續增加，優先考慮整理成 `members` 功能級 service 邊界
+- 不應把 `create member`、`update member`、`reset password`、`toggle active` 各自拆成獨立 service 檔
+
+正式邊界建議：
+- API 層保留：權限檢查、request/response 轉換、HTTP error mapping
+- `members` service 保留：member 建立、member 更新、密碼重設、啟停狀態切換、role 驗證、company 內唯一性檢查、membership 與 company 關聯檢查、與 auth repository 的協調
+- repository / model 層保留：資料查詢與持久化本身
+
+目前判定：
+- `api_members.py` 目前已承擔部分資料與 `auth` 協調細節
+- 短期可接受，但不應再把更多 members 細節堆進 API 層
+- 若後續 members 繼續長大，應優先把這些業務協調收斂進單一 `members` 功能級 service，而不是把每個 members 動作再拆成多個小 service
+
+#### 3. `branding` 只有在真正長成穩定子領域時才升級獨立模組
+正式要求：
+- 若未來 branding 形成一組穩定能力，再評估 `api_branding.py` / `service_branding.py`
+- 在此之前，Logo 相關能力仍視為 company 主資料 / branding 附屬能力
+
+#### 4. schema 拆分停在功能級
+正式要求：
+- 維持目前功能級 schema 結構即可
+- 不再往單一 API 細拆 `schemas_xxx.py`
+
+### 12.2 現在不應調整的地方
+
+#### 1. 不應新增 `api_logo.py`
+理由：目前 Logo 仍只是 branding 底下的一小部分能力，尚未形成完整功能級子模組。
+
+#### 2. 不應新增 `api_lookup.py`
+理由：`lookup-by-tax-id` 仍屬 company 主資料輔助能力，不構成功能級模組。
+
+#### 3. 不應新增 `api_company_detail.py` / `api_company_update.py`
+理由：這些仍屬標準 company CRUD / detail 行為，應保留在 `api.py`。
+
+#### 4. 不應因為 `service.py` 變胖就先亂拆
+理由：檔案大小本身不是拆分理由；只有功能邊界成熟時，才可拆出 `service_xxx.py`。
+
+#### 5. 不應再新增 façade / shim 類型檔案
+理由：目前 `schemas.py` 作為過渡相容層可接受，但不應再擴散出更多轉出口檔。
+
+### 12.3 若未來真的要重構，正式順序
+
+1. 先維持 `api.py` 為單一主入口
+2. 先避免新增小型 `api_xxx.py`
+3. 若 `members` 持續變大，優先整理其 service 邊界
+4. 若 `branding` 形成穩定子領域，再評估 `api_branding.py` / `service_branding.py`
+5. schema 拆分停在功能級，不再往單一 API 細拆
+
+### 12.4 簡化判斷句
+
+任何人想拆檔前，先問四句：
+
+1. 這是一個功能，還是一個動作？
+2. 這塊需求未來會持續集中嗎？
+3. 拆出去後，名稱能不能直接代表一個子領域？
+4. 不拆會真的造成邊界混亂嗎？
+
+若以上問題無法得到明確肯定，原則上先不拆。
+
+---
+
+## 13. 文件治理要求
+
+若未來發生以下任一情況，必須同步更新本文件：
 
 - 公司資料模型改了
 - members 管理改了
@@ -113,428 +556,17 @@
 - 公司識別欄位改了
 - 公司工商資料查詢規則改了
 - company detail API 結構改了
-- 多據點 location 模型正式落地了
-- 前端正式寫入流程改了
-
----
-
-## 8. 公司品牌資訊（Company Branding）規劃
-
-### 8.1 欄位責任歸屬
-公司品牌與顯示資訊屬於 `tenants` 模組管理範圍，因為它本質上是公司（tenant）層級設定，而不是前端暫存資料。
-
-### 8.2 公司資料欄位規格
-建議 `Tenant` / Company 正式支援以下欄位：
-
-- `name`：公司正式名稱，必填
-- `display_name`：前台畫面顯示名稱，選填
-- `logo_url`：公司 Logo 圖片路徑，選填
-
-欄位語意：
-- `name` 是正式名稱與後台管理主要識別欄位
-- `display_name` 用於前台品牌顯示，可比正式名稱更短、更貼近客戶品牌
-- `logo_url` 是 Logo 圖片存放位置或可讀取路徑，不直接代表圖片二進位內容本身
-
-### 8.3 前台顯示優先順序
-前端顯示公司品牌時，應使用以下優先順序：
-
-1. `logo_url`
-2. `display_name`
-3. `name`
-
-也就是：
-- 有 Logo 就優先顯示 Logo
-- 沒有 Logo 才顯示 `display_name`
-- 若 `display_name` 未設定，則退回 `name`
-
-### 8.4 管理畫面最低要求
-`公司詳情 / 編輯` 畫面應支援維護：
-
-- 公司名稱（`name`）
-- 顯示名稱（`display_name`）
-- 上傳 Logo / Logo 路徑（`logo_url`）
-- 時區（`timezone`）
-- 啟用狀態（`is_active`）
-
-### 8.5 Logo 上傳規劃
-`logo_url` 是正式欄位；Logo 上傳是其對應的管理能力。
-
-建議規格：
-- 支援格式：`PNG`、`JPG/JPEG`
-- 建議大小：2MB 以內
-- 建議型式：橫式 Logo、透明背景 PNG 優先
-- 後端保存圖片後，回填 `logo_url`
-
-### 8.6 文件治理要求
-若未來新增或修改以下任一項，必須同步回寫本文件：
-
-- `Tenant` model 欄位改動
-- Company create/update schema 改動
-- 公司詳情 / 編輯畫面欄位改動
-- 公司品牌顯示優先順序改動
-
----
-
-## 9. 公司識別、地址與工商資料規劃（2026-04-12 v2）
-
-### 9.1 公司識別欄位
-公司正式識別欄位定義如下：
-
-- `company_id`：公司系統識別碼，必填、唯一
-- `tax_id`：公司統一編號，選填；若有值則必須唯一
-
-欄位原則：
-- `company_id` 是所有公司都必須具備的正式識別欄位
-- `tax_id` 維持選填，不可強制要求
-- 若公司有 `tax_id`，則可作為補充識別欄位使用
-- 若 `tax_id` 有值，必須通過格式與檢查碼驗證
-
-### 9.2 登入識別規則
-公司登入時，輸入值可接受：
-
-1. `company_id`
-2. `tax_id`
-
-規則：
-- `company_id` 為必備登入識別
-- `tax_id` 為可選登入識別
-- 若公司未提供 `tax_id`，不影響建立公司與登入流程
-
-### 9.3 公司主資料欄位
-公司主資料正式建議支援以下欄位：
-
-#### 必填欄位
-- `company_id`
-- `name`
-- `timezone`
-
-#### 選填欄位
-- `tax_id`
-- `display_name`
-- `owner_name`
-- `registered_address`
-- `contact_address`
-- `contact_phone`
-- `contact_email`
-- `logo_url`
-
-最低要求：
-- `company_id`：必填
-- `name`：必填
-- `timezone`：必填
-- `tax_id`：選填
-- `display_name`：選填
-- `owner_name`：選填
-- `registered_address`：選填
-- `contact_address`：選填
-- `contact_phone`：選填
-- `contact_email`：選填
-- `logo_url`：選填
-
-### 9.4 地址欄位正式語意
-本系統正式採地址分欄治理，不可再以單一 `address` 混用不同語意。
-
-#### `registered_address`
-- 指公司工商登記地址
-- 用途為工商識別、客服查詢、法務對照
-- 不直接等於打卡地址
-
-#### `contact_address`
-- 指公司主要聯絡 / 收件 / 對外聯絡地址
-- 可與登記地址不同
-- 主要用於客服與營運聯絡資料
-
-正式結論：
-- `registered_address` 與 `contact_address` 屬公司主資料欄位
-- 未來打卡地點不再先塞進 `Tenant` 主表
-- 多據點打卡需求應由未來獨立 location 模型處理
-
-### 9.5 多據點打卡地點規劃（保留到下一階段）
-因業務已明確確認未來存在：
-- 分公司
-- 工地
-- 門市
-- 倉庫
-- 客戶駐點
-
-因此本系統正式不再把單一 `attendance_address` / `attendance_latitude` / `attendance_longitude` 當作 `Tenant` 主表長期模型。
-
-本階段正式結論：
-- `Tenant` 主表先不放 `attendance_address`
-- `Tenant` 主表先不放 `attendance_latitude`
-- `Tenant` 主表先不放 `attendance_longitude`
-- 未來應新增獨立的 `company_locations`（或等價名稱）模型承接多據點
-- 若未來需要預設打卡地點，應以 `default_attendance_location_id` 類型關聯處理，而不是把地址與座標直接硬寫在 company 主表
-
-### 9.6 公司資料查詢與帶入規則
-當使用者輸入合法 `tax_id` 時，系統可支援查詢公司資料並帶入，以降低人工輸入成本。
-
-本系統現階段採：
-- 半自動模式
-- 資料來源可替換
-- 不綁定特定第三方網站
-- 查詢結果需經使用者確認後才帶入表單
-- 查詢結果不得直接自動寫入正式公司資料
-
-查詢成功時，至少可帶入以下欄位：
-- `tax_id`
-- `name`
-- `owner_name`
-- `registered_address`
-- `source`
-- `fetched_at`
-
-如資料來源可提供，未來可擴充：
-- `contact_phone`
-- `contact_email`
-- `company_status`
-
-### 9.7 查詢流程與資料來源策略
-正式流程如下：
-
-1. 使用者輸入 `tax_id`
-2. 前端先驗證格式與檢查碼
-3. 使用者主動按下「查詢公司資料」
-4. 後端呼叫 company lookup provider
-5. 回傳候選資料
-6. 使用者確認後，才將欄位帶入 onboarding / company edit 表單
-
-治理原則：
-- 不在 SDD 中寫死單一網站名稱作為正式依賴
-- provider 必須可替換
-- 外部查詢結果屬候選資料，不是正式權威資料
-- 正式寫入資料的最後責任仍在使用者確認
-- 若查詢失敗，不得阻止人工建檔
-- `lookup-by-tax-id` 僅開放 `super_admin` 使用
-- 公司自行維護資料與外部工商查詢權限必須分開治理
-
-### 9.8 Onboarding 規格
-#### 公司資料
-- `company_id`：必填
-- `name`：必填
-- `timezone`：必填
-- `tax_id`：選填
-- `display_name`：選填
-- `owner_name`：選填
-- `registered_address`：選填
-- `contact_address`：選填
-- `contact_phone`：選填
-- `contact_email`：選填
-- `logo_url`：選填
-
-#### 初始管理者
-- `display_name`：必填
-- `login_username`：必填
-- `password`：必填
-- `email`：選填
-- `role_id`：必填，初版預設 `company_admin`
-
-### 9.9 Company detail API 規格
-本系統保留既有：
-- `GET /api/admin/companies/{company_id}` 作為簡版公司資料查詢
-
-本系統新增：
-- `GET /api/admin/companies/{company_id}/detail` 作為後台 detail / 客服快速查詢專用 endpoint
-
-新增 detail endpoint 的原因：
-- 避免破壞既有 `CompanyResponse`
-- 避免直接改壞既有前端與測試
-- 讓 detail API 可以安全擴充公司主資料與管理者摘要資料
-
-### 9.10 公司詳情 / 編輯頁規格
-`companies detail` 頁面至少應顯示：
-
-- 公司 ID
-- 公司正式名稱
-- 統一編號
-- 時區
-- 啟用狀態
-- 建立時間
-- 顯示名稱
-- 負責人
-- 登記地址
-- 聯絡地址
-- 聯絡電話
-- 聯絡 Email
-
-### 9.11 管理者摘要資料規格
-公司 detail API 可回傳管理者摘要資料，供後台快速查詢使用。
-
-#### 本版管理者定義
-- `company_admin`
-- `hr_manager`
-
-#### 每筆摘要至少應包含
-- `display_name`
-- `login_username`
-- `email`
-- `role_id`
-- `membership_is_active`
-
-#### 排序建議
-1. 啟用中優先
-2. `company_admin` 優先於 `hr_manager`
-3. 建立時間較早者優先
-
-#### 前端實作原則
-- Phase 1 後端 detail API 應準備好 `admin_accounts` 資料
-- Phase 1 前端不強制一定要新增獨立「管理者摘要卡」UI
-- 若現有 `CompanyMembersPanel.vue` 已能承接查詢心智，可先維持單一 members 區塊，避免與 detail 視覺重複
-- 後續若客服查詢流程證實有需要，再於 detail 區補做摘要型 UI
-
-### 9.12 查看與修改權限規則
-公司詳情 / 編輯相關權限如下：
-
-#### 查看 detail
-- `super_admin`：可查看任何公司
-- `company_admin`：可查看自己公司
-- `hr_manager`：可查看自己公司
-
-#### 更新公司資料
-- `super_admin`：可更新任何公司
-- `company_admin`：可更新自己公司
-- `hr_manager`：可更新自己公司
-
-#### 外部工商資料查詢
-- `lookup-by-tax-id` 只開放 `super_admin`
-
-此規則應與既有 admin company scope 一致，不得另立前端特例。
-
-### 9.13 模組責任
-此規劃中：
-
-- `tenants` 負責公司主資料、`company_id` / `tax_id` 欄位定義、地址正式欄位、查詢後資料的正式落點，以及公司 detail API 的正式回傳
-- `auth` 負責使用 `company_id` 或 `tax_id` 進行登入識別與後續驗證流程
-- `customer_service` 負責客服可支援哪些公司，不自行維護另一份 company 主資料
-- 未來多據點打卡位置資料，應由獨立 location / attendance 模型處理，不應繼續堆在 `Tenant` 主表
-
----
-
-## 10. 已依目前 baseline 回寫的正式結論（2026-04-12 v2）
-
-- `tenants`（租戶 / 公司管理）是 company 治理的 source of truth（正式權威來源）
-- `feature entitlements`（功能授權）應作為 `feature gate`（功能閘門）判定來源
-- `membership`（成員關係）應和一般業務資料分開理解
-- `company_id`（公司識別）不應由前端 request body 當成權威來源
-- 公司品牌資訊（`name`、`display_name`、`logo_url`）屬於 company 治理範圍，正式來源應為 `tenants`
-- `company_id` 為必填且可登入的正式公司識別欄位
-- `tax_id` 維持選填且若有值則必須唯一，也可作為登入識別
-- 公司主資料正式地址欄位為 `registered_address`、`contact_address`
-- 未來多打卡地點需求已確認存在，因此 `attendance_address`、`attendance_latitude`、`attendance_longitude` 不再作為 `Tenant` 主表本階段正式欄位
-- 多據點打卡位置應於下一階段以獨立 `company_locations`（或等價模型）承接
-- 公司資料查詢可使用 `tax_id` 帶入 `name`、`owner_name`、`registered_address`，但現階段採半自動模式、資料來源可替換、不綁定特定第三方網站
-- 外部查詢結果屬候選資料，需經人工確認後才能帶入正式表單
-- `lookup-by-tax-id` 只開放 `super_admin`
-- `company_admin` 與 `hr_manager` 可查看並更新自己公司資料
-- `companies detail` 應由新增的 detail endpoint 提供完整公司主資料；管理者摘要資料可由 detail API 提供，但 Phase 1 前端不強制新增獨立摘要 UI
-- `super_admin` 可查看與更新任意公司；`company_admin` 與 `hr_manager` 僅可操作自己公司 scope 內資料
-- `customer_service` 管的是支援公司範圍，不是 company 主資料的正式來源
-
----
-
-## 11. 前端寫入方法治理（2026-04-10 實測結論）
-
-### 11.1 本次實測得到的正式結論
-針對多行檔案與大檔案的實測結果如下：
-
-- 直接對檔案做精確替換，存在高風險
-- 替換失敗時，檔案可能直接退化成空檔（0 size）
-- 先讀整檔、在記憶體中完成區塊替換、再整檔寫回，結果穩定
-- 小檔整檔寫回穩定
-- 大檔整檔寫回穩定
-- 大檔做「整段刪除後寫入新整段」，若流程是記憶體替換後整檔寫回，結果穩定
-- 後段區塊修改同樣會出現異常，因此風險不是單一段落，而是長檔 / 多行檔整體風險
-
-一句話：
-
-> 正式修改流程應改為「讀整檔 → 記憶體替換 → 整檔寫回 → 寫回後驗證」，不得再把直接 replace 原檔視為預設手段。
-
-### 11.2 禁止直接 replace 原檔
-若目標是多行檔案、Vue SFC、規格文件、後段區塊，或曾出現 `+1 -N` 的檔案，禁止直接對原檔做精確替換式修改。
-
-原因：
-
-- 替換工具若未精確命中，可能不只是失敗，還可能把檔案清成空檔
-- 一旦檔案被清空，diff 會退化成 `+1 -N`、`+少量 -大量` 或整檔級刪改
-- 這種風險在正式檔與測試副本都已被實測觀察到
-- 風險會隨多行內容、長檔、後段修改而上升
-
-### 11.3 長檔 / 多行檔高風險定義
-以下任一條件成立，即視為高風險檔案或高風險修改：
-
-- 檔案行數多
-- 目標修改是多行區塊
-- 目標位於檔案中後段
-- 檔案類型為大型 Vue SFC、Markdown 文件、長測試檔
-- 該檔案曾發生 `+1 -N`、空檔、或讀回異常
-
-高風險檔案一律不得直接局部 replace，必須採用整檔流程。
-
-### 11.4 正式安全寫入流程
-後續修改正式採以下順序：
-
-1. 先確認目標檔案存在、大小不是 0
-2. 若屬高風險檔案，先建立隔離測試副本
-3. 讀取整檔內容
-4. 在記憶體中完成本次區塊替換或內容調整
-5. 以整檔寫回方式落盤
-6. 立刻驗證寫回結果
-
-### 11.5 寫回後最低驗證
-每次整檔寫回後，至少必須驗證：
-
-- 檔案大小不是 0
-- 檔案可正常讀回
-- 預期修改標記存在
-- 若屬前端檔案，必要時應再做 build 驗證
-
-只要任一條件不成立，該次修改視為失敗，不得繼續往下補改。
-
-### 11.6 `+1 -N` 的正式定義
-若修改後 diff 呈現以下任一型態：
-
-- `+1 -N`
-- `+少量 -大量`
-- 原本預期是局部修改，實際卻呈現整檔級刪除再新增
-
-則正式視為：
-
-- 本次寫入流程失敗
-- 原檔可能已異常
-- 不得繼續對該檔案做第二次 patch 嘗試
-
-### 11.7 發生 `+1 -N` 後的正式流程
-發生後必須固定依序處理：
-
-1. 立即停止對該檔案的任何進一步修改
-2. 檢查檔案是否已變成空檔或異常檔
-3. 若有備份，優先直接複製備份恢復
-4. 若無備份，使用已知穩定來源重建完整內容
-5. 驗證恢復結果
-6. 下一刀才允許進入需求修改
-
-### 11.8 恢復、治理、需求修改三者必須拆刀
-若某檔案已發生異常，後續順序固定為：
-
-1. 第一刀：只做恢復
-2. 第二刀：只更新治理文件或操作規則
-3. 第三刀：才做真正需求修改
-
-禁止把三者混成同一次寫入。
-
-### 11.9 先測試再套正式檔
-若未來要修改高風險檔案，應優先：
-
-1. 建立隔離測試副本
-2. 驗證本次修改方式可穩定寫入
-3. 確認不會清空檔案
-4. 再把同樣流程套用到正式檔
-
-### 11.10 後續執行要求
-後續若再修改前端或 SDD 文件，回覆中必須先明確說明：
-
-- 本次改哪個檔案
-- 本次改哪個區塊
-- 是否屬高風險長檔 / 多行檔
-- 使用的是「整檔讀取後記憶體替換再整檔寫回」流程
-- 寫回後會做哪些驗證
+- Logo 上傳 / 顯示 contract 改了
+- 新增任何 `api_xxx.py`
+- 新增任何 `service_xxx.py`
+- 前端把一個 View 拆成多個功能子元件
+- 對本文件第 10 節現況結論有任何調整
+- 對本文件第 12 節調整決策有任何調整
+
+新增拆分時，文件中必須補充說明：
+
+- 新檔案對應哪一個「功能」
+- 為什麼它已達到功能級拆分
+- 主入口與子模組之間的責任邊界
+- 是否推翻第 10 節既有現況判定
+- 是否推翻第 12 節既有調整決策

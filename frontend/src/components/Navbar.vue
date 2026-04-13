@@ -1,23 +1,48 @@
 <template>
   <header>
     <div class="navbar surface-card">
-      <router-link to="/" class="brand-block">
-        <div v-if="companyLogo" class="brand-logo-wrap">
-          <img :src="companyLogo" :alt="`${companyDisplayName} logo`" class="brand-logo">
+      <router-link
+        to="/"
+        class="brand-block"
+      >
+        <div
+          v-if="companyLogo"
+          class="brand-logo-wrap"
+        >
+          <img
+            :src="companyLogo"
+            :alt="`${companyDisplayName} logo`"
+            class="brand-logo"
+          >
         </div>
-        <div v-else class="brand-text">{{ companyDisplayName }}</div>
+        <div
+          v-else
+          class="brand-text"
+        >
+          {{ companyDisplayName }}
+        </div>
       </router-link>
 
       <div class="actions-block">
         <div class="user-block">
-          <p class="user-name">{{ userDisplayName }}</p>
+          <p class="user-name">
+            {{ userDisplayName }}
+          </p>
         </div>
 
-        <router-link v-if="showAdminEntry" to="/admin" class="action-btn admin-btn">
+        <router-link
+          v-if="showAdminEntry"
+          to="/admin"
+          class="action-btn admin-btn"
+        >
           後台管理
         </router-link>
 
-        <button class="action-btn logout-btn" type="button" @click="handleLogout">
+        <button
+          class="action-btn logout-btn"
+          type="button"
+          @click="handleLogout"
+        >
           登出
         </button>
       </div>

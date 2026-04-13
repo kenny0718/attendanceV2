@@ -1,6 +1,13 @@
 <template>
-  <div v-if="totalPages > 1" class="pagination-bar">
-    <button class="page-btn" :disabled="currentPage <= 1" @click="go(currentPage - 1)">
+  <div
+    v-if="totalPages > 1"
+    class="pagination-bar"
+  >
+    <button
+      class="page-btn"
+      :disabled="currentPage <= 1"
+      @click="go(currentPage - 1)"
+    >
       ‹ 上一頁
     </button>
 
@@ -9,11 +16,18 @@
       <span class="total-hint">（共 {{ total }} 筆）</span>
     </div>
 
-    <button class="page-btn" :disabled="currentPage >= totalPages" @click="go(currentPage + 1)">
+    <button
+      class="page-btn"
+      :disabled="currentPage >= totalPages"
+      @click="go(currentPage + 1)"
+    >
       下一頁 ›
     </button>
   </div>
-  <div v-else-if="total > 0" class="pagination-hint">
+  <div
+    v-else-if="total > 0"
+    class="pagination-hint"
+  >
     共 {{ total }} 筆
   </div>
 </template>

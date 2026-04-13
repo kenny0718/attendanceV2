@@ -10,6 +10,7 @@ from uuid import UUID
 import uuid
 from datetime import datetime
 
+from app.modules.auth.models import Membership
 from app.modules.tenants.models import Tenant, CompanyEntitlement
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,13 @@ class TenantRepository:
         timezone: str = "UTC",
         is_active: bool = True,
         tax_id: str | None = None,
+        display_name: str | None = None,
+        owner_name: str | None = None,
+        registered_address: str | None = None,
+        contact_address: str | None = None,
+        contact_phone: str | None = None,
+        contact_email: str | None = None,
+        logo_url: str | None = None,
     ) -> Tenant:
         """Create a new tenant
 
@@ -51,6 +59,13 @@ class TenantRepository:
             id=tenant_id,
             name=name,
             tax_id=tax_id,
+            display_name=display_name,
+            owner_name=owner_name,
+            registered_address=registered_address,
+            contact_address=contact_address,
+            contact_phone=contact_phone,
+            contact_email=contact_email,
+            logo_url=logo_url,
             timezone=timezone,
             is_active=is_active,
         )
@@ -167,6 +182,24 @@ class TenantRepository:
         """
         tenant = self.get_by_id(tenant_id)
         return tenant.is_active if tenant else False
+
+    def get_member_summary(self, tenant_id: str) -> Dict[str, int | bool]:
+        """Get admin-role summary for a tenant."""
+        admin_roles = ("company_admin", "hr_manager")
+        base_query = self.db.query(Membership).filter(Membership.company_id == tenant_id)
+        admin_query = base_query.filter(Membership.role_id.in_(admin_roles))
+
+        admin_count = admin_query.count()
+        active_admin_count = admin_query.filter(Membership.is_active.is_(True)).count()
+        has_company_admin = base_query.filter(Membership.role_id == "company_admin").count() > 0
+        has_hr_manager = base_query.filter(Membership.role_id == "hr_manager").count() > 0
+
+        return {
+            "admin_count": admin_count,
+            "active_admin_count": active_admin_count,
+            "has_company_admin": has_company_admin,
+            "has_hr_manager": has_hr_manager,
+        }
 
 
 class CompanyEntitlementRepository:

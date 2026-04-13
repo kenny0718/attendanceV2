@@ -3,29 +3,52 @@
     <AdminSectionHeader
       :title="`成員管理 — ${company.name}`"
       align="between"
-      iconPath="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+      icon-path="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
     >
       <template #actions>
-        <button class="btn-refresh" :disabled="loading" title="重新整理" @click="$emit('reload')">
-          <svg :class="{ spinning: loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+        <button
+          class="btn-refresh"
+          :disabled="loading"
+          title="重新整理"
+          @click="$emit('reload')"
+        >
+          <svg
+            :class="{ spinning: loading }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          ><path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          /></svg>
         </button>
       </template>
     </AdminSectionHeader>
 
-    <div v-if="loading" class="state-loading"><div class="spinner"></div><span>載入中…</span></div>
+    <div
+      v-if="loading"
+      class="state-loading"
+    >
+      <div class="spinner" /><span>載入中…</span>
+    </div>
     <AdminStateBox
       v-else-if="error"
       variant="error"
       :message="error"
-      iconPath="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      icon-path="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
     />
     <AdminStateBox
       v-else-if="members.length === 0"
       variant="empty"
       message="目前尚無成員，可展開下方「新增公司成員」表單建立第一位成員。"
-      iconPath="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+      icon-path="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
     />
-    <div v-else class="members-table-wrapper">
+    <div
+      v-else
+      class="members-table-wrapper"
+    >
       <table class="members-table">
         <thead>
           <tr>
@@ -37,11 +60,20 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="member in members" :key="member.membership_id">
-            <td class="member-login">{{ member.login_username }}</td>
-            <td class="member-name">{{ member.display_name || '—' }}</td>
+          <tr
+            v-for="member in members"
+            :key="member.membership_id"
+          >
+            <td class="member-login">
+              {{ member.login_username }}
+            </td>
+            <td class="member-name">
+              {{ member.display_name || '—' }}
+            </td>
             <td><span class="role-badge">{{ formatRole(member.role_id) }}</span></td>
-            <td class="member-date">{{ formatDate(member.membership_created_at) }}</td>
+            <td class="member-date">
+              {{ formatDate(member.membership_created_at) }}
+            </td>
             <td>
               <button
                 class="btn-status-toggle"
@@ -55,60 +87,190 @@
           </tr>
         </tbody>
       </table>
-      <p class="total-count">共 {{ members.length }} 位成員</p>
+      <p class="total-count">
+        共 {{ members.length }} 位成員
+      </p>
     </div>
 
     <div class="add-member-section">
-      <button type="button" class="add-member-header" @click="$emit('toggle-add-form')">
+      <button
+        type="button"
+        class="add-member-header"
+        @click="$emit('toggle-add-form')"
+      >
         <div class="add-member-title-wrap">
           <div class="add-member-title">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+            <svg
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+            ><path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+            /></svg>
             <span>新增公司成員</span>
           </div>
-          <p class="add-member-subtitle">建立登入帳號、設定顯示名稱與角色。</p>
+          <p class="add-member-subtitle">
+            建立登入帳號、設定顯示名稱與角色。
+          </p>
         </div>
-        <svg class="chevron" :class="{ open: showAddMember }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+        <svg
+          class="chevron"
+          :class="{ open: showAddMember }"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+        ><path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M19 9l-7 7-7-7"
+        /></svg>
       </button>
 
-      <div v-if="showAddMember" class="add-member-body">
-        <div v-if="addSuccess" class="alert alert-success">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      <div
+        v-if="showAddMember"
+        class="add-member-body"
+      >
+        <div
+          v-if="addSuccess"
+          class="alert alert-success"
+        >
+          <svg
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          ><path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          /></svg>
           <span>{{ addSuccess }}</span>
         </div>
-        <div v-if="addError" class="alert alert-error">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <div
+          v-if="addError"
+          class="alert alert-error"
+        >
+          <svg
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          ><path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          /></svg>
           <span>{{ addError }}</span>
         </div>
 
-        <form class="add-member-form" novalidate @submit.prevent="$emit('submit-add-member')">
+        <form
+          class="add-member-form"
+          novalidate
+          @submit.prevent="$emit('submit-add-member')"
+        >
           <div class="am-grid">
             <div class="form-group">
-              <label class="form-label" for="am-dispname">顯示名稱 <span class="label-hint">必填</span></label>
-              <input id="am-dispname" :value="form.display_name" type="text" class="form-input" maxlength="100" @input="$emit('update:form', { ...form, display_name: $event.target.value })" />
+              <label
+                class="form-label"
+                for="am-dispname"
+              >顯示名稱 <span class="label-hint">必填</span></label>
+              <input
+                id="am-dispname"
+                :value="form.display_name"
+                type="text"
+                class="form-input"
+                maxlength="100"
+                @input="$emit('update:form', { ...form, display_name: $event.target.value })"
+              >
             </div>
             <div class="form-group">
-              <label class="form-label" for="am-username">登入帳號 <span class="label-hint">必填</span></label>
-              <input id="am-username" :value="form.login_username" type="text" class="form-input" maxlength="100" autocomplete="off" @input="$emit('update:form', { ...form, login_username: $event.target.value })" />
+              <label
+                class="form-label"
+                for="am-username"
+              >登入帳號 <span class="label-hint">必填</span></label>
+              <input
+                id="am-username"
+                :value="form.login_username"
+                type="text"
+                class="form-input"
+                maxlength="100"
+                autocomplete="off"
+                @input="$emit('update:form', { ...form, login_username: $event.target.value })"
+              >
             </div>
             <div class="form-group">
-              <label class="form-label" for="am-password">初始密碼 <span class="label-hint">最少 6 字</span></label>
-              <input id="am-password" :value="form.password" type="password" class="form-input" maxlength="255" autocomplete="new-password" @input="$emit('update:form', { ...form, password: $event.target.value })" />
+              <label
+                class="form-label"
+                for="am-password"
+              >初始密碼 <span class="label-hint">最少 6 字</span></label>
+              <input
+                id="am-password"
+                :value="form.password"
+                type="password"
+                class="form-input"
+                maxlength="255"
+                autocomplete="new-password"
+                @input="$emit('update:form', { ...form, password: $event.target.value })"
+              >
             </div>
             <div class="form-group">
-              <label class="form-label" for="am-email">電子郵件 <span class="label-hint">選填</span></label>
-              <input id="am-email" :value="form.email" type="email" class="form-input" maxlength="255" @input="$emit('update:form', { ...form, email: $event.target.value })" />
+              <label
+                class="form-label"
+                for="am-email"
+              >電子郵件 <span class="label-hint">選填</span></label>
+              <input
+                id="am-email"
+                :value="form.email"
+                type="email"
+                class="form-input"
+                maxlength="255"
+                @input="$emit('update:form', { ...form, email: $event.target.value })"
+              >
             </div>
             <div class="form-group">
-              <label class="form-label" for="am-role">角色</label>
-              <select id="am-role" :value="form.role_id" class="form-input" @change="$emit('update:form', { ...form, role_id: $event.target.value })">
-                <option value="employee">員工</option>
-                <option value="company_admin">公司管理員</option>
+              <label
+                class="form-label"
+                for="am-role"
+              >角色</label>
+              <select
+                id="am-role"
+                :value="form.role_id"
+                class="form-input"
+                @change="$emit('update:form', { ...form, role_id: $event.target.value })"
+              >
+                <option value="employee">
+                  員工
+                </option>
+                <option value="company_admin">
+                  公司管理員
+                </option>
               </select>
             </div>
           </div>
-          <button type="submit" class="btn-submit" :disabled="addLoading">
-            <span v-if="addLoading" class="btn-spinner"></span>
-            <svg v-else fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+          <button
+            type="submit"
+            class="btn-submit"
+            :disabled="addLoading"
+          >
+            <span
+              v-if="addLoading"
+              class="btn-spinner"
+            />
+            <svg
+              v-else
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+            ><path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 4v16m8-8H4"
+            /></svg>
             {{ addLoading ? '新增中…' : '新增成員' }}
           </button>
         </form>

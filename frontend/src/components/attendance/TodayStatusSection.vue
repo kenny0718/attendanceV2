@@ -1,16 +1,18 @@
 <template>
   <div class="today-status-section">
-    <h3 class="subsection-title">今日狀態</h3>
+    <h3 class="subsection-title">
+      今日狀態
+    </h3>
     <div class="status-grid-simple">
       <StatusCard 
         label="上班時間" 
         :value="formattedPunchIn"
-        :valueClass="punchIn ? 'active' : 'empty'"
+        :value-class="punchIn ? 'active' : 'empty'"
       />
       <StatusCard 
         label="下班時間" 
         :value="formattedPunchOut"
-        :valueClass="punchOut ? 'active' : 'empty'"
+        :value-class="punchOut ? 'active' : 'empty'"
       />
     </div>
   </div>

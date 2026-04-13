@@ -8,13 +8,22 @@
         請登入以繼續使用
       </p>
       
-      <div v-if="error" class="mb-4 p-3 bg-error-bg border border-red-300 rounded-lg text-error text-sm">
+      <div
+        v-if="error"
+        class="mb-4 p-3 bg-error-bg border border-red-300 rounded-lg text-error text-sm"
+      >
         {{ error }}
       </div>
       
-      <form @submit.prevent="handleLogin" class="space-y-4">
+      <form
+        class="space-y-4"
+        @submit.prevent="handleLogin"
+      >
         <div>
-          <label for="company_id" class="block text-sm font-medium text-text-primary mb-1">
+          <label
+            for="company_id"
+            class="block text-sm font-medium text-text-primary mb-1"
+          >
             公司 ID / 統一編號
           </label>
           <input
@@ -25,12 +34,17 @@
             placeholder="例如: company-a 或 24536806"
             class="w-full px-4 py-2 border border-border-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             :disabled="isLoading"
-          />
-          <p class="mt-1 text-xs text-text-hint">可輸入公司 ID 或公司統一編號登入</p>
+          >
+          <p class="mt-1 text-xs text-text-hint">
+            可輸入公司 ID 或公司統一編號登入
+          </p>
         </div>
         
         <div>
-          <label for="username" class="block text-sm font-medium text-text-primary mb-1">
+          <label
+            for="username"
+            class="block text-sm font-medium text-text-primary mb-1"
+          >
             用戶名
           </label>
           <input
@@ -41,11 +55,14 @@
             placeholder="請輸入用戶名"
             class="w-full px-4 py-2 border border-border-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             :disabled="isLoading"
-          />
+          >
         </div>
         
         <div>
-          <label for="password" class="block text-sm font-medium text-text-primary mb-1">
+          <label
+            for="password"
+            class="block text-sm font-medium text-text-primary mb-1"
+          >
             密碼
           </label>
           <input
@@ -56,7 +73,7 @@
             placeholder="請輸入密碼"
             class="w-full px-4 py-2 border border-border-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             :disabled="isLoading"
-          />
+          >
         </div>
         
         <button
@@ -70,10 +87,18 @@
       </form>
       
       <div class="mt-6 p-4 bg-primary-lightest rounded-lg">
-        <p class="text-sm text-text-secondary mb-2">測試帳號：</p>
-        <p class="text-xs text-text-hint">公司 ID / 統編: company-a</p>
-        <p class="text-xs text-text-hint">用戶名: testuser</p>
-        <p class="text-xs text-text-hint">密碼: (請聯繫管理員)</p>
+        <p class="text-sm text-text-secondary mb-2">
+          測試帳號：
+        </p>
+        <p class="text-xs text-text-hint">
+          公司 ID / 統編: company-a
+        </p>
+        <p class="text-xs text-text-hint">
+          用戶名: testuser
+        </p>
+        <p class="text-xs text-text-hint">
+          密碼: (請聯繫管理員)
+        </p>
       </div>
     </div>
   </div>

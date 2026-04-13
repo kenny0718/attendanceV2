@@ -2,9 +2,11 @@
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.event_bus import get_event_bus
@@ -31,12 +33,15 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+UPLOADS_DIR = Path("/opt/attendance-system/backend/uploads")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """應用生命週期初始化。"""
     logger.info("應用啟動 - 確保已執行 alembic upgrade head")
+
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
     event_bus = get_event_bus()
     register_demo_startup_handlers(event_bus)
@@ -55,6 +60,8 @@ app = FastAPI(
 
 # 註冊統一錯誤處理
 register_exception_handlers(app)
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
 # A1-4: Legacy header reintroduction guard (log-only, never block)

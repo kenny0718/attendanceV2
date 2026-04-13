@@ -1,5 +1,8 @@
 <template>
-  <section class="page-card" :class="customClass">
+  <section
+    class="page-card"
+    :class="customClass"
+  >
     <slot />
   </section>
 </template>

@@ -5,9 +5,15 @@
 
       <div class="page-header">
         <div>
-          <p class="eyebrow">PERSONAL SCHEDULE</p>
-          <h1 class="page-title">我的班表</h1>
-          <p class="page-sub">查看你近期的排班資訊與班次狀態。</p>
+          <p class="eyebrow">
+            PERSONAL SCHEDULE
+          </p>
+          <h1 class="page-title">
+            我的班表
+          </h1>
+          <p class="page-sub">
+            查看你近期的排班資訊與班次狀態。
+          </p>
         </div>
         <div class="identity-chip">
           <span>{{ displayName }}</span>
@@ -15,32 +21,58 @@
         </div>
       </div>
 
-      <div v-if="isLoading" class="state-box">
-        <div class="spinner"></div>
+      <div
+        v-if="isLoading"
+        class="state-box"
+      >
+        <div class="spinner" />
         <span>載入班表中...</span>
       </div>
 
-      <div v-else-if="error" class="state-box error">
+      <div
+        v-else-if="error"
+        class="state-box error"
+      >
         ⚠ {{ error }}
       </div>
 
-      <div v-else class="content-stack">
+      <div
+        v-else
+        class="content-stack"
+      >
         <section class="hero-card">
           <div class="hero-copy">
-            <p class="hero-label">接下來 14 天</p>
+            <p class="hero-label">
+              接下來 14 天
+            </p>
             <h2>{{ assignments.length }} 筆班表</h2>
             <p>依登入會員資格顯示你的個人排班，不包含其他員工資料。</p>
           </div>
-          <button class="refresh-btn" @click="loadAssignments">重新整理</button>
+          <button
+            class="refresh-btn"
+            @click="loadAssignments"
+          >
+            重新整理
+          </button>
         </section>
 
-        <section v-if="assignments.length === 0" class="empty-card">
+        <section
+          v-if="assignments.length === 0"
+          class="empty-card"
+        >
           <h3>目前沒有可顯示的班表</h3>
           <p>若你已啟用排班制但尚未看到資料，請聯絡公司管理員確認是否已建立班別指派。</p>
         </section>
 
-        <section v-else class="schedule-list">
-          <article v-for="assignment in assignments" :key="assignment.id" class="schedule-card">
+        <section
+          v-else
+          class="schedule-list"
+        >
+          <article
+            v-for="assignment in assignments"
+            :key="assignment.id"
+            class="schedule-card"
+          >
             <div class="schedule-main">
               <div class="schedule-date-block">
                 <span class="weekday">{{ formatWeekday(assignment.work_date) }}</span>
@@ -53,8 +85,12 @@
                   <span :class="statusClass(assignment.status)">{{ statusLabel(assignment.status) }}</span>
                 </div>
 
-                <p class="schedule-time">{{ templateTimeMap[assignment.shift_template_id] || '班別時間待確認' }}</p>
-                <p class="schedule-note">{{ assignment.notes || '尚無備註' }}</p>
+                <p class="schedule-time">
+                  {{ templateTimeMap[assignment.shift_template_id] || '班別時間待確認' }}
+                </p>
+                <p class="schedule-note">
+                  {{ assignment.notes || '尚無備註' }}
+                </p>
               </div>
             </div>
           </article>
