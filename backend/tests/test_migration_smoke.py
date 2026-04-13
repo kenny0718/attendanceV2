@@ -20,7 +20,7 @@ BACKEND_DIR = Path(__file__).parent.parent.resolve()
 ALEMBIC_BIN = str(BACKEND_DIR / "venv" / "bin" / "alembic")
 
 # Current migration head
-EXPECTED_HEAD = "014_add_tax_id_to_tenants"
+EXPECTED_HEAD = "015_remove_legacy_manager_role"
 
 
 def test_fresh_db_migration_smoke():
