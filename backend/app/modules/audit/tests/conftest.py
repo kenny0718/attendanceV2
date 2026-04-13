@@ -8,8 +8,7 @@ import uuid
 
 import pytest
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import get_db

@@ -5,8 +5,7 @@ Phase 9 (WP-09-05): Add tenant setup for notifications tests
 
 import pytest
 from sqlalchemy import create_engine, Column, String, DateTime, Text
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.database import get_db
 from app.modules.tenants.repo import TenantRepository
 from app.modules.tenants.models import Tenant
