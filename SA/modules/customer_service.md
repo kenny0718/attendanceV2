@@ -38,7 +38,7 @@
 - support assignment 關係
 
 ### `customer_service` 不負責
-- 一般 company admin 流程
+- 一般公司內管理角色流程
 - attendance / leave 業務
 - tenant 主資料管理
 
@@ -73,7 +73,7 @@
 
 ## 6. 最容易寫錯的地方
 
-1. 把 `customer_service` 跟 company admin 混為一談
+1. 把 `customer_service` 跟公司內管理角色混為一談
 2. 把客服 scope 規則散落到其他模組內
 3. 沒有明確區分平台角色與公司內角色
 

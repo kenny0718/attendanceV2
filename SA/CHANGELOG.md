@@ -49,6 +49,8 @@
 
 
 ---
+| 2026-04-13 14:32:00 +08:00 | SA 正式文件 admin 用語最小收斂 | `docs_aligned` | `tenants`, `customer_service`, `attendance-reporting` | `no` | `SA/modules/tenants.md`, `SA/modules/customer_service.md`, `SA/modules/attendance-reporting.md`, `SA/CHANGELOG.md` | 僅收斂正式語意模糊字樣：將 `admin 雜物箱` 改為管理後台表述，將泛稱 `company admin` 改為公司內管理角色表述，並將 reporting 中的 `company admin scope check` 改為公司管理層 scope check；未更動歷史報告、`/admin` 產品區名稱與既有正式角色碼。 |
+
 
 ## 4. 維護規則
 

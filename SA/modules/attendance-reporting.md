@@ -156,7 +156,7 @@ Client
 Client
   -> /api/v1/attendance/reports/company-summary
   -> Actor / Scope / Feature Gate
-  -> company admin scope check (`company_admin` / `hr_manager` / `super_admin`)
+  -> 公司管理層 scope check (`company_admin` / `hr_manager` / `super_admin`)
   -> validate range
   -> reporting_repo query
   -> reporting_service 聚合
