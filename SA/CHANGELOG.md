@@ -48,6 +48,8 @@
 | 2026-04-13 14:05:30 +08:00 | tenants 正式檔回填 Plan A 完整版 | `docs_aligned` | `tenants`, `recovery`, `comparison` | `yes` | `SA/modules/tenants.md`, `SA/modules/TENANTS.MD_PlanA`, `SA/modules/tenants-v3-waiting-handoff.md`, `SA/CHANGELOG.md` | 依人工確認，將 `TENANTS.MD_PlanA` 的完整內容覆蓋回正式 `tenants.md`，使正式 SDD 恢復到包含 company detail、tax_id lookup、多據點 location 分流與 Phase 1 管理摘要規格的版本。 |
 | 2026-04-13 14:32:00 +08:00 | SA 正式文件 admin 用語最小收斂 | `docs_aligned` | `tenants`, `customer_service`, `attendance-reporting` | `no` | `SA/modules/tenants.md`, `SA/modules/customer_service.md`, `SA/modules/attendance-reporting.md`, `SA/CHANGELOG.md` | 僅收斂正式語意模糊字樣：將 `admin 雜物箱` 改為管理後台表述，將泛稱 `company admin` 改為公司內管理角色表述，並將 reporting 中的 `company admin scope check` 改為公司管理層 scope check；未更動歷史報告、`/admin` 產品區名稱與既有正式角色碼。 |
 | 2026-04-13 15:05:00 +08:00 | pytest migration smoke 最小收尾完成 | `done` | `backend tests`, `SA index` | `yes` | `backend/tests/test_migration_smoke.py`, `SA/CHANGELOG.md` | 將 migration smoke 測試的 `EXPECTED_HEAD` 對齊到 `015_remove_legacy_manager_role`，並完成單檔驗證 `3 passed`，確認這輪 pytest 收尾缺口已補上。 |
+| 2026-04-13 15:25:00 +08:00 | Git remote 確認規則納入 SA 治理 | `docs_aligned` | `governance`, `git workflow` | `no` | `SA/governance/DOCUMENTATION_GOVERNANCE.md`, `SA/CHANGELOG.md` | 明定每開一個新的 chat，只要任務牽涉 Git / commit / push / remote，都必須先確認本次操作目標 remote 與同步目標（如 `origin`、`github`），不得自行假設只推其中一個。 |
+| 2026-04-13 15:40:00 +08:00 | 高風險檔案修改方式改為先驗證再寫入 | `docs_aligned` | `governance`, `safe edit workflow` | `no` | `SA/governance/DOCUMENTATION_GOVERNANCE.md`, `SA/CHANGELOG.md` | 將高風險檔案 SOP 改為先做可安全修改判定，再允許 patch；若讀檔異常、命中失敗、目標不唯一或無法保證小 diff，必須停止，不得升級成整段或整檔覆寫。 |
 
 ---
 
