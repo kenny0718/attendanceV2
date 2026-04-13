@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.scope import Actor
 from app.core.dependencies import get_actor_with_company
 from app.core.database import get_db
+from app.modules.attendance import api as attendance_api
 from app.modules.attendance.reporting_repo import get_reporting_repository
 from app.modules.attendance.schemas import SessionResponse
 from app.modules.attendance.reporting_schemas import (
@@ -27,15 +28,12 @@ from app.modules.attendance.reporting_schemas import (
     UserSummaryResponse,
     CompanySummaryResponse,
 )
-from app.modules.attendance.api.helpers import _require_attendance_feature
 from app.modules.attendance.api.reporting_helpers import _validate_datetime_range, resolve_reporting_query_range_to_utc
 from app.modules.attendance.reporting_service import calculate_user_summary, calculate_company_summary
 from app.core.user_lookup import get_display_names
 
 logger = logging.getLogger(__name__)
-
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
-
 router = APIRouter(prefix="/api/v1/attendance", tags=["attendance-v1"])
 
 
@@ -50,19 +48,7 @@ def get_sessions(
     actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ):
-    """GET /api/v1/attendance/sessions — Sessions reporting (WP-11-06 Step 1)
-
-    Query rules:
-    - 過濾僅使用 punch_in_time（禁止 punch_out_time 過濾）
-    - start_date / end_date 必須為 timezone-aware datetime（naive 回傳 422）
-    - 月份歸屬 = punch_in_time Asia/Taipei date
-    - duration 讀取 canonical 欄位 duration_minutes
-
-    Scope rules:
-    - 員工（無特殊角色）：只能查自己的 sessions
-    - 管理者（manager/admin）：可查本公司任意 user 的 sessions
-    """
-    _require_attendance_feature(actor.active_company_id, db)
+    attendance_api._require_attendance_feature(actor.active_company_id, db)
 
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
@@ -70,23 +56,21 @@ def get_sessions(
     _validate_datetime_range(start_date, end_date)
     start_utc, end_utc = resolve_reporting_query_range_to_utc(start_date, end_date)
 
-    # Scope enforcement
     target_user_id: Optional[UUID] = None
-    is_manager = actor.is_admin()
+    is_admin = actor.is_admin()
 
     if user_id is not None:
         try:
             target_user_id = UUID(user_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid user_id format")
-        if not is_manager and target_user_id != actor.user_id:
+        if not is_admin and target_user_id != actor.user_id:
             raise HTTPException(status_code=403, detail="Employees can only query their own sessions")
     else:
-        if not is_manager:
+        if not is_admin:
             target_user_id = actor.user_id
 
     repo = get_reporting_repository(db)
-
     sessions = repo.get_sessions_for_reporting(
         company_id=actor.active_company_id,
         user_id=target_user_id,
@@ -96,7 +80,6 @@ def get_sessions(
         limit=limit,
         offset=offset,
     )
-
     total = repo.count_sessions_for_reporting(
         company_id=actor.active_company_id,
         user_id=target_user_id,
@@ -107,7 +90,6 @@ def get_sessions(
 
     user_ids = list({str(s.user_id) for s in sessions})
     display_names = get_display_names(db, user_ids)
-
     items = []
     for s in sessions:
         items.append(SessionResponse(
@@ -132,43 +114,22 @@ def get_user_summary(
     actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ):
-    """GET /api/v1/attendance/reports/user-summary — Per-user summary (WP-11-06 Step 2), WP-C1-07: JWT Actor
-
-    Returns attendance summary statistics for the current user.
-
-    Query rules:
-    - 過濾僅使用 punch_in_time（禁止 punch_out_time）
-    - start_date / end_date 必須為 timezone-aware datetime（naive 回傳 422）
-    - total_work_minutes 讀取 canonical 欄位 duration_minutes
-    - 聚合在 Python 應用層執行（非 SQL 端）
-
-    Scope rules:
-    - 員工只能查詢自己的 summary
-    - 嘗試查詢他人回傳 403（本 Step 不支援 manager 查他人）
-    """
-    _require_attendance_feature(actor.active_company_id, db)
-
+    attendance_api._require_attendance_feature(actor.active_company_id, db)
     _validate_datetime_range(start_date, end_date)
     start_utc, end_utc = resolve_reporting_query_range_to_utc(start_date, end_date)
 
     repo = get_reporting_repository(db)
-
     sessions = repo.get_user_summary_sessions(
         company_id=actor.active_company_id,
         user_id=actor.user_id,
         start_utc=start_utc,
         end_utc=end_utc,
     )
-
     summary = calculate_user_summary(sessions)
-
     summary["first_session_time"] = summary["first_session_time"].astimezone(TZ_TAIPEI) if summary["first_session_time"] is not None else None
     summary["last_session_time"] = summary["last_session_time"].astimezone(TZ_TAIPEI) if summary["last_session_time"] is not None else None
 
-    return UserSummaryResponse(
-        user_id=str(actor.user_id),
-        **summary,
-    )
+    return UserSummaryResponse(user_id=str(actor.user_id), **summary)
 
 
 @router.get("/reports/company-summary", response_model=CompanySummaryResponse)
@@ -178,22 +139,7 @@ def get_company_summary(
     actor: Actor = Depends(get_actor_with_company),
     db: Session = Depends(get_db),
 ):
-    """GET /api/v1/attendance/reports/company-summary — Company-level summary (WP-11-06 Step 3), WP-C1-07: JWT Actor
-
-    Returns attendance summary statistics for the entire company (all users).
-
-    Query rules:
-    - 過濾僅使用 punch_in_time（禁止 punch_out_time）
-    - start_date / end_date 必須為 timezone-aware datetime（naive 回傳 422）
-    - total_work_minutes 讀取 canonical 欄位 duration_minutes
-    - 聚合在 Python 應用層執行（非 SQL 端）
-    - total_users_with_sessions 使用 Python set() 去重（非 SQL COUNT DISTINCT）
-
-    Tenant isolation:
-    - 所有查詢強制 WHERE company_id = ?（從 JWT Actor 取得）
-    - 查詢全公司所有用戶，不過濾 user_id
-    """
-    _require_attendance_feature(actor.active_company_id, db)
+    attendance_api._require_attendance_feature(actor.active_company_id, db)
 
     if not actor.is_admin():
         raise HTTPException(status_code=403, detail="Company summary requires manager or admin role")
@@ -202,19 +148,13 @@ def get_company_summary(
     start_utc, end_utc = resolve_reporting_query_range_to_utc(start_date, end_date)
 
     repo = get_reporting_repository(db)
-
     sessions = repo.get_company_summary_sessions(
         company_id=actor.active_company_id,
         start_utc=start_utc,
         end_utc=end_utc,
     )
-
     summary = calculate_company_summary(sessions)
-
     summary["first_session_time"] = summary["first_session_time"].astimezone(timezone.utc) if summary["first_session_time"] is not None else None
     summary["last_session_time"] = summary["last_session_time"].astimezone(timezone.utc) if summary["last_session_time"] is not None else None
 
-    return CompanySummaryResponse(
-        company_id=actor.active_company_id,
-        **summary,
-    )
+    return CompanySummaryResponse(company_id=actor.active_company_id, **summary)

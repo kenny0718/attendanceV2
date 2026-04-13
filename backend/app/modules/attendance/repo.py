@@ -11,18 +11,18 @@ WP-C1-09: Added OutCheckpointRepository
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
 
-from app.modules.attendance.models import (
-    AttendanceSession,
-    AttendancePunch,
-    AttendancePolicy
-)
+from fastapi import HTTPException
+from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
 from app.modules.attendance.attendance_punch_repo import AttendancePunchRepository
+from app.modules.attendance.models import AttendancePolicy, AttendancePunch, AttendanceSession
+from app.modules.tenants.repo import TenantRepository
 
 logger = logging.getLogger(__name__)
 
@@ -44,19 +44,45 @@ class AttendanceSessionRepository:
         company_id: str,
         user_id: UUID,
         punch_in_time: datetime,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
     ) -> AttendanceSession:
         """創建新的出勤 session"""
+        existing_session = self.get_open_session(company_id=company_id, user_id=user_id)
+        if existing_session is not None:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": f"User already has an open session in company {company_id}",
+                    "error_code": "ALREADY_OPEN_SESSION",
+                    "open_session_id": str(existing_session.id),
+                },
+            )
+
         session = AttendanceSession(
             company_id=company_id,
             user_id=user_id,
             punch_in_time=punch_in_time,
-            status='open',
-            notes=notes
+            status="open",
+            notes=notes,
         )
 
         self.db.add(session)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError as e:
+            self.db.rollback()
+            if "uq_sessions_company_user_open" in str(e):
+                existing_session = self.get_open_session(company_id=company_id, user_id=user_id)
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": f"User already has an open session in company {company_id}",
+                        "error_code": "ALREADY_OPEN_SESSION",
+                        "open_session_id": str(existing_session.id) if existing_session else None,
+                    },
+                ) from e
+            raise
+
         self.db.refresh(session)
 
         logger.info(
@@ -66,11 +92,7 @@ class AttendanceSessionRepository:
 
         return session
 
-    def get_open_session(
-        self,
-        company_id: str,
-        user_id: UUID
-    ) -> Optional[AttendanceSession]:
+    def get_open_session(self, company_id: str, user_id: UUID) -> Optional[AttendanceSession]:
         """獲取用戶的 open session
 
         Tenant Isolation: 強制 WHERE company_id = ?
@@ -81,7 +103,7 @@ class AttendanceSessionRepository:
                 and_(
                     AttendanceSession.company_id == company_id,
                     AttendanceSession.user_id == user_id,
-                    AttendanceSession.status == 'open'
+                    AttendanceSession.status == "open",
                 )
             )
             .first()
@@ -89,27 +111,58 @@ class AttendanceSessionRepository:
 
     def close_session(
         self,
-        session: AttendanceSession,
-        punch_out_time: datetime,
-        duration_minutes: int,
-        policy_id: Optional[UUID] = None
-    ) -> AttendanceSession:
-        """關閉 session (WP-11-05C: added policy_id and duration)"""
-        session.punch_out_time = punch_out_time
-        session.status = 'closed'
-        session.duration_minutes = duration_minutes
-        session.policy_id = policy_id
-        session.updated_at = get_current_time()
+        session: Optional[AttendanceSession] = None,
+        punch_out_time: Optional[datetime] = None,
+        duration_minutes: Optional[int] = None,
+        policy_id: Optional[UUID] = None,
+        *,
+        company_id: Optional[str] = None,
+        session_id: Optional[UUID] = None,
+    ) -> Optional[AttendanceSession]:
+        """關閉 session。
+
+        支援兩種呼叫方式：
+        1. 新版：傳入 session 物件 + duration_minutes
+        2. 舊版測試相容：傳入 company_id + session_id + punch_out_time，自動查詢並計算 duration
+        """
+        target_session = session
+        if target_session is None:
+            if company_id is None or session_id is None or punch_out_time is None:
+                raise TypeError("close_session requires either session or company_id/session_id/punch_out_time")
+            target_session = (
+                self.db.query(AttendanceSession)
+                .filter(
+                    and_(
+                        AttendanceSession.company_id == company_id,
+                        AttendanceSession.id == session_id,
+                    )
+                )
+                .first()
+            )
+            if target_session is None or target_session.status != "open":
+                return None
+            duration_minutes = int((punch_out_time - target_session.punch_in_time).total_seconds() / 60)
+
+        if target_session.status != "open":
+            return None
+        if punch_out_time is None or duration_minutes is None:
+            raise TypeError("punch_out_time and duration_minutes are required when closing a session")
+
+        target_session.punch_out_time = punch_out_time
+        target_session.status = "closed"
+        target_session.duration_minutes = duration_minutes
+        target_session.policy_id = policy_id
+        target_session.updated_at = get_current_time()
 
         self.db.commit()
-        self.db.refresh(session)
+        self.db.refresh(target_session)
 
         logger.info(
-            f"Closed session: id={session.id}, "
+            f"Closed session: id={target_session.id}, "
             f"duration={duration_minutes}m, policy_id={policy_id}"
         )
 
-        return session
+        return target_session
 
     def create_punch(
         self,
@@ -122,7 +175,7 @@ class AttendanceSessionRepository:
         location_lat: Optional[float] = None,
         location_lng: Optional[float] = None,
         notes: Optional[str] = None,
-        location_id: Optional[UUID] = None
+        location_id: Optional[UUID] = None,
     ) -> AttendancePunch:
         """創建打卡記錄"""
         return self._punch_repo.create_punch(
@@ -135,7 +188,7 @@ class AttendanceSessionRepository:
             location_lat=location_lat,
             location_lng=location_lng,
             notes=notes,
-            location_id=location_id
+            location_id=location_id,
         )
 
     def get_sessions(
@@ -144,7 +197,7 @@ class AttendanceSessionRepository:
         user_id: UUID,
         limit: int = 50,
         offset: int = 0,
-        status: Optional[str] = None
+        status: Optional[str] = None,
     ) -> List[AttendanceSession]:
         """獲取用戶的 sessions (分頁)
 
@@ -155,7 +208,7 @@ class AttendanceSessionRepository:
             .filter(
                 and_(
                     AttendanceSession.company_id == company_id,
-                    AttendanceSession.user_id == user_id
+                    AttendanceSession.user_id == user_id,
                 )
             )
         )
@@ -164,26 +217,20 @@ class AttendanceSessionRepository:
             query = query.filter(AttendanceSession.status == status)
 
         return (
-            query
-            .order_by(AttendanceSession.punch_in_time.desc())
+            query.order_by(AttendanceSession.punch_in_time.desc())
             .limit(limit)
             .offset(offset)
             .all()
         )
 
-    def count_sessions(
-        self,
-        company_id: str,
-        user_id: UUID,
-        status: Optional[str] = None
-    ) -> int:
+    def count_sessions(self, company_id: str, user_id: UUID, status: Optional[str] = None) -> int:
         """計算用戶的 sessions 總數"""
         query = (
             self.db.query(AttendanceSession)
             .filter(
                 and_(
                     AttendanceSession.company_id == company_id,
-                    AttendanceSession.user_id == user_id
+                    AttendanceSession.user_id == user_id,
                 )
             )
         )
@@ -193,11 +240,7 @@ class AttendanceSessionRepository:
 
         return query.count()
 
-    def get_user_policy(
-        self,
-        company_id: str,
-        user_id: UUID
-    ) -> Optional[AttendancePolicy]:
+    def get_user_policy(self, company_id: str, user_id: UUID) -> Optional[AttendancePolicy]:
         """獲取用戶的考勤政策 (WP-11-05C)
 
         Tenant Isolation: 強制 WHERE company_id = ?
@@ -208,16 +251,13 @@ class AttendanceSessionRepository:
                 and_(
                     AttendancePolicy.company_id == company_id,
                     AttendancePolicy.is_default == True,
-                    AttendancePolicy.is_active == True
+                    AttendancePolicy.is_active == True,
                 )
             )
             .first()
         )
 
-    def get_last_break_punch(
-        self,
-        session_id: UUID
-    ) -> Optional[AttendancePunch]:
+    def get_last_break_punch(self, session_id: UUID) -> Optional[AttendancePunch]:
         """獲取 session 的最後一筆 break punch (WP-11-07 Phase 3B)"""
         return self._punch_repo.get_last_break_punch(session_id)
 
@@ -226,14 +266,14 @@ class AttendanceSessionRepository:
         company_id: str,
         user_id: UUID,
         punch_id: UUID,
-        notes: str
+        notes: str,
     ) -> Optional[AttendancePunch]:
         """更新打卡備註"""
         return self._punch_repo.update_punch_note(
             company_id=company_id,
             user_id=user_id,
             punch_id=punch_id,
-            notes=notes
+            notes=notes,
         )
 
     def list_break_punches_for_user_in_range(
@@ -242,21 +282,18 @@ class AttendanceSessionRepository:
         user_id: UUID,
         start_utc: datetime,
         end_utc: datetime,
-        limit: int
+        limit: int,
     ) -> list[AttendancePunch]:
-        """列出指定時間區間內的 break punches"""
+        """列出指定時間區間內的 break punches。"""
         return self._punch_repo.list_break_punches_for_user_in_range(
             company_id=company_id,
             user_id=user_id,
             start_utc=start_utc,
             end_utc=end_utc,
-            limit=limit
+            limit=limit,
         )
 
-    def get_session_punches(
-        self,
-        session_id: UUID
-    ) -> list:
+    def get_session_punches(self, session_id: UUID) -> list:
         """獲取 session 的所有 punch 記錄"""
         return (
             self.db.query(AttendancePunch)
@@ -265,8 +302,6 @@ class AttendanceSessionRepository:
             .all()
         )
 
-
-
     def get_sessions_by_company_user_business_date_range(
         self,
         company_id: str,
@@ -274,13 +309,7 @@ class AttendanceSessionRepository:
         business_day_start: datetime,
         business_day_end: datetime,
     ) -> List[AttendanceSession]:
-        """Read-only: 取得 company/user 在 business date 對應區間內的 sessions。
-
-        注意：
-        - Tenant Isolation: 強制 WHERE company_id = ?
-        - business date -> datetime range 的換算由 service 層決定，repo 不做業務推論
-        - 使用 punch_in_time 作為日級 trace read-side 的最小安全查詢基準
-        """
+        """Read-only: 取得 company/user 在 business date 對應區間內的 sessions。"""
         return (
             self.db.query(AttendanceSession)
             .filter(
@@ -302,12 +331,7 @@ class AttendanceSessionRepository:
         business_day_start: datetime,
         business_day_end: datetime,
     ) -> List[AttendancePunch]:
-        """Read-only: 取得 company/user 在 business date 對應區間內的 punches。
-
-        注意：
-        - Tenant Isolation: 強制 WHERE company_id = ?
-        - 僅提供 read-side 存取，不做 trace 組裝或規則判定
-        """
+        """Read-only: 取得 company/user 在 business date 對應區間內的 punches。"""
         return (
             self.db.query(AttendancePunch)
             .filter(
@@ -345,36 +369,40 @@ class AttendanceSessionRepository:
             .all()
         )
 
+
 def get_attendance_session_repository(db: Session) -> AttendanceSessionRepository:
     """Factory function for dependency injection"""
     return AttendanceSessionRepository(db)
 
-
-# ============================================
-# 舊的 Repository (Phase 4) - 保持兼容
-# ============================================
 
 class AttendanceRepository:
     """考勤記錄資料存取層 (舊版 - Phase 4)"""
 
     def __init__(self, db: Session):
         self.db = db
+        self.tenant_repo = TenantRepository(db)
 
     def create_attendance_record(
         self,
         company_id: str,
         employee_id: str,
         approved_by: Optional[str] = None,
-        approved_at: Optional[str] = None
+        approved_at: Optional[str] = None,
     ):
         """建立考勤記錄 (舊版)"""
         from app.modules.attendance.models import AttendanceRecord
+
+        if not self.tenant_repo.exists(company_id):
+            raise HTTPException(
+                status_code=404,
+                detail={"error": f"Tenant {company_id} does not exist"},
+            )
 
         record = AttendanceRecord(
             company_id=company_id,
             employee_id=employee_id,
             approved_by=approved_by,
-            approved_at=approved_at
+            approved_at=approved_at,
         )
 
         self.db.add(record)
@@ -387,7 +415,7 @@ class AttendanceRepository:
         self,
         company_id: str,
         record_id: UUID,
-        approved_by: Optional[str] = None
+        approved_by: Optional[str] = None,
     ):
         """核准考勤記錄 (舊版)"""
         from app.modules.attendance.models import AttendanceRecord
@@ -397,7 +425,7 @@ class AttendanceRepository:
             .filter(
                 and_(
                     AttendanceRecord.id == record_id,
-                    AttendanceRecord.company_id == company_id
+                    AttendanceRecord.company_id == company_id,
                 )
             )
             .first()
@@ -414,8 +442,18 @@ class AttendanceRepository:
 
         return record
 
+    def get_attendance_records(self, company_id: str):
+        """取得公司下所有舊版 attendance records。"""
+        from app.modules.attendance.models import AttendanceRecord
+
+        return (
+            self.db.query(AttendanceRecord)
+            .filter(AttendanceRecord.company_id == company_id)
+            .order_by(AttendanceRecord.created_at.asc())
+            .all()
+        )
+
 
 def get_attendance_repository(db: Session) -> AttendanceRepository:
     """Factory function for old repository (Phase 4 compatibility)"""
     return AttendanceRepository(db)
-

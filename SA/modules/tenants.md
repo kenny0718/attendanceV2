@@ -80,12 +80,15 @@
 - onboarding
 - 公司品牌欄位（`name`、`display_name`、`logo_url`）
 - 公司詳情 / 編輯可維護的品牌資訊欄位
+- 公司主資料 detail API
+- 公司統編查詢帶入規則
 
 ### 不應放在 `tenants`
 - login token 發放
 - attendance policy
 - leave approval lifecycle
 - navbar 元件外觀樣式本身
+- 多據點打卡地點規則本身（未來應拆到獨立 location / attendance 模型）
 
 ---
 
@@ -95,6 +98,7 @@
 2. 把公司管理頁面的所有東西都塞進 `tenants`，導致它變成超大 admin 雜物箱
 3. entitlements 改了卻沒同步確認 feature gate 使用者
 4. 把公司前台顯示規則硬寫在前端，卻沒有在 `tenants` 定義正式欄位與語意
+5. 把公司主資料與未來多據點打卡資料混成同一組欄位
 
 ---
 
@@ -108,6 +112,8 @@
 - 公司詳情 / 編輯欄位改了
 - 公司識別欄位改了
 - 公司工商資料查詢規則改了
+- company detail API 結構改了
+- 多據點 location 模型正式落地了
 - 前端正式寫入流程改了
 
 ---
@@ -169,18 +175,19 @@
 
 ---
 
-## 9. 公司識別與工商資料規劃
+## 9. 公司識別、地址與工商資料規劃（2026-04-12 v2）
 
 ### 9.1 公司識別欄位
-公司正式識別欄位建議包含：
+公司正式識別欄位定義如下：
 
-- `company_id`：公司登入識別碼，必填、唯一
+- `company_id`：公司系統識別碼，必填、唯一
 - `tax_id`：公司統一編號，選填；若有值則必須唯一
 
 欄位原則：
 - `company_id` 是所有公司都必須具備的正式識別欄位
-- `tax_id` 不可強制要求，因為部分客戶可能沒有申請統一編號
+- `tax_id` 維持選填，不可強制要求
 - 若公司有 `tax_id`，則可作為補充識別欄位使用
+- 若 `tax_id` 有值，必須通過格式與檢查碼驗證
 
 ### 9.2 登入識別規則
 公司登入時，輸入值可接受：
@@ -194,55 +201,216 @@
 - 若公司未提供 `tax_id`，不影響建立公司與登入流程
 
 ### 9.3 公司主資料欄位
-公司主資料建議至少支援以下欄位：
+公司主資料正式建議支援以下欄位：
 
+#### 必填欄位
 - `company_id`
-- `tax_id`
 - `name`
+- `timezone`
+
+#### 選填欄位
+- `tax_id`
 - `display_name`
 - `owner_name`
-- `address`
+- `registered_address`
+- `contact_address`
+- `contact_phone`
+- `contact_email`
 - `logo_url`
 
 最低要求：
 - `company_id`：必填
 - `name`：必填
+- `timezone`：必填
 - `tax_id`：選填
 - `display_name`：選填
 - `owner_name`：選填
-- `address`：選填
+- `registered_address`：選填
+- `contact_address`：選填
+- `contact_phone`：選填
+- `contact_email`：選填
 - `logo_url`：選填
 
-### 9.4 公司資料查詢與帶入規則
+### 9.4 地址欄位正式語意
+本系統正式採地址分欄治理，不可再以單一 `address` 混用不同語意。
+
+#### `registered_address`
+- 指公司工商登記地址
+- 用途為工商識別、客服查詢、法務對照
+- 不直接等於打卡地址
+
+#### `contact_address`
+- 指公司主要聯絡 / 收件 / 對外聯絡地址
+- 可與登記地址不同
+- 主要用於客服與營運聯絡資料
+
+正式結論：
+- `registered_address` 與 `contact_address` 屬公司主資料欄位
+- 未來打卡地點不再先塞進 `Tenant` 主表
+- 多據點打卡需求應由未來獨立 location 模型處理
+
+### 9.5 多據點打卡地點規劃（保留到下一階段）
+因業務已明確確認未來存在：
+- 分公司
+- 工地
+- 門市
+- 倉庫
+- 客戶駐點
+
+因此本系統正式不再把單一 `attendance_address` / `attendance_latitude` / `attendance_longitude` 當作 `Tenant` 主表長期模型。
+
+本階段正式結論：
+- `Tenant` 主表先不放 `attendance_address`
+- `Tenant` 主表先不放 `attendance_latitude`
+- `Tenant` 主表先不放 `attendance_longitude`
+- 未來應新增獨立的 `company_locations`（或等價名稱）模型承接多據點
+- 若未來需要預設打卡地點，應以 `default_attendance_location_id` 類型關聯處理，而不是把地址與座標直接硬寫在 company 主表
+
+### 9.6 公司資料查詢與帶入規則
 當使用者輸入合法 `tax_id` 時，系統可支援查詢公司資料並帶入，以降低人工輸入成本。
 
-查詢成功時，至少可帶入以下欄位：
+本系統現階段採：
+- 半自動模式
+- 資料來源可替換
+- 不綁定特定第三方網站
+- 查詢結果需經使用者確認後才帶入表單
+- 查詢結果不得直接自動寫入正式公司資料
 
+查詢成功時，至少可帶入以下欄位：
 - `tax_id`
 - `name`
 - `owner_name`
-- `address`
+- `registered_address`
+- `source`
+- `fetched_at`
 
-### 9.5 資料來源策略
-公司資料查詢功能的正式規則如下：
+如資料來源可提供，未來可擴充：
+- `contact_phone`
+- `contact_email`
+- `company_status`
 
-- 可用 `tax_id` 查詢公司資料並帶入
-- 不強制綁定特定第三方資料網站
-- 正式整合前，先走人工查核 / 半自動模式
+### 9.7 查詢流程與資料來源策略
+正式流程如下：
 
-說明：
-- 在正式資料來源、授權、穩定性與維運方式確認前，不將特定外部網站視為正式系統依賴
-- 現階段可由人工查核外部資料後回填，或以半自動流程輔助帶入欄位
+1. 使用者輸入 `tax_id`
+2. 前端先驗證格式與檢查碼
+3. 使用者主動按下「查詢公司資料」
+4. 後端呼叫 company lookup provider
+5. 回傳候選資料
+6. 使用者確認後，才將欄位帶入 onboarding / company edit 表單
 
-### 9.6 模組責任
+治理原則：
+- 不在 SDD 中寫死單一網站名稱作為正式依賴
+- provider 必須可替換
+- 外部查詢結果屬候選資料，不是正式權威資料
+- 正式寫入資料的最後責任仍在使用者確認
+- 若查詢失敗，不得阻止人工建檔
+- `lookup-by-tax-id` 僅開放 `super_admin` 使用
+- 公司自行維護資料與外部工商查詢權限必須分開治理
+
+### 9.8 Onboarding 規格
+#### 公司資料
+- `company_id`：必填
+- `name`：必填
+- `timezone`：必填
+- `tax_id`：選填
+- `display_name`：選填
+- `owner_name`：選填
+- `registered_address`：選填
+- `contact_address`：選填
+- `contact_phone`：選填
+- `contact_email`：選填
+- `logo_url`：選填
+
+#### 初始管理者
+- `display_name`：必填
+- `login_username`：必填
+- `password`：必填
+- `email`：選填
+- `role_id`：必填，初版預設 `company_admin`
+
+### 9.9 Company detail API 規格
+本系統保留既有：
+- `GET /api/admin/companies/{company_id}` 作為簡版公司資料查詢
+
+本系統新增：
+- `GET /api/admin/companies/{company_id}/detail` 作為後台 detail / 客服快速查詢專用 endpoint
+
+新增 detail endpoint 的原因：
+- 避免破壞既有 `CompanyResponse`
+- 避免直接改壞既有前端與測試
+- 讓 detail API 可以安全擴充公司主資料與管理者摘要資料
+
+### 9.10 公司詳情 / 編輯頁規格
+`companies detail` 頁面至少應顯示：
+
+- 公司 ID
+- 公司正式名稱
+- 統一編號
+- 時區
+- 啟用狀態
+- 建立時間
+- 顯示名稱
+- 負責人
+- 登記地址
+- 聯絡地址
+- 聯絡電話
+- 聯絡 Email
+
+### 9.11 管理者摘要資料規格
+公司 detail API 可回傳管理者摘要資料，供後台快速查詢使用。
+
+#### 本版管理者定義
+- `company_admin`
+- `hr_manager`
+
+#### 每筆摘要至少應包含
+- `display_name`
+- `login_username`
+- `email`
+- `role_id`
+- `membership_is_active`
+
+#### 排序建議
+1. 啟用中優先
+2. `company_admin` 優先於 `hr_manager`
+3. 建立時間較早者優先
+
+#### 前端實作原則
+- Phase 1 後端 detail API 應準備好 `admin_accounts` 資料
+- Phase 1 前端不強制一定要新增獨立「管理者摘要卡」UI
+- 若現有 `CompanyMembersPanel.vue` 已能承接查詢心智，可先維持單一 members 區塊，避免與 detail 視覺重複
+- 後續若客服查詢流程證實有需要，再於 detail 區補做摘要型 UI
+
+### 9.12 查看與修改權限規則
+公司詳情 / 編輯相關權限如下：
+
+#### 查看 detail
+- `super_admin`：可查看任何公司
+- `company_admin`：可查看自己公司
+- `hr_manager`：可查看自己公司
+
+#### 更新公司資料
+- `super_admin`：可更新任何公司
+- `company_admin`：可更新自己公司
+- `hr_manager`：可更新自己公司
+
+#### 外部工商資料查詢
+- `lookup-by-tax-id` 只開放 `super_admin`
+
+此規則應與既有 admin company scope 一致，不得另立前端特例。
+
+### 9.13 模組責任
 此規劃中：
 
-- `tenants` 負責公司主資料、`company_id` / `tax_id` 欄位定義，以及查詢後資料的正式落點
+- `tenants` 負責公司主資料、`company_id` / `tax_id` 欄位定義、地址正式欄位、查詢後資料的正式落點，以及公司 detail API 的正式回傳
 - `auth` 負責使用 `company_id` 或 `tax_id` 進行登入識別與後續驗證流程
+- `customer_service` 負責客服可支援哪些公司，不自行維護另一份 company 主資料
+- 未來多據點打卡位置資料，應由獨立 location / attendance 模型處理，不應繼續堆在 `Tenant` 主表
 
 ---
 
-## 10. 已依目前 baseline 回寫的正式結論（2026-04-08）
+## 10. 已依目前 baseline 回寫的正式結論（2026-04-12 v2）
 
 - `tenants`（租戶 / 公司管理）是 company 治理的 source of truth（正式權威來源）
 - `feature entitlements`（功能授權）應作為 `feature gate`（功能閘門）判定來源
@@ -250,8 +418,17 @@
 - `company_id`（公司識別）不應由前端 request body 當成權威來源
 - 公司品牌資訊（`name`、`display_name`、`logo_url`）屬於 company 治理範圍，正式來源應為 `tenants`
 - `company_id` 為必填且可登入的正式公司識別欄位
-- `tax_id` 為選填且若有值則必須唯一，也可作為登入識別
-- 公司資料查詢可使用 `tax_id` 帶入 `name`、`owner_name`、`address`，但現階段不綁定特定第三方網站，正式整合前先走人工查核 / 半自動模式
+- `tax_id` 維持選填且若有值則必須唯一，也可作為登入識別
+- 公司主資料正式地址欄位為 `registered_address`、`contact_address`
+- 未來多打卡地點需求已確認存在，因此 `attendance_address`、`attendance_latitude`、`attendance_longitude` 不再作為 `Tenant` 主表本階段正式欄位
+- 多據點打卡位置應於下一階段以獨立 `company_locations`（或等價模型）承接
+- 公司資料查詢可使用 `tax_id` 帶入 `name`、`owner_name`、`registered_address`，但現階段採半自動模式、資料來源可替換、不綁定特定第三方網站
+- 外部查詢結果屬候選資料，需經人工確認後才能帶入正式表單
+- `lookup-by-tax-id` 只開放 `super_admin`
+- `company_admin` 與 `hr_manager` 可查看並更新自己公司資料
+- `companies detail` 應由新增的 detail endpoint 提供完整公司主資料；管理者摘要資料可由 detail API 提供，但 Phase 1 前端不強制新增獨立摘要 UI
+- `super_admin` 可查看與更新任意公司；`company_admin` 與 `hr_manager` 僅可操作自己公司 scope 內資料
+- `customer_service` 管的是支援公司範圍，不是 company 主資料的正式來源
 
 ---
 

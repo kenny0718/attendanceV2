@@ -24,6 +24,7 @@ Metadata Strategy:
 """
 
 from logging.config import fileConfig
+import os
 import sys
 from pathlib import Path
 
@@ -105,8 +106,15 @@ from app.modules.customer_service.models import SupportCompanyAssignment  # noqa
 # ---------------------------------------------------------------------------
 config = context.config
 
-# 從 settings 讀取 database_url（覆蓋 alembic.ini 的靜態設定）
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# 優先順序：
+# 1. 呼叫端/測試注入的 DATABASE_URL
+# 2. alembic.ini 的 sqlalchemy.url
+# 3. settings.database_url 預設值
+env_database_url = os.getenv("DATABASE_URL")
+if env_database_url:
+    config.set_main_option("sqlalchemy.url", env_database_url)
+elif not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

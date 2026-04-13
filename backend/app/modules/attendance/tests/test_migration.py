@@ -16,6 +16,7 @@ from alembic import command
 # Test database setup
 TEST_DATABASE_URL = "postgresql://attendance_user:attendance_pass@localhost:5432/attendance_test"
 engine = create_engine(TEST_DATABASE_URL)
+ATTENDANCE_DOMAIN_PRE_REVISION = "003"
 
 
 @pytest.fixture(scope="function")
@@ -224,7 +225,7 @@ class TestMigrationDowngrade:
     """Test migration downgrade"""
     
     def test_migration_downgrade_removes_tables(self, alembic_config, clean_database):
-        """測試：migration downgrade 成功刪除所有 tables"""
+        """測試：migration downgrade 成功刪除 attendance domain tables"""
         # Run upgrade first
         command.upgrade(alembic_config, "head")
         
@@ -235,10 +236,10 @@ class TestMigrationDowngrade:
         assert "attendance_punches" in tables_before
         assert "attendance_policies" in tables_before
         
-        # Run downgrade
-        command.downgrade(alembic_config, "-1")
+        # Run downgrade to before attendance domain was introduced
+        command.downgrade(alembic_config, ATTENDANCE_DOMAIN_PRE_REVISION)
         
-        # Verify tables removed
+        # Verify attendance tables removed
         inspector = inspect(engine)
         tables_after = inspector.get_table_names()
         assert "attendance_sessions" not in tables_after
@@ -252,8 +253,8 @@ class TestMigrationDowngrade:
         inspector = inspect(engine)
         assert "attendance_sessions" in inspector.get_table_names()
         
-        # Downgrade
-        command.downgrade(alembic_config, "-1")
+        # Downgrade to before attendance domain was introduced
+        command.downgrade(alembic_config, ATTENDANCE_DOMAIN_PRE_REVISION)
         inspector = inspect(engine)
         assert "attendance_sessions" not in inspector.get_table_names()
         
@@ -263,7 +264,7 @@ class TestMigrationDowngrade:
         assert "attendance_sessions" in inspector.get_table_names()
         
         # Downgrade again
-        command.downgrade(alembic_config, "-1")
+        command.downgrade(alembic_config, ATTENDANCE_DOMAIN_PRE_REVISION)
         inspector = inspect(engine)
         assert "attendance_sessions" not in inspector.get_table_names()
 

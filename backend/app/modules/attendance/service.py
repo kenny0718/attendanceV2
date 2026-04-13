@@ -267,6 +267,15 @@ class AttendanceService:
             gross_minutes=gross_minutes,
         )
 
+        try:
+            setattr(
+                policy_eval,
+                "_internal_missing_segment_dry_run",
+                self._last_internal_missing_segment_dry_run,
+            )
+        except Exception:
+            pass
+
         return policy_eval
 
 

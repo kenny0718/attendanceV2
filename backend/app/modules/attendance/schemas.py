@@ -10,7 +10,8 @@ Following WP-11-02_PRECHECK_CHECKLIST.md decisions
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, Field, validator
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 
 # ============================================
@@ -25,7 +26,7 @@ class LocationData(BaseModel):
 
 class PunchInRequest(BaseModel):
     """Punch in request
-    
+
     Note: company_id and user_id come from JWT/tenant context, not from request body
     """
     notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
@@ -35,7 +36,7 @@ class PunchInRequest(BaseModel):
 
 class PunchOutRequest(BaseModel):
     """Punch out request
-    
+
     Note: company_id and user_id come from JWT/tenant context, not from request body
     """
     notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
@@ -45,7 +46,7 @@ class PunchOutRequest(BaseModel):
 
 class BreakOutRequest(BaseModel):
     """Break out request (WP-11-07 Phase 3B)
-    
+
     Note: company_id and user_id come from JWT/tenant context, not from request body
     """
     notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
@@ -55,13 +56,12 @@ class BreakOutRequest(BaseModel):
 
 class BreakInRequest(BaseModel):
     """Break in request (WP-11-07 Phase 3B)
-    
+
     Note: company_id and user_id come from JWT/tenant context, not from request body
     """
     notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
     location: Optional[LocationData] = Field(None, description="Optional GPS location")
     punch_time: Optional[datetime] = Field(None, description="Optional punch time (for testing/admin)")
-
 
 
 class PunchResponse(BaseModel):
@@ -70,9 +70,8 @@ class PunchResponse(BaseModel):
     punch_type: str = Field(..., description="Punch type (in/out/break_start/break_end)")
     punch_time: datetime = Field(..., description="Punch time (UTC+8)")
     notes: Optional[str] = Field(None, description="Notes")
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SessionResponse(BaseModel):
@@ -86,9 +85,8 @@ class SessionResponse(BaseModel):
     status: str = Field(..., description="Session status (open/closed/pending/approved/rejected/missing_punch_out)")
     punches: Optional[list] = Field(default_factory=list, description="All punches in this session (including break_start/break_end)")
     display_name: Optional[str] = Field(None, description="Employee display name (admin view only)")
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PunchInResponse(SessionResponse):
@@ -130,7 +128,7 @@ class PolicyEvaluationResponse(BaseModel):
 
 class PunchOutResponse(SessionResponse):
     """Punch out response (200 OK)
-    
+
     WP-11-03: Includes policy evaluation result
     """
     policy_evaluation: Optional[PolicyEvaluationResponse] = Field(None, description="Policy evaluation result (WP-11-03)")
@@ -206,19 +204,20 @@ class GPSData(BaseModel):
 
 class OutCheckpointRequest(BaseModel):
     """OUT checkpoint request (WP-11-10)
-    
+
     Note: company_id and user_id come from JWT/tenant context, not from request body
     """
     device_type: str = Field(..., pattern="^(mobile|pc)$", description="裝置類型 (mobile|pc)")
     gps: Optional[GPSData] = Field(None, description="GPS 資料 (mobile 必填, pc 選填)")
     notes: Optional[str] = Field(None, max_length=500, description="備註")
     client_timezone: Optional[str] = Field(None, max_length=50, description="客戶端時區")
-    
-    @validator('gps')
-    def validate_gps_for_mobile(cls, v, values):
+
+    @field_validator("gps")
+    @classmethod
+    def validate_gps_for_mobile(cls, v: Optional[GPSData], info: ValidationInfo) -> Optional[GPSData]:
         """Validate that mobile devices provide GPS"""
-        if values.get('device_type') == 'mobile' and not v:
-            raise ValueError('請開啟定位後再外出打卡')
+        if info.data.get("device_type") == "mobile" and not v:
+            raise ValueError("請開啟定位後再外出打卡")
         return v
 
 
@@ -237,9 +236,8 @@ class OutCheckpointListItem(BaseModel):
     device_type: str = Field(..., description="裝置類型")
     gps: Optional[GPSData] = Field(None, description="GPS 資料")
     notes: Optional[str] = Field(None, description="備註")
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OutCheckpointListResponse(BaseModel):
@@ -295,9 +293,8 @@ class AllowedLocationResponse(AllowedLocationBase):
     updated_at: datetime = Field(..., description="更新時間")
     created_by: Optional[str] = Field(None, description="建立者")
     updated_by: Optional[str] = Field(None, description="更新者")
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AllowedLocationListResponse(BaseModel):
@@ -320,4 +317,3 @@ class LocationPolicyViolationError(ErrorResponse):
     """Location policy violation error (403)"""
     error_code: str = Field("LOCATION_POLICY_VIOLATION", description="錯誤碼")
     nearest_location: Optional[dict] = Field(None, description="最近的地點")
-

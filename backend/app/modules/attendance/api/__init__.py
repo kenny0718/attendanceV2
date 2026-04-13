@@ -12,18 +12,47 @@ Phase 1B: Reporting extraction
 - checkpoints.py: OUT Checkpoint API (WP-C1-11)
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from sqlalchemy.orm import Session
+
+from app.core.feature_service import get_feature_service, FeatureDisabledError
+from app.core.features import FeatureKeys
 from app.modules.attendance.api.legacy import router
 from app.modules.attendance.api.punch import router_v1 as _punch_router_v1
 from app.modules.attendance.api.breaks import router_v1 as _breaks_router_v1
 from app.modules.attendance.api.checkpoints import router_v1 as _checkpoints_router_v1
-from app.modules.attendance.api.reporting import router as reporting_router
+from app.modules.attendance.api.reporting import (
+    router as reporting_router,
+    get_sessions as get_sessions_reporting,
+)
 
-# Merged router_v1: all /api/v1/attendance/* endpoints
+
+def _require_attendance_feature(company_id: str, db: Session) -> None:
+    """attendance.core Feature Gate - raises 403 if disabled."""
+    try:
+        feature_service = get_feature_service(db)
+        feature_service.require_enabled(company_id, FeatureKeys.ATTENDANCE_CORE)
+    except FeatureDisabledError as e:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "FEATURE_DISABLED",
+                "feature": e.feature_key,
+                "message": str(e),
+            },
+        )
+
+
 router_v1 = APIRouter()
 router_v1.include_router(_punch_router_v1)
 router_v1.include_router(_breaks_router_v1)
 router_v1.include_router(_checkpoints_router_v1)
 router_v1.include_router(reporting_router)
 
-__all__ = ["router", "router_v1"]
+__all__ = [
+    "router",
+    "router_v1",
+    "get_sessions_reporting",
+    "get_feature_service",
+    "_require_attendance_feature",
+]

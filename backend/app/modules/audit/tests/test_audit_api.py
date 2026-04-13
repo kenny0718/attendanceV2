@@ -138,7 +138,7 @@ class TestAuditLogsExport:
         test_db.add(log)
         test_db.commit()
 
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.get("/api/audit/export?format=json")
         assert response.status_code == 200
@@ -161,7 +161,7 @@ class TestAuditLogsExport:
         test_db.add(log)
         test_db.commit()
 
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.get("/api/audit/export?format=csv")
         assert response.status_code == 200
@@ -192,7 +192,7 @@ class TestAuditLogsExport:
             test_db.add(log)
         test_db.commit()
 
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.get("/api/audit/export?format=json")
         assert response.status_code == 200
@@ -218,7 +218,7 @@ class TestAuditLogsExport:
         test_db.add_all([log_a, log_b])
         test_db.commit()
 
-        actor_a = create_test_actor("company-A", role_id="admin")
+        actor_a = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor_a):
             response = client.get("/api/audit/export?format=json")
         assert response.status_code == 200

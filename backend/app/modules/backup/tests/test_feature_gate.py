@@ -16,7 +16,7 @@ class TestBackupFeatureGate:
 
     def test_backup_export_feature_disabled(self, test_db):
         """backup.core disabled -> POST /api/backup/export 回傳 403 FEATURE_DISABLED"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.backup.api._require_backup_feature"
@@ -36,7 +36,7 @@ class TestBackupFeatureGate:
 
     def test_backup_export_feature_enabled(self, test_db):
         """backup.core enabled + admin -> POST /api/backup/export 通過 gate"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.backup.api.get_feature_service"
@@ -57,7 +57,7 @@ class TestBackupFeatureGate:
 
     def test_backup_restore_feature_disabled(self, test_db):
         """backup.core disabled -> POST /api/backup/restore 回傳 403 FEATURE_DISABLED"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.backup.api.get_feature_service"

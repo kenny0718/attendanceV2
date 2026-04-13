@@ -9,14 +9,11 @@ Schemas:
 """
 
 from datetime import date, datetime
-from typing import Optional, List
+from typing import List, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field, validator
 
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
-# ============================================
-# Leave Type Schemas
-# ============================================
 
 class LeaveTypeResponse(BaseModel):
     """Leave Type read schema"""
@@ -30,8 +27,7 @@ class LeaveTypeResponse(BaseModel):
     created_at: datetime = Field(..., description="Created timestamp (UTC)")
     updated_at: datetime = Field(..., description="Updated timestamp (UTC)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LeaveTypeListResponse(BaseModel):
@@ -39,10 +35,6 @@ class LeaveTypeListResponse(BaseModel):
     leave_types: List[LeaveTypeResponse] = Field(..., description="Leave type list")
     total: int = Field(..., description="Total count")
 
-
-# ============================================
-# Leave Approval Policy Schemas
-# ============================================
 
 class LeaveApprovalPolicyResponse(BaseModel):
     """Leave Approval Policy read schema"""
@@ -56,13 +48,8 @@ class LeaveApprovalPolicyResponse(BaseModel):
     created_at: datetime = Field(..., description="Created timestamp (UTC)")
     updated_at: datetime = Field(..., description="Updated timestamp (UTC)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-
-# ============================================
-# Leave Request Create Schema
-# ============================================
 
 class LeaveRequestCreate(BaseModel):
     """Leave Request create schema
@@ -75,22 +62,21 @@ class LeaveRequestCreate(BaseModel):
     reason: str = Field(..., min_length=1, max_length=1000, description="Reason for leave (required)")
     is_half_day: bool = Field(False, description="Half-day flag (reserved, Phase 1 not enforced)")
 
-    @validator('reason')
-    def reason_must_not_be_blank(cls, v):
+    @field_validator("reason")
+    @classmethod
+    def reason_must_not_be_blank(cls, v: str) -> str:
         if not v or not v.strip():
-            raise ValueError('Reason must not be blank')
+            raise ValueError("Reason must not be blank")
         return v.strip()
 
-    @validator('end_date')
-    def end_date_must_not_be_before_start(cls, v, values):
-        if 'start_date' in values and v < values['start_date']:
-            raise ValueError('end_date must not be earlier than start_date')
+    @field_validator("end_date")
+    @classmethod
+    def end_date_must_not_be_before_start(cls, v: date, info: ValidationInfo) -> date:
+        start_date = info.data.get("start_date")
+        if start_date is not None and v < start_date:
+            raise ValueError("end_date must not be earlier than start_date")
         return v
 
-
-# ============================================
-# Leave Request Read Schema
-# ============================================
 
 class LeaveRequestResponse(BaseModel):
     """Leave Request read schema"""
@@ -112,13 +98,8 @@ class LeaveRequestResponse(BaseModel):
     created_at: datetime = Field(..., description="Created timestamp (UTC)")
     updated_at: datetime = Field(..., description="Updated timestamp (UTC)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-
-# ============================================
-# Approval Action Schema
-# ============================================
 
 class LeaveApprovalAction(BaseModel):
     """Approval action input schema (approve / reject)
@@ -127,8 +108,9 @@ class LeaveApprovalAction(BaseModel):
     """
     comment: Optional[str] = Field(None, max_length=500, description="Optional comment from approver")
 
-    @validator('comment')
-    def trim_comment(cls, v):
+    @field_validator("comment")
+    @classmethod
+    def trim_comment(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
             v = v.strip()
             return v if v else None
@@ -142,17 +124,14 @@ class LeaveCancelAction(BaseModel):
     """
     comment: Optional[str] = Field(None, max_length=500, description="Optional comment from requester")
 
-    @validator('comment')
-    def trim_comment(cls, v):
+    @field_validator("comment")
+    @classmethod
+    def trim_comment(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
             v = v.strip()
             return v if v else None
         return v
 
-
-# ============================================
-# Leave Approval Log Read Schema
-# ============================================
 
 class LeaveApprovalLogResponse(BaseModel):
     """Leave Approval Log read schema"""
@@ -165,17 +144,13 @@ class LeaveApprovalLogResponse(BaseModel):
     comment: Optional[str] = Field(None, description="Optional message")
     created_at: datetime = Field(..., description="Action timestamp (UTC, immutable)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-
-# ============================================
-# List / Summary Schemas
-# ============================================
 
 class MyLeaveRequestListItem(BaseModel):
     """My leave request list item (for requester's own list)"""
     id: UUID = Field(..., description="Leave Request ID")
+    company_id: str = Field(..., description="Company ID (Tenant)")
     leave_type_id: UUID = Field(..., description="Leave Type ID")
     start_date: date = Field(..., description="Leave start date")
     end_date: date = Field(..., description="Leave end date inclusive")
@@ -184,8 +159,7 @@ class MyLeaveRequestListItem(BaseModel):
     status: str = Field(..., description="Status: pending / approved / rejected / cancelled")
     created_at: datetime = Field(..., description="Submitted at (UTC)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MyLeaveRequestListResponse(BaseModel):
@@ -209,8 +183,7 @@ class PendingApprovalListItem(BaseModel):
     required_approval_level: int = Field(..., description="Required approval level")
     created_at: datetime = Field(..., description="Submitted at (UTC)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PendingApprovalListResponse(BaseModel):
@@ -220,10 +193,6 @@ class PendingApprovalListResponse(BaseModel):
     limit: int = Field(..., description="Limit used")
     offset: int = Field(..., description="Offset used")
 
-
-# ============================================
-# Error Schemas
-# ============================================
 
 class LeaveErrorResponse(BaseModel):
     """Standard leave error response"""

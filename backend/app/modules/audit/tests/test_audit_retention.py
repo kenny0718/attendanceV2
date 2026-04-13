@@ -62,7 +62,7 @@ class TestRetentionPolicy:
 
     def test_update_retention_success(self, client, company_id, actor_str):
         """測試：更新 retention 成功（admin actor）"""
-        actor = create_test_actor(company_id, role_id="admin")
+        actor = create_test_actor(company_id, role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.put(
                 "/api/audit/retention",
@@ -89,7 +89,7 @@ class TestRetentionPolicy:
 
     def test_update_retention_out_of_range(self, client, company_id, actor_str):
         """測試：retention_days 超出範圍應失敗"""
-        actor = create_test_actor(company_id, role_id="admin")
+        actor = create_test_actor(company_id, role_id="company_admin")
 
         with override_actor_dependency(actor):
             response = client.put(
@@ -107,7 +107,7 @@ class TestRetentionPolicy:
 
     def test_update_retention_creates_audit_log(self, client, company_id, actor_str, test_db):
         """測試：更新 retention 應寫入 audit log"""
-        actor = create_test_actor(company_id, role_id="admin")
+        actor = create_test_actor(company_id, role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.put(
                 "/api/audit/retention",
@@ -166,7 +166,7 @@ class TestPurge:
             AuditLog.company_id == company_id
         ).count()
 
-        actor = create_test_actor(company_id, role_id="admin")
+        actor = create_test_actor(company_id, role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.post(
                 "/api/audit/purge",
@@ -217,7 +217,7 @@ class TestPurge:
             test_db.add(log)
         test_db.commit()
 
-        actor = create_test_actor(company_id, role_id="admin")
+        actor = create_test_actor(company_id, role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.post(
                 "/api/audit/purge",
@@ -243,7 +243,7 @@ class TestPurge:
 
     def test_purge_creates_audit_log(self, client, company_id, actor_str, test_db):
         """測試：purge 行為應寫入 audit log"""
-        actor = create_test_actor(company_id, role_id="admin")
+        actor = create_test_actor(company_id, role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.post(
                 "/api/audit/purge",
@@ -284,7 +284,7 @@ class TestPurge:
                 test_db.add(log)
         test_db.commit()
 
-        actor = create_test_actor(company_a, role_id="admin")
+        actor = create_test_actor(company_a, role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.post(
                 "/api/audit/purge",
@@ -307,7 +307,7 @@ class TestPurge:
 
     def test_purge_batch_size_out_of_range(self, client, company_id, actor_str):
         """測試：batch_size 超出範圍應失敗"""
-        actor = create_test_actor(company_id, role_id="admin")
+        actor = create_test_actor(company_id, role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.post(
                 "/api/audit/purge",
@@ -317,7 +317,7 @@ class TestPurge:
 
     def test_purge_max_delete_out_of_range(self, client, company_id, actor_str):
         """測試：max_delete 超出範圍應失敗"""
-        actor = create_test_actor(company_id, role_id="admin")
+        actor = create_test_actor(company_id, role_id="company_admin")
         with override_actor_dependency(actor):
             response = client.post(
                 "/api/audit/purge",
@@ -327,7 +327,7 @@ class TestPurge:
 
     def test_purge_respects_custom_retention(self, client, company_id, actor_str, test_db):
         """測試：purge 應遵守自訂的 retention policy"""
-        actor = create_test_actor(company_id, role_id="admin")
+        actor = create_test_actor(company_id, role_id="company_admin")
 
         with override_actor_dependency(actor):
             client.put(

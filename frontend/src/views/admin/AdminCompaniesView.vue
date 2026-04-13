@@ -71,19 +71,21 @@ async function loadCompanies() {
 onMounted(loadCompanies)
 
 const selectedCompany = ref(null)
-const editForm = reactive({ name: '', timezone: 'UTC' })
+const editForm = reactive({ name: '', tax_id: '', timezone: 'UTC' })
 const detailLoading = ref(false)
 const detailError = ref(null)
 const detailSuccess = ref(null)
 
 function updateEditForm(next) {
   editForm.name = next.name ?? ''
+  editForm.tax_id = next.tax_id ?? ''
   editForm.timezone = next.timezone ?? 'UTC'
 }
 
 function selectCompany(company) {
   selectedCompany.value = company
   editForm.name = company.name
+  editForm.tax_id = company.tax_id || ''
   editForm.timezone = company.timezone
   detailError.value = null
   detailSuccess.value = null
@@ -102,13 +104,19 @@ async function handleUpdate() {
   try {
     const updated = await adminApi.updateCompany(selectedCompany.value.id, {
       name: editForm.name,
+      tax_id: editForm.tax_id || null,
       timezone: editForm.timezone,
     })
     selectedCompany.value = updated
     detailSuccess.value = '變更已儲存'
     await loadCompanies()
   } catch (err) {
-    detailError.value = err.message || '更新失敗，請稍後再試'
+    const code = err.data?.detail?.code
+    if (code === 'DUPLICATE_TAX_ID') {
+      detailError.value = `統一編號「${editForm.tax_id}」已存在`
+    } else {
+      detailError.value = err.message || '更新失敗，請稍後再試'
+    }
   } finally {
     detailLoading.value = false
   }

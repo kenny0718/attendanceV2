@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 
 class LoginRequest(BaseModel):
     """Login request schema"""
-    company_id: str = Field(..., min_length=1, max_length=255, description="Company ID")
+    company_id: str = Field(..., min_length=1, max_length=255, description="Company ID or tax ID")
     login_username: str = Field(..., min_length=1, max_length=100, description="Login username")
     password: str = Field(..., min_length=1, max_length=255, description="Password")
 

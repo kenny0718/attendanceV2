@@ -55,6 +55,7 @@ def register_routes(router: APIRouter) -> None:
                 company_id=request.company.id,
                 company_name=request.company.name,
                 company_timezone=request.company.timezone,
+                company_tax_id=request.company.tax_id,
                 user_display_name=request.initial_user.display_name,
                 user_login_username=request.initial_user.login_username,
                 user_password=request.initial_user.password,
@@ -73,9 +74,14 @@ def register_routes(router: APIRouter) -> None:
                     status_code=status.HTTP_409_CONFLICT,
                     detail={"code": "DUPLICATE_LOGIN_USERNAME", "message": msg},
                 )
+            if msg.startswith("DUPLICATE_TAX_ID"):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={"code": "DUPLICATE_TAX_ID", "message": msg},
+                )
             if msg.startswith("INVALID_ROLE"):
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail={"code": "INVALID_ROLE", "message": msg},
                 )
             raise HTTPException(

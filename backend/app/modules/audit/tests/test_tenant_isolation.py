@@ -285,7 +285,7 @@ class TestAuditRetentionPolicyIsolation:
         repo.upsert_retention_policy(COMPANY_A, 90)
         repo.upsert_retention_policy(COMPANY_B, 365)
 
-        actor_a = create_test_actor(COMPANY_A, role_id="admin")
+        actor_a = create_test_actor(COMPANY_A, role_id="company_admin")
         with override_actor_dependency(actor_a):
             resp = client.get("/api/audit/retention")
         assert resp.status_code == 200
@@ -293,7 +293,7 @@ class TestAuditRetentionPolicyIsolation:
         assert data["retention_days"] == 90
         assert data["company_id"] == COMPANY_A
 
-        actor_b = create_test_actor(COMPANY_B, role_id="admin")
+        actor_b = create_test_actor(COMPANY_B, role_id="company_admin")
         with override_actor_dependency(actor_b):
             resp = client.get("/api/audit/retention")
         assert resp.status_code == 200

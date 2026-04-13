@@ -128,7 +128,7 @@ def actor_a(schedule_entitlement):
     return create_test_actor(
         company_id=SCHEDULE_COMPANY_A,
         user_id=TEST_USER_ID,
-        role_id="admin",
+        role_id="company_admin",
     )
 
 
@@ -138,5 +138,5 @@ def actor_b(schedule_db):
     return create_test_actor(
         company_id=SCHEDULE_COMPANY_B,
         user_id=TEST_USER_ID,
-        role_id="admin",
+        role_id="company_admin",
     )

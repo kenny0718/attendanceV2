@@ -53,7 +53,7 @@ def test_user(db, setup_tenant):
 
 @pytest.fixture
 def actor(test_user):
-    return create_test_actor(COMPANY_ID, user_id=test_user.id)
+    return create_test_actor(COMPANY_ID, user_id=test_user.id, role_id="company_admin")
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@ from datetime import date, datetime, time
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AssignmentStatusSchema(str, enum.Enum):
@@ -36,12 +36,11 @@ class ShiftSegmentCreate(ShiftSegmentBase):
 class ShiftSegmentRead(ShiftSegmentBase):
     id: Optional[UUID] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ShiftTemplateBase(BaseModel):
-    company_id: str
+    company_id: Optional[str] = None
     code: str = Field(..., max_length=32)
     name: str = Field(..., max_length=64)
     start_time: time
@@ -71,12 +70,11 @@ class ShiftTemplateRead(ShiftTemplateBase):
     updated_at: datetime
     segments: List[ShiftSegmentRead] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ShiftAssignmentBase(BaseModel):
-    company_id: str
+    company_id: Optional[str] = None
     user_id: UUID
     shift_template_id: UUID
     work_date: date
@@ -99,5 +97,4 @@ class ShiftAssignmentRead(ShiftAssignmentBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

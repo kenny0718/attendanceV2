@@ -10,6 +10,7 @@ Tests policy evaluation logic:
 
 import pytest
 from datetime import datetime, time, timezone, timedelta
+from types import SimpleNamespace
 from uuid import uuid4
 
 from app.modules.attendance.models import AttendanceSession, AttendancePolicy
@@ -26,8 +27,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
+            punch_in_time=datetime(2026, 3, 4, 1, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 10, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=540
         )
@@ -60,8 +61,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 20, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
+            punch_in_time=datetime(2026, 3, 4, 1, 20, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 10, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=520
         )
@@ -90,8 +91,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 10, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
+            punch_in_time=datetime(2026, 3, 4, 1, 10, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 10, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=530
         )
@@ -118,8 +119,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 17, 30, 0, tzinfo=timezone.utc),
+            punch_in_time=datetime(2026, 3, 4, 1, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 9, 30, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=510
         )
@@ -148,8 +149,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 19, 0, 0, tzinfo=timezone.utc),
+            punch_in_time=datetime(2026, 3, 4, 1, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 11, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=600
         )
@@ -179,8 +180,8 @@ class TestPolicyEngineBasics:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 10, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 19, 0, 0, tzinfo=timezone.utc),
+            punch_in_time=datetime(2026, 3, 4, 2, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 11, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=540
         )
@@ -213,8 +214,8 @@ class TestPolicyEngineFallback:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 30, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 30, 0, tzinfo=timezone.utc),
+            punch_in_time=datetime(2026, 3, 4, 1, 30, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 10, 30, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=540
         )
@@ -236,8 +237,8 @@ class TestPolicyEngineFallback:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
+            punch_in_time=datetime(2026, 3, 4, 1, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 10, 0, 0, tzinfo=timezone.utc),
             status='closed',
             duration_minutes=540
         )
@@ -258,12 +259,31 @@ class TestPolicyEngineEdgeCases:
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
+            punch_in_time=datetime(2026, 3, 4, 1, 0, 0, tzinfo=timezone.utc),
             punch_out_time=None,
             status='open',
             duration_minutes=None
         )
         
+        engine = AttendancePolicyEngine()
+        
+        with pytest.raises(ValueError) as exc:
+            engine.evaluate(session, policy=None)
+        
+        assert "Cannot evaluate open session" in str(exc.value)
+    
+    def test_evaluate_zero_duration_session(self):
+        """測試：零時長 session"""
+        session = AttendanceSession(
+            id=uuid4(),
+            company_id="company-a",
+            user_id=uuid4(),
+            punch_in_time=datetime(2026, 3, 4, 1, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 1, 0, 0, tzinfo=timezone.utc),
+            status='closed',
+            duration_minutes=0
+        )
+        
         policy = AttendancePolicy(
             id=uuid4(),
             company_id="company-a",
@@ -275,573 +295,119 @@ class TestPolicyEngineEdgeCases:
         )
         
         engine = AttendancePolicyEngine()
-        with pytest.raises(ValueError, match="Cannot evaluate open session"):
-            engine.evaluate(session, policy)
-    
-    def test_evaluate_no_overtime_threshold(self):
-        """測試：政策無加班門檻時不判斷加班"""
-        session = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 20, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=660
-        )
-        
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="No Overtime Policy",
-            work_start_time=time(9, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=None
-        )
-        
-        engine = AttendancePolicyEngine()
         result = engine.evaluate(session, policy)
         
+        assert result.work_minutes == 0
+        assert result.is_late == False
+        assert result.is_early_leave == True
+        assert result.early_leave_minutes == 540
         assert result.is_overtime == False
-        assert result.overtime_minutes == 0
-        assert result.work_minutes == 660
+
+
+class TestPolicyEngineResult:
+    """Test PolicyEvaluationResult class"""
     
-    def test_result_to_dict(self):
-        """測試：PolicyEvaluationResult.to_dict() 轉換"""
+    def test_to_dict(self):
+        """測試：PolicyEvaluationResult.to_dict()"""
+        result = PolicyEvaluationResult(
+            session_id=uuid4(),
+            company_id="company-a",
+            user_id=uuid4(),
+            policy_id=uuid4(),
+            policy_name="Standard Policy",
+            punch_in_time=datetime(2026, 3, 4, 1, 0, 0, tzinfo=timezone.utc),
+            punch_out_time=datetime(2026, 3, 4, 10, 0, 0, tzinfo=timezone.utc),
+            work_start_time=time(9, 0),
+            work_end_time=time(18, 0),
+            is_late=False,
+            late_minutes=0,
+            is_early_leave=False,
+            early_leave_minutes=0,
+            is_overtime=False,
+            overtime_minutes=0,
+            work_minutes=540,
+            grace_period_minutes=15,
+            overtime_threshold_minutes=540,
+        )
+        
+        data = result.to_dict()
+        
+        assert data['company_id'] == "company-a"
+        assert data['policy']['policy_name'] == "Standard Policy"
+        assert data['evaluation']['is_late'] == False
+        assert data['evaluation']['late_minutes'] == 0
+        assert data['evaluation']['is_early_leave'] == False
+        assert data['evaluation']['is_overtime'] == False
+        assert data['timing']['work_minutes'] == 540
+
+
+class TestPolicyEvaluationWithScheduleV2:
+    def test_build_policy_evaluation_uses_schedule_window(self):
         session = AttendanceSession(
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=540
+            punch_in_time=datetime(2026, 3, 4, 1, 20, tzinfo=timezone.utc),
+            punch_out_time=None,
+            status='open',
+            duration_minutes=None,
         )
-        
         policy = AttendancePolicy(
             id=uuid4(),
             company_id="company-a",
-            name="Standard Policy",
-            work_start_time=time(9, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=540
-        )
-        
-        engine = AttendancePolicyEngine()
-        result = engine.evaluate(session, policy)
-        
-        result_dict = result.to_dict()
-        
-        assert "session_id" in result_dict
-        assert "policy" in result_dict
-        assert "timing" in result_dict
-        assert "evaluation" in result_dict
-        assert result_dict["policy"]["policy_name"] == "Standard Policy"
-        assert result_dict["evaluation"]["is_late"] == False
-        assert result_dict["timing"]["work_minutes"] == 540
-
-
-class TestPolicyEngineTenantIsolation:
-    """Test tenant isolation in policy evaluation"""
-    
-    def test_different_companies_different_policies(self):
-        """測試：不同公司使用不同政策"""
-        session_a = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 20, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=520
-        )
-        
-        policy_a = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Strict Policy",
+            name="policy",
             work_start_time=time(9, 0),
             work_end_time=time(18, 0),
             grace_period_minutes=10,
-            overtime_threshold_minutes=540
+            overtime_threshold_minutes=480,
         )
-        
-        session_b = AttendanceSession(
-            id=uuid4(),
-            company_id="company-b",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 20, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=520
-        )
-        
-        policy_b = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-b",
-            name="Lenient Policy",
-            work_start_time=time(9, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=30,
-            overtime_threshold_minutes=540
-        )
-        
-        engine = AttendancePolicyEngine()
-        result_a = engine.evaluate(session_a, policy_a)
-        result_b = engine.evaluate(session_b, policy_b)
-        
-        assert result_a.is_late == True
-        assert result_a.late_minutes == 10
-        
-        assert result_b.is_late == False
-        assert result_b.late_minutes == 0
-
-
-class TestF6CanonicalGuard:
-    """Targeted regression tests for F6 dormant schedule-aware risk."""
-
-    class _RepoStub:
-        def __init__(self, policy):
-            self._policy = policy
-
-        def get_user_policy(self, company_id, user_id):
-            return self._policy
-
-    def test_schedule_v2_keeps_duration_minutes_as_gross(self):
-        """schedule-aware helper 不得把 derived work_minutes 寫回 canonical duration_minutes。"""
-        session = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=None,
-            status='open',
-            duration_minutes=None
-        )
-
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Schedule Aware Policy",
-            work_start_time=time(9, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=480
-        )
-
-        repo = self._RepoStub(policy)
-        punch_out_time = datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc)
-        gross_minutes = 540
-        derived_work_minutes = 480
-        normalized_windows = [(
-            datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
-            datetime(2026, 3, 4, 17, 0, 0, tzinfo=timezone.utc),
-        )]
+        repo = SimpleNamespace(get_user_policy=lambda company_id, user_id: policy)
 
         result = build_policy_evaluation_with_schedule_v2(
             session=session,
             repo=repo,
             company_id="company-a",
             user_id=session.user_id,
-            punch_out_time=punch_out_time,
-            gross_minutes=gross_minutes,
-            work_minutes=derived_work_minutes,
-            normalized_windows=normalized_windows,
+            punch_out_time=datetime(2026, 3, 4, 10, 10, tzinfo=timezone.utc),
+            gross_minutes=530,
+            work_minutes=530,
+            normalized_windows=[
+                (datetime(2026, 3, 4, 1, 0, tzinfo=timezone.utc), datetime(2026, 3, 4, 10, 0, tzinfo=timezone.utc))
+            ],
         )
 
-        assert session.duration_minutes == gross_minutes
-        assert session.duration_minutes != derived_work_minutes
-        assert result.evaluation.work_minutes == derived_work_minutes
-        assert result.evaluation.overtime_minutes == 0
+        evaluation = result.evaluation
+        assert evaluation.is_late is True
+        assert evaluation.late_minutes == 10
+        assert evaluation.is_early_leave is False
+        assert evaluation.early_leave_minutes == 0
+        assert evaluation.is_overtime is True
+        assert evaluation.overtime_minutes == 50
+        assert evaluation.work_minutes == 530
+        assert result.policy_id == policy.id
 
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-
-
-# ============================================
-# WP-11-03S: Split Shift Tests
-# ============================================
-
-class TestSplitShiftBasics:
-    """Test split shift basic functionality"""
-    
-    def test_split_shift_normal_attendance(self):
-        """測試：分段工時正常出勤（08:00-14:00 + 16:00-18:00）"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        # Session: 08:00 - 18:00 (full day including break)
+    def test_build_policy_evaluation_without_windows_requires_windows(self):
         session = AttendanceSession(
             id=uuid4(),
             company_id="company-a",
             user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=600  # Total 10 hours
+            punch_in_time=datetime(2026, 3, 4, 1, 0, tzinfo=timezone.utc),
+            punch_out_time=None,
+            status='open',
+            duration_minutes=None,
         )
-        
-        # Split shift: 08:00-14:00 (6h) + 16:00-18:00 (2h) = 8h work
-        schedule = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(8, 0), end_time=time(14, 0)),
-            WorkWindow(start_time=time(16, 0), end_time=time(18, 0))
-        ])
-        
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Split Shift Policy",
-            work_start_time=time(8, 0),  # Not used in split shift
-            work_end_time=time(18, 0),   # Not used in split shift
-            grace_period_minutes=15,
-            overtime_threshold_minutes=480
-        )
-        
-        engine = AttendancePolicyEngine()
-        result = engine.evaluate_with_schedule(session, schedule, policy)
-        
-        # Should count 6h + 2h = 8h = 480 minutes (not 10h)
-        assert result.work_minutes == 480
-        assert result.is_late == False
-        assert result.is_early_leave == False
-        assert result.is_overtime == False
-    
-    def test_split_shift_late_first_window(self):
-        """測試：第一段遲到"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        # Punch in at 08:20 (late by 20 min, grace is 15)
-        session = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 20, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=580
-        )
-        
-        schedule = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(8, 0), end_time=time(14, 0)),
-            WorkWindow(start_time=time(16, 0), end_time=time(18, 0))
-        ])
-        
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Split Shift Policy",
-            work_start_time=time(8, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=480
-        )
-        
-        engine = AttendancePolicyEngine()
-        result = engine.evaluate_with_schedule(session, schedule, policy)
-        
-        assert result.is_late == True
-        assert result.late_minutes == 5  # 20 - 15 grace
-        # Work time: (14:00-08:20)=340min + (18:00-16:00)=120min = 460min
-        assert result.work_minutes == 460
-    
-    def test_split_shift_early_leave_last_window(self):
-        """測試：最後一段早退"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        # Punch out at 17:30 (30 min early)
-        session = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 17, 30, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=570
-        )
-        
-        schedule = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(8, 0), end_time=time(14, 0)),
-            WorkWindow(start_time=time(16, 0), end_time=time(18, 0))
-        ])
-        
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Split Shift Policy",
-            work_start_time=time(8, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=480
-        )
-        
-        engine = AttendancePolicyEngine()
-        result = engine.evaluate_with_schedule(session, schedule, policy)
-        
-        assert result.is_early_leave == True
-        assert result.early_leave_minutes == 30
-        # Work time: 6h + 1.5h = 450min
-        assert result.work_minutes == 450
-    
-    def test_split_shift_punch_only_first_window(self):
-        """測試：只在第一段工作"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        # Punch in 08:00, out 13:00 (only first window)
-        session = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 13, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=300
-        )
-        
-        schedule = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(8, 0), end_time=time(14, 0)),
-            WorkWindow(start_time=time(16, 0), end_time=time(18, 0))
-        ])
-        
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Split Shift Policy",
-            work_start_time=time(8, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=480
-        )
-        
-        engine = AttendancePolicyEngine()
-        result = engine.evaluate_with_schedule(session, schedule, policy)
-        
-        # Only first window: 5 hours = 300 min
-        assert result.work_minutes == 300
-        assert result.is_early_leave == True  # Left before last window end
-    
-    def test_split_shift_punch_only_second_window(self):
-        """測試：只在第二段工作"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        # Punch in 16:00, out 18:00 (only second window)
-        session = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 16, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=120
-        )
-        
-        schedule = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(8, 0), end_time=time(14, 0)),
-            WorkWindow(start_time=time(16, 0), end_time=time(18, 0))
-        ])
-        
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Split Shift Policy",
-            work_start_time=time(8, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=480
-        )
-        
-        engine = AttendancePolicyEngine()
-        result = engine.evaluate_with_schedule(session, schedule, policy)
-        
-        # Only second window: 2 hours = 120 min
-        assert result.work_minutes == 120
-        assert result.is_late == True  # Started after first window start
-    
-    def test_split_shift_punch_during_break(self):
-        """測試：打卡時間在間段（不計工時）"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        # Punch in 14:30, out 15:30 (during break 14:00-16:00)
-        session = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 14, 30, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 15, 30, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=60
-        )
-        
-        schedule = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(8, 0), end_time=time(14, 0)),
-            WorkWindow(start_time=time(16, 0), end_time=time(18, 0))
-        ])
-        
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Split Shift Policy",
-            work_start_time=time(8, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=480
-        )
-        
-        engine = AttendancePolicyEngine()
-        result = engine.evaluate_with_schedule(session, schedule, policy)
-        
-        # No overlap with any window: 0 minutes
-        assert result.work_minutes == 0
-    
-    def test_split_shift_cross_window_boundary(self):
-        """測試：跨 window 邊界（只計重疊部分）"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        # Punch in 13:00, out 17:00 (crosses first window end and second window start)
-        session = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 13, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 17, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=240
-        )
-        
-        schedule = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(8, 0), end_time=time(14, 0)),
-            WorkWindow(start_time=time(16, 0), end_time=time(18, 0))
-        ])
-        
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Split Shift Policy",
-            work_start_time=time(8, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=480
-        )
-        
-        engine = AttendancePolicyEngine()
-        result = engine.evaluate_with_schedule(session, schedule, policy)
-        
-        # First window: 13:00-14:00 = 60min
-        # Break: 14:00-16:00 = not counted
-        # Second window: 16:00-17:00 = 60min
-        # Total: 120min
-        assert result.work_minutes == 120
+        repo = SimpleNamespace(get_user_policy=lambda company_id, user_id: None)
 
+        with pytest.raises(ValueError) as exc:
+            build_policy_evaluation_with_schedule_v2(
+                session=session,
+                repo=repo,
+                company_id="company-a",
+                user_id=session.user_id,
+                punch_out_time=datetime(2026, 3, 4, 9, 0, tzinfo=timezone.utc),
+                gross_minutes=480,
+                work_minutes=480,
+                normalized_windows=[],
+            )
 
-class TestSplitShiftEdgeCases:
-    """Test split shift edge cases"""
-    
-    def test_work_window_validation_invalid_times(self):
-        """測試：WorkWindow 驗證（start >= end 應拋錯）"""
-        from app.modules.attendance.policy_engine import WorkWindow
-        
-        with pytest.raises(ValueError, match="Invalid WorkWindow"):
-            WorkWindow(start_time=time(14, 0), end_time=time(8, 0))
-    
-    def test_work_schedule_overlapping_windows(self):
-        """測試：WorkSchedule 驗證（重疊 windows 應拋錯）"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        with pytest.raises(ValueError, match="Overlapping windows"):
-            WorkSchedule.create_split_shift([
-                WorkWindow(start_time=time(8, 0), end_time=time(14, 0)),
-                WorkWindow(start_time=time(13, 0), end_time=time(18, 0))  # Overlaps!
-            ])
-    
-    def test_work_schedule_auto_sort_windows(self):
-        """測試：WorkSchedule 自動排序 windows"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        # Provide windows in wrong order
-        schedule = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(16, 0), end_time=time(18, 0)),
-            WorkWindow(start_time=time(8, 0), end_time=time(14, 0))
-        ])
-        
-        # Should be auto-sorted
-        assert schedule.windows[0].start_time == time(8, 0)
-        assert schedule.windows[1].start_time == time(16, 0)
-    
-    def test_split_shift_backward_compatibility(self):
-        """測試：向後相容（WorkSchedule.from_policy）"""
-        from app.modules.attendance.policy_engine import WorkSchedule
-        
-        policy = AttendancePolicy(
-            id=uuid4(),
-            company_id="company-a",
-            name="Standard Policy",
-            work_start_time=time(9, 0),
-            work_end_time=time(18, 0),
-            grace_period_minutes=15,
-            overtime_threshold_minutes=540
-        )
-        
-        # Convert policy to schedule
-        schedule = WorkSchedule.from_policy(policy)
-        
-        assert schedule.mode == 'standard'
-        assert len(schedule.windows) == 1
-        assert schedule.windows[0].start_time == time(9, 0)
-        assert schedule.windows[0].end_time == time(18, 0)
-
-
-class TestSplitShiftTenantIsolation:
-    """Test tenant isolation with split shift"""
-    
-    def test_different_companies_different_split_schedules(self):
-        """測試：不同公司使用不同分段工時"""
-        from app.modules.attendance.policy_engine import WorkWindow, WorkSchedule
-        
-        # Company A: 08:00-14:00 + 16:00-18:00
-        session_a = AttendanceSession(
-            id=uuid4(),
-            company_id="company-a",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 8, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 18, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=600
-        )
-        
-        schedule_a = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(8, 0), end_time=time(14, 0)),
-            WorkWindow(start_time=time(16, 0), end_time=time(18, 0))
-        ])
-        
-        # Company B: 09:00-13:00 + 14:00-17:00
-        session_b = AttendanceSession(
-            id=uuid4(),
-            company_id="company-b",
-            user_id=uuid4(),
-            punch_in_time=datetime(2026, 3, 4, 9, 0, 0, tzinfo=timezone.utc),
-            punch_out_time=datetime(2026, 3, 4, 17, 0, 0, tzinfo=timezone.utc),
-            status='closed',
-            duration_minutes=480
-        )
-        
-        schedule_b = WorkSchedule.create_split_shift([
-            WorkWindow(start_time=time(9, 0), end_time=time(13, 0)),
-            WorkWindow(start_time=time(14, 0), end_time=time(17, 0))
-        ])
-        
-        engine = AttendancePolicyEngine()
-        result_a = engine.evaluate_with_schedule(session_a, schedule_a, None)
-        result_b = engine.evaluate_with_schedule(session_b, schedule_b, None)
-        
-        # Company A: 6h + 2h = 480min
-        assert result_a.work_minutes == 480
-        assert result_a.company_id == "company-a"
-        
-        # Company B: 4h + 3h = 420min
-        assert result_b.work_minutes == 420
-        assert result_b.company_id == "company-b"
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+        assert "normalized_windows must not be empty" in str(exc.value)

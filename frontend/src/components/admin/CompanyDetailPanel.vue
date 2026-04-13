@@ -13,6 +13,7 @@
     <div v-else class="detail-body">
       <div class="detail-meta">
         <div class="detail-meta-item"><span class="detail-meta-label">ID</span><span class="detail-meta-val mono">{{ company.id }}</span></div>
+        <div class="detail-meta-item"><span class="detail-meta-label">統一編號</span><span class="detail-meta-val mono">{{ company.tax_id || '—' }}</span></div>
         <div class="detail-meta-item"><span class="detail-meta-label">建立時間</span><span class="detail-meta-val">{{ formatDate(company.created_at) }}</span></div>
         <div class="detail-meta-item"><span class="detail-meta-label">狀態</span><span :class="company.is_active ? 'badge-active' : 'badge-inactive'">{{ company.is_active ? '啟用' : '停用' }}</span></div>
       </div>
@@ -30,6 +31,10 @@
         <div class="form-group">
           <label class="form-label" for="d-name">公司名稱</label>
           <input id="d-name" :value="form.name" type="text" class="form-input" maxlength="255" @input="$emit('update:form', { ...form, name: $event.target.value })" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="d-tax-id">統一編號</label>
+          <input id="d-tax-id" :value="form.tax_id" type="text" inputmode="numeric" class="form-input" maxlength="8" placeholder="8 碼統編，可留空" @input="$emit('update:form', { ...form, tax_id: $event.target.value })" />
         </div>
         <div class="form-group">
           <label class="form-label" for="d-tz">時區</label>
@@ -91,7 +96,7 @@ defineProps({
 
 .detail-empty svg { width: 34px; height: 34px; }
 .detail-body { display: grid; gap: 16px; }
-.detail-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.detail-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .detail-meta-item { padding: 14px; border-radius: 16px; background: rgba(248, 250, 252, 0.92); border: 1px solid rgba(226, 232, 240, 0.9); }
 .detail-meta-label { display: block; font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 6px; }
 .detail-meta-val { font-size: 15px; line-height: 1.45; color: #0f172a; }

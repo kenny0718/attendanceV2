@@ -46,12 +46,21 @@ def build_policy_evaluation(
     """Legacy evaluation path (must remain unchanged)."""
     policy = repo.get_user_policy(company_id, user_id)
 
+    original_punch_out_time = session.punch_out_time
+    original_duration_minutes = session.duration_minutes
+    original_status = session.status
+
     session.punch_out_time = punch_out_time
     session.duration_minutes = gross_minutes
     session.status = "closed"
 
-    policy_engine = AttendancePolicyEngine()
-    evaluation = policy_engine.evaluate(session, policy)
+    try:
+        policy_engine = AttendancePolicyEngine()
+        evaluation = policy_engine.evaluate(session, policy)
+    finally:
+        session.punch_out_time = original_punch_out_time
+        session.duration_minutes = original_duration_minutes
+        session.status = original_status
 
     return PolicyEvalPayload(
         policy_id=policy.id if policy else None,
@@ -80,40 +89,49 @@ def build_policy_evaluation_with_schedule_v2(
 
     policy = repo.get_user_policy(company_id, user_id)
 
+    original_punch_out_time = session.punch_out_time
+    original_duration_minutes = session.duration_minutes
+    original_status = session.status
+
     session.punch_out_time = punch_out_time
     session.duration_minutes = gross_minutes
     session.status = "closed"
 
-    first_window_start = min(normalized_windows, key=lambda x: x[0])[0]
-    last_window_end = max(normalized_windows, key=lambda x: x[1])[1]
+    try:
+        first_window_start = min(normalized_windows, key=lambda x: x[0])[0]
+        last_window_end = max(normalized_windows, key=lambda x: x[1])[1]
 
-    grace = policy.grace_period_minutes if policy else 0
-    overtime_threshold = policy.overtime_threshold_minutes if policy else 480
+        grace = policy.grace_period_minutes if policy else 0
+        overtime_threshold = policy.overtime_threshold_minutes if policy else 480
 
-    late_cutoff = first_window_start + timedelta(minutes=grace)
-    if session.punch_in_time > late_cutoff:
-        is_late = True
-        late_minutes = int((session.punch_in_time - late_cutoff).total_seconds() / 60)
-    else:
-        is_late = False
-        late_minutes = 0
+        late_cutoff = first_window_start + timedelta(minutes=grace)
+        if session.punch_in_time > late_cutoff:
+            is_late = True
+            late_minutes = int((session.punch_in_time - late_cutoff).total_seconds() / 60)
+        else:
+            is_late = False
+            late_minutes = 0
 
-    if session.punch_out_time < last_window_end:
-        is_early_leave = True
-        early_leave_minutes = int((last_window_end - session.punch_out_time).total_seconds() / 60)
-    else:
-        is_early_leave = False
-        early_leave_minutes = 0
+        if session.punch_out_time < last_window_end:
+            is_early_leave = True
+            early_leave_minutes = int((last_window_end - session.punch_out_time).total_seconds() / 60)
+        else:
+            is_early_leave = False
+            early_leave_minutes = 0
 
-    if overtime_threshold is None:
-        is_overtime = False
-        overtime_minutes = 0
-    elif work_minutes > overtime_threshold:
-        is_overtime = True
-        overtime_minutes = work_minutes - overtime_threshold
-    else:
-        is_overtime = False
-        overtime_minutes = 0
+        if overtime_threshold is None:
+            is_overtime = False
+            overtime_minutes = 0
+        elif work_minutes > overtime_threshold:
+            is_overtime = True
+            overtime_minutes = work_minutes - overtime_threshold
+        else:
+            is_overtime = False
+            overtime_minutes = 0
+    finally:
+        session.punch_out_time = original_punch_out_time
+        session.duration_minutes = original_duration_minutes
+        session.status = original_status
 
     evaluation = _ScheduleEvalAdapterResult(
         is_late=is_late,

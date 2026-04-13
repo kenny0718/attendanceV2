@@ -10,7 +10,7 @@ from fastapi import HTTPException, status
 
 from app.modules.auth.repo import AuthRepository
 from app.modules.auth.schemas import LoginRequest, LoginResponse, UserInfo, CompanyInfo, RoleInfo, MembershipInfo
-from app.modules.tenants.repo import TenantRepository
+from app.modules.tenants.service import get_tenant_service
 from app.core.security.jwt import create_access_token
 
 logger = logging.getLogger(__name__)
@@ -22,18 +22,20 @@ class AuthService:
     def __init__(self, db: Session):
         self.db = db
         self.auth_repo = AuthRepository(db)
-        self.tenant_repo = TenantRepository(db)
+        self.tenant_service = get_tenant_service(db)
 
     def login(self, request: LoginRequest) -> LoginResponse:
-        company_id = request.company_id
+        company_input = request.company_id
         login_username = request.login_username
         password = request.password
 
-        if not self.tenant_repo.exists(company_id):
-            logger.warning(f"Login failed: company {company_id} does not exist")
+        tenant = self.tenant_service.resolve_company(company_input)
+        if not tenant:
+            logger.warning(f"Login failed: company/tax_id {company_input} does not exist")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid credentials")
 
-        if not self.tenant_repo.is_active(company_id):
+        company_id = tenant.id
+        if not tenant.is_active:
             logger.warning(f"Login failed: company {company_id} is not active")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid credentials")
 
@@ -62,10 +64,9 @@ class AuthService:
         }
         access_token = create_access_token(token_claims, expires_in=900)
 
-        tenant = self.tenant_repo.get_by_id(company_id)
         role = self.auth_repo.get_role(membership.role_id)
-        if not tenant or not role:
-            logger.error(f"Login failed: tenant or role not found (data integrity issue)")
+        if not role:
+            logger.error(f"Login failed: role not found for membership {membership.id} (data integrity issue)")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
         self.auth_repo.update_last_login(user)

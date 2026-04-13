@@ -41,7 +41,7 @@ class TestScheduleTemplateFeatureGate:
 
     def test_list_templates_feature_disabled(self):
         """schedule.core disabled -> GET /shift-templates returns 403"""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         with override_actor_dependency(actor):
             with patch("app.modules.schedule.api.get_feature_service") as mock_fs:
                 mock_fs.return_value.require_enabled.side_effect = FeatureDisabledError(
@@ -54,7 +54,7 @@ class TestScheduleTemplateFeatureGate:
 
     def test_create_template_feature_disabled(self):
         """schedule.core disabled -> POST /shift-templates returns 403"""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         with override_actor_dependency(actor):
             with patch("app.modules.schedule.api.get_feature_service") as mock_fs:
                 mock_fs.return_value.require_enabled.side_effect = FeatureDisabledError(
@@ -77,7 +77,7 @@ class TestScheduleTemplateCRUD:
 
     def test_create_without_company_id_uses_actor_scope(self, schedule_entitlement):
         """Create request without company_id should persist under actor company scope."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         payload = {
             **TEMPLATE_BASE,
             "code": f"NOCID_{uuid4().hex[:6].upper()}",
@@ -94,7 +94,7 @@ class TestScheduleTemplateCRUD:
 
     def test_full_template_crud_flow(self, schedule_entitlement):
         """Full CRUD flow: create -> get -> list -> update -> deactivate -> activate."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         code = f"CRUD_{uuid4().hex[:6].upper()}"
         payload = {**TEMPLATE_BASE, "code": code}
 
@@ -139,7 +139,7 @@ class TestScheduleTemplateCRUD:
 
     def test_duplicate_code_returns_409(self, schedule_entitlement):
         """Creating template with duplicate code -> 409 Conflict."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         code = f"DUP_{uuid4().hex[:6].upper()}"
         payload = {**TEMPLATE_BASE, "code": code}
 
@@ -154,7 +154,7 @@ class TestScheduleTemplateCRUD:
 
     def test_get_nonexistent_returns_404(self, schedule_entitlement):
         """Getting non-existent template -> 404."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         fake_id = str(uuid4())
 
         with override_actor_dependency(actor):
@@ -164,8 +164,8 @@ class TestScheduleTemplateCRUD:
 
     def test_cross_tenant_isolation(self, schedule_entitlement):
         """Company B cannot see Company A templates."""
-        actor_a = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
-        actor_b_obj = create_test_actor(SCHEDULE_COMPANY_B, role_id="admin")
+        actor_a = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
+        actor_b_obj = create_test_actor(SCHEDULE_COMPANY_B, role_id="company_admin")
         code = f"ISO_{uuid4().hex[:6].upper()}"
         payload = {**TEMPLATE_BASE, "code": code}
 
@@ -192,7 +192,7 @@ class TestScheduleTemplateSegments:
         )
 
     def test_create_template_with_segments(self, schedule_entitlement):
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         payload = {
             **TEMPLATE_BASE,
             "company_id": SCHEDULE_COMPANY_A,
@@ -227,7 +227,7 @@ class TestScheduleTemplateSegments:
                 assert data["segments"][1]["segment_index"] == 2
 
     def test_create_template_segments_overlap_returns_422(self, schedule_entitlement):
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         payload = {
             **TEMPLATE_BASE,
             "company_id": SCHEDULE_COMPANY_A,
@@ -258,7 +258,7 @@ class TestScheduleTemplateSegments:
                 assert r.status_code == 422
 
     def test_update_template_segments_replace_all(self, schedule_entitlement):
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         create_payload = {
             **TEMPLATE_BASE,
             "company_id": SCHEDULE_COMPANY_A,

@@ -16,6 +16,7 @@ class Tenant(Base):
     Design principles:
     - id is the company_id (VARCHAR 50) as PK
     - name is the company display name
+    - tax_id is the company tax identifier (optional, unique)
     - is_active flag for soft delete / deactivation
     - timezone for company-specific time handling
     - created_at / updated_at for audit trail
@@ -28,6 +29,7 @@ class Tenant(Base):
     
     # Company information
     name = Column(String(255), nullable=False, comment="Company name")
+    tax_id = Column(String(20), nullable=True, unique=True, comment="Company tax ID")
     is_active = Column(Boolean, nullable=False, default=True, comment="Active status")
     timezone = Column(String(50), nullable=False, default="UTC", comment="Company timezone")
     
@@ -38,10 +40,11 @@ class Tenant(Base):
     # Index for fast active tenant queries
     __table_args__ = (
         Index('idx_tenants_is_active', 'is_active'),
+        Index('idx_tenants_tax_id', 'tax_id'),
     )
     
     def __repr__(self):
-        return f"<Tenant(id={self.id}, name={self.name}, is_active={self.is_active})>"
+        return f"<Tenant(id={self.id}, name={self.name}, tax_id={self.tax_id}, is_active={self.is_active})>"
 
 
 class CompanyEntitlement(Base):

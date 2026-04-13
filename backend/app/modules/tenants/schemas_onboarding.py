@@ -26,6 +26,7 @@ class OnboardingCompanyResult(BaseModel):
     """Company creation result within onboarding response"""
     id: str
     name: str
+    tax_id: Optional[str] = None
     timezone: str
     is_active: bool
     created_at: datetime

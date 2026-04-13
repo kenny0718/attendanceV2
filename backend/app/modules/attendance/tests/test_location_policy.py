@@ -181,14 +181,14 @@ class TestDistanceCalculation:
         """測試 Haversine 距離計算"""
         from app.modules.attendance.gps_utils import calculate_distance
         
-        # 台北101 到 台北車站（約 2.5 公里）
+        # 台北101 到 台北車站（直線距離約 5.1 公里）
         distance = calculate_distance(
             (25.0330, 121.5654),  # 台北101
             (25.0478, 121.5170)   # 台北車站
         )
         
-        # 應該約 2500 公尺（允許 10% 誤差）
-        assert 2250 <= distance <= 2750
+        # 應該約 5100 公尺（允許約 10% 誤差）
+        assert 4600 <= distance <= 5600
     
     def test_same_location_zero_distance(self):
         """測試相同位置距離為 0"""

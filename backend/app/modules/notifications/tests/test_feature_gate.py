@@ -16,7 +16,7 @@ class TestNotificationsFeatureGate:
 
     def test_notifications_feature_enabled(self, test_db):
         """notifications.core enabled -> GET /api/notifications 正常回應"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.notifications.api.get_feature_service"
@@ -40,7 +40,7 @@ class TestNotificationsFeatureGate:
 
     def test_notifications_feature_disabled(self, test_db):
         """notifications.core disabled -> GET /api/notifications 回傳 403 FEATURE_DISABLED"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.notifications.api.get_feature_service"

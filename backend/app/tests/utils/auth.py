@@ -7,7 +7,7 @@
 使用方式：
     from app.tests.utils.auth import create_test_actor, override_actor_dependency
 
-    actor = create_test_actor("company-A", role_id="admin")
+    actor = create_test_actor("company-A", role_id="company_admin")
     with override_actor_dependency(actor):
         response = client.get("/api/notifications")
         assert response.status_code == 200
@@ -17,11 +17,11 @@ have migrated to JWT actor (get_actor_with_company). Use override_actor_dependen
 """
 
 from contextlib import contextmanager
-from uuid import UUID, uuid4
 from typing import Optional
+from uuid import UUID
 
-from app.core.scope import Actor, UserRole
 from app.core.dependencies import get_actor_with_company
+from app.core.scope import Actor, UserRole
 from app.main import app
 
 
@@ -29,10 +29,15 @@ from app.main import app
 DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
+def _normalize_test_role_id(role_id: str) -> str:
+    """Normalize retired test alias to current role ids."""
+    return "company_admin" if role_id == "admin" else role_id
+
+
 def create_test_actor(
     company_id: str,
     user_id: Optional[UUID] = None,
-    role_id: str = "admin",
+    role_id: str = "employee",
     platform_role: UserRole = UserRole.COMPANY_USER,
 ) -> Actor:
     """
@@ -41,18 +46,19 @@ def create_test_actor(
     Args:
         company_id: 測試公司 ID（對應 active_company_id）
         user_id: 測試使用者 UUID（預設使用固定 UUID）
-        role_id: 公司內角色（"admin" / "employee" / "manager" / "hr"）
+        role_id: 公司內角色（"company_admin" / "employee" / "manager" / "hr_manager"）
         platform_role: 平台層角色（預設 COMPANY_USER）
 
     Returns:
         Actor: 可直接注入 FastAPI dependency 的測試 Actor
     """
+    normalized_role_id = _normalize_test_role_id(role_id)
     return Actor(
         user_id=user_id or DEFAULT_USER_ID,
         role=platform_role,
         company_memberships={company_id},
         active_company_id=company_id,
-        active_role_id=role_id,
+        active_role_id=normalized_role_id,
     )
 
 
@@ -60,15 +66,7 @@ def create_super_admin_actor(
     company_id: Optional[str] = None,
     user_id: Optional[UUID] = None,
 ) -> Actor:
-    """建立 super_admin 測試 Actor
-
-    Args:
-        company_id: 可選的目標公司 ID
-        user_id: 測試使用者 UUID
-
-    Returns:
-        Actor: super_admin 角色的測試 Actor
-    """
+    """建立 super_admin 測試 Actor"""
     return Actor(
         user_id=user_id or DEFAULT_USER_ID,
         role=UserRole.SUPER_ADMIN,
@@ -82,17 +80,6 @@ def create_super_admin_actor(
 def override_actor_dependency(actor: Actor):
     """
     Context manager：暫時覆寫 get_actor_with_company dependency。
-
-    用法：
-        actor = create_test_actor("company-A", role_id="admin")
-        with override_actor_dependency(actor):
-            response = client.get("/api/notifications")
-            assert response.status_code == 200
-
-    離開 context 後自動清除 override，避免測試間污染。
-
-    Args:
-        actor: 要注入的測試 Actor
     """
     app.dependency_overrides[get_actor_with_company] = lambda: actor
     try:

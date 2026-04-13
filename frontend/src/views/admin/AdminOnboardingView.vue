@@ -4,7 +4,7 @@
       <div class="panel-header">
         <div>
           <h2 class="onboarding-title">公司資料與初始管理者</h2>
-          <p class="onboarding-desc">建立新租戶的唯一入口，含初始管理員帳號與 Membership。</p>
+          <p class="onboarding-desc">建立新租戶的唯一入口，含統一編號檢核、初始管理員帳號與 Membership。</p>
         </div>
       </div>
       <div class="onboarding-body">
@@ -18,6 +18,7 @@
               <p class="ob-result-label">公司</p>
               <p class="ob-result-val">{{ obSuccess.company.name }}</p>
               <p class="ob-result-sub">ID: {{ obSuccess.company.id }}</p>
+              <p v-if="obSuccess.company.tax_id" class="ob-result-sub">統編: {{ obSuccess.company.tax_id }}</p>
             </div>
             <div class="ob-result-group">
               <p class="ob-result-label">使用者</p>
@@ -51,6 +52,12 @@
                   <label class="form-label" for="ob-co-name">公司名稱 <span class="label-hint">必填</span></label>
                   <input id="ob-co-name" v-model.trim="obForm.company.name" type="text" class="form-input" :class="{'input-error':obErr.company_name}" placeholder="e.g. Acme Corp Ltd" maxlength="255" />
                   <p v-if="obErr.company_name" class="field-error">{{ obErr.company_name }}</p>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="ob-co-tax-id">統一編號 <span class="label-hint">選填，8 碼且需通過檢查碼</span></label>
+                  <input id="ob-co-tax-id" v-model.trim="obForm.company.tax_id" type="text" inputmode="numeric" class="form-input" :class="{'input-error':obErr.tax_id}" placeholder="e.g. 24536806" maxlength="8" autocomplete="off" />
+                  <p v-if="obErr.tax_id" class="field-error">{{ obErr.tax_id }}</p>
+                  <p v-else class="field-hint">若有填寫，系統會做統編格式與檢查碼驗證。</p>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="ob-co-tz">時區</label>
@@ -120,13 +127,14 @@ import { adminApi } from '@/api/admin'
 
 const authStore = useAuthStore()
 const isSuperAdmin = computed(() => authStore.isSuperAdmin)
+const TAX_ID_WEIGHTS = [1, 2, 1, 2, 1, 2, 4, 1]
 
 const obForm = reactive({
-  company: { id: '', name: '', timezone: 'UTC' },
+  company: { id: '', name: '', tax_id: '', timezone: 'UTC' },
   initial_user: { display_name: '', login_username: '', email: '', password: '', role_id: 'company_admin' }
 })
 const obErr = reactive({
-  company_id: '', company_name: '',
+  company_id: '', company_name: '', tax_id: '',
   display_name: '', login_username: '', password: ''
 })
 const obLoading = ref(false)
@@ -138,10 +146,30 @@ function resetObAlerts() {
   Object.keys(obErr).forEach(k => { obErr[k] = '' })
 }
 
+function isValidTaxId(value) {
+  if (!/^\d{8}$/.test(value)) return false
+  const digits = value.split('').map(Number)
+  const checksum = digits.reduce((sum, digit, index) => {
+    const product = digit * TAX_ID_WEIGHTS[index]
+    return sum + Math.floor(product / 10) + (product % 10)
+  }, 0)
+  if (checksum % 10 === 0) return true
+  return digits[6] === 7 && (checksum + 1) % 10 === 0
+}
+
 function validateObForm() {
   let valid = true
   if (!obForm.company.id) { obErr.company_id = '公司 ID 為必填'; valid = false }
   if (!obForm.company.name) { obErr.company_name = '公司名稱為必填'; valid = false }
+  if (obForm.company.tax_id) {
+    if (!/^\d{8}$/.test(obForm.company.tax_id)) {
+      obErr.tax_id = '統一編號需為 8 位數字'
+      valid = false
+    } else if (!isValidTaxId(obForm.company.tax_id)) {
+      obErr.tax_id = '統一編號檢查碼不正確'
+      valid = false
+    }
+  }
   if (!obForm.initial_user.display_name) { obErr.display_name = '顯示名稱為必填'; valid = false }
   if (!obForm.initial_user.login_username) { obErr.login_username = '登入帳號為必填'; valid = false }
   if (!obForm.initial_user.password || obForm.initial_user.password.length < 6) {
@@ -160,6 +188,7 @@ async function handleOnboard() {
       company: {
         id: obForm.company.id,
         name: obForm.company.name,
+        tax_id: obForm.company.tax_id || null,
         timezone: obForm.company.timezone || 'UTC'
       },
       initial_user: {
@@ -176,6 +205,8 @@ async function handleOnboard() {
     const code = detail?.code
     if (err.status === 409 && code === 'DUPLICATE_COMPANY') {
       obErr.company_id = `公司 ID「${obForm.company.id}」已存在`
+    } else if (err.status === 409 && code === 'DUPLICATE_TAX_ID') {
+      obErr.tax_id = `統一編號「${obForm.company.tax_id}」已存在`
     } else if (err.status === 409 && code === 'DUPLICATE_LOGIN_USERNAME') {
       obErr.login_username = `登入帳號「${obForm.initial_user.login_username}」在此公司已存在`
     } else if (err.status === 409) {
@@ -187,6 +218,7 @@ async function handleOnboard() {
           const loc = e.loc?.[e.loc.length - 1]
           if (loc === 'id') obErr.company_id = e.msg
           else if (loc === 'name') obErr.company_name = e.msg
+          else if (loc === 'tax_id') obErr.tax_id = e.msg
           else if (loc === 'display_name') obErr.display_name = e.msg
           else if (loc === 'login_username') obErr.login_username = e.msg
           else if (loc === 'password') obErr.password = e.msg
@@ -214,6 +246,7 @@ function resetOnboarding() {
   resetObAlerts()
   obForm.company.id = ''
   obForm.company.name = ''
+  obForm.company.tax_id = ''
   obForm.company.timezone = 'UTC'
   obForm.initial_user.display_name = ''
   obForm.initial_user.login_username = ''
@@ -258,58 +291,101 @@ function resetOnboarding() {
 
 .onboarding-desc {
   font-size: 13px;
-  color: var(--text-secondary);
+  line-height: 1.6;
+  color: #64748b;
   margin: 0;
 }
 
 .onboarding-body {
-  padding: 24px;
+  padding: 22px 24px 24px;
 }
 
-.state-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 48px 24px;
-  color: var(--text-secondary);
-  font-size: 14px;
+.ob-form-wrap,
+.ob-form {
+  display: grid;
+  gap: 18px;
 }
 
-.state-box svg {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  opacity: 0.5;
+.ob-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
-.state-error {
-  color: var(--error);
+.ob-col {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(255, 255, 255, 0.98));
+  border: 1px solid rgba(226, 232, 240, 0.9);
 }
 
-.state-error svg {
-  opacity: 1;
-}
-
-.state-title {
-  font-weight: 600;
-  margin: 0 0 4px;
-  font-size: 15px;
-}
-
-.state-msg {
+.ob-col-title {
   margin: 0;
-  font-size: 13px;
-  opacity: 0.8;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
 }
 
+.form-group {
+  display: grid;
+  gap: 6px;
+}
+
+.form-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.label-hint,
+.field-hint {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.form-input {
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 16px;
+  font-size: 15px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.96);
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25);
+}
+
+.input-error {
+  border-color: #f87171;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.12);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.ob-alert,
 .alert {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   padding: 12px 16px;
-  border-radius: 10px;
-  font-size: 13px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .alert svg {
@@ -322,219 +398,141 @@ function resetOnboarding() {
 .alert-error {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: var(--error);
+  color: #dc2626;
 }
 
-.ob-alert {
-  margin: 0 0 16px;
-}
-
-.ob-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.ob-cols {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-}
-
-@media (min-width: 768px) {
-  .ob-cols {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.ob-col {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.ob-col-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 0 0 4px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #eff3f8;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.label-hint {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
-.form-input {
-  padding: 9px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--text-primary);
-  background: #fff;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.form-input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.12);
-}
-
-.input-error {
-  border-color: var(--error) !important;
-}
-
-.field-error {
-  font-size: 12px;
-  color: var(--error);
-  margin: 0;
-}
-
-.btn-submit {
-  display: flex;
+.btn-submit,
+.btn-ob-again {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 11px 20px;
-  background: var(--primary);
-  color: white;
+  min-height: 46px;
+  padding: 0 20px;
   border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
 }
 
-.btn-submit:hover:not(:disabled) {
-  background: var(--primary-hover);
+.btn-ob-submit {
+  justify-self: start;
+  min-width: 164px;
+  background: #0ea5e9;
+  color: #ffffff;
 }
 
-.btn-submit:active:not(:disabled) {
-  transform: scale(0.98);
+.btn-ob-again {
+  background: #e2e8f0;
+  color: #334155;
 }
 
-.btn-submit:disabled {
-  opacity: 0.6;
+.btn-submit:disabled,
+.btn-ob-again:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-.btn-submit svg {
-  width: 16px;
-  height: 16px;
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
 }
 
-.btn-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+.ob-result-card {
+  display: grid;
+  gap: 18px;
+}
+
+.ob-result-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #15803d;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.ob-result-header svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ob-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ob-result-group {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.ob-result-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.ob-result-val {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.ob-result-sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.state-box {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: left;
+}
+
+.state-box svg {
+  width: 24px;
+  height: 24px;
+}
+
+.state-error {
+  color: #dc2626;
+}
+
+.state-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.state-msg {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.ob-result-card {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 12px;
-  padding: 20px 24px;
-}
-
-.ob-result-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #16a34a;
-  margin-bottom: 16px;
-}
-
-.ob-result-header svg {
-  width: 22px;
-  height: 22px;
-}
-
-.ob-result-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.ob-result-group {
-  background: white;
-  border-radius: 10px;
-  padding: 14px 16px;
-  border: 1px solid #bbf7d0;
-}
-
-.ob-result-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0 0 6px;
-}
-
-.ob-result-val {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px;
-  word-break: break-word;
-}
-
-.ob-result-sub {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.btn-ob-again {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 10px;
-  background: #16a34a;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.btn-ob-again:hover {
-  opacity: 0.9;
+@media (max-width: 960px) {
+  .ob-cols,
+  .ob-result-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

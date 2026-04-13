@@ -25,10 +25,16 @@ def client():
 @pytest.fixture
 def test_session(db):
     """Alias for root conftest db fixture
-    
+
     Provides SQLAlchemy session with test database.
     Automatically overrides app.dependency_overrides[get_db].
     """
+    return db
+
+
+@pytest.fixture
+def db_session(db):
+    """Legacy alias used by older attendance tests."""
     return db
 
 
@@ -58,7 +64,7 @@ def test_entitlement(test_session):
 @pytest.fixture
 def test_user(test_session, test_entitlement):
     """Create test user and tenant in test database
-    
+
     Ensures test tenant exists, then creates a test user.
     User model has no company_id (global identity).
     """
@@ -66,7 +72,7 @@ def test_user(test_session, test_entitlement):
     tenant = test_session.query(Tenant).filter(
         Tenant.id == "company-test"
     ).first()
-    
+
     if not tenant:
         tenant = Tenant(
             id="company-test",
@@ -75,7 +81,7 @@ def test_user(test_session, test_entitlement):
         )
         test_session.add(tenant)
         test_session.commit()
-    
+
     # Create test user (User model: id, display_name, password_hash, is_active)
     user = User(
         id=uuid4(),
@@ -87,8 +93,8 @@ def test_user(test_session, test_entitlement):
     test_session.add(user)
     test_session.commit()
     test_session.refresh(user)
-    
+
     # Attach company_id for convenience in tests
     user.company_id = "company-test"
-    
+
     return user

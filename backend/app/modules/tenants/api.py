@@ -51,8 +51,6 @@ def _assert_admin_company_access(actor: Actor, company_id: str, db: Session) -> 
         )
 
 
-# ── WP-S1-09A: Company management endpoints (super_admin only) ────────
-
 @router.get("", response_model=CompanyListResponse)
 def list_companies(
     actor: Actor = Depends(get_current_actor),
@@ -114,39 +112,18 @@ def create_company(
             tenant_id=request.id,
             name=request.name,
             timezone=request.timezone,
+            tax_id=request.tax_id,
         )
     except ValueError as e:
+        message = str(e)
+        if "Tax ID" in message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "DUPLICATE_TAX_ID", "message": message}
+            )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={"code": "DUPLICATE_COMPANY", "message": str(e)}
-        )
-
-    return CompanyResponse.model_validate(tenant)
-
-
-# ── S1-11A: Company detail / update endpoints (super_admin only) ────
-
-@router.get('/{company_id}', response_model=CompanyResponse)
-def get_company(
-    company_id: str,
-    actor: Actor = Depends(get_current_actor),
-    db: Session = Depends(get_db),
-):
-    """
-    取得單一公司詳情
-
-    權限：
-    - super_admin：可查看任意公司
-    - company_admin/hr_manager：僅可查看自己公司
-    """
-    _assert_admin_company_access(actor, company_id, db)
-
-    service = get_tenant_service(db)
-    tenant = service.get_tenant(company_id)
-    if not tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "COMPANY_NOT_FOUND", "message": f"Company {company_id!r} not found"}
+            detail={"code": "DUPLICATE_COMPANY", "message": message}
         )
     return CompanyResponse.model_validate(tenant)
 
@@ -177,15 +154,19 @@ def update_company(
     updates = request.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"code": "NO_FIELDS", "message": "At least one field must be provided"}
         )
 
-    tenant = service.update_tenant(company_id, **updates)
+    try:
+        tenant = service.update_tenant(company_id, **updates)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "DUPLICATE_TAX_ID", "message": str(e)}
+        )
     return CompanyResponse.model_validate(tenant)
 
-
-# ── Register domain-specific endpoints ───────────────────────────────
 
 from app.modules.tenants.api_entitlements import register_routes as _reg_entitlements
 from app.modules.tenants.api_onboarding import register_routes as _reg_onboarding

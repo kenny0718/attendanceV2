@@ -59,7 +59,7 @@ class TestScheduleAssignmentFeatureGate:
 
     def test_list_assignments_feature_disabled(self):
         """schedule.core disabled -> GET /shift-assignments returns 403."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         with override_actor_dependency(actor):
             with patch("app.modules.schedule.api.get_feature_service") as mock_fs:
                 mock_fs.return_value.require_enabled.side_effect = FeatureDisabledError(
@@ -75,7 +75,7 @@ class TestScheduleAssignmentFeatureGate:
         Uses a structurally-valid payload so Pydantic validation passes
         before the feature gate raises FeatureDisabledError.
         """
-        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, role_id="company_admin")
         with override_actor_dependency(actor):
             with patch("app.modules.schedule.api.get_feature_service") as mock_fs:
                 mock_fs.return_value.require_enabled.side_effect = FeatureDisabledError(
@@ -105,7 +105,7 @@ class TestScheduleAssignmentCRUD:
     def test_full_assignment_crud_flow(self, schedule_entitlement):
         """Full CRUD flow: create -> get -> list -> update -> cancel."""
         actor = create_test_actor(
-            SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin"
+            SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin"
         )
         template_id = self._create_template(actor)
 
@@ -152,7 +152,7 @@ class TestScheduleAssignmentCRUD:
     def test_double_cancel_returns_409(self, schedule_entitlement):
         """Cancelling an already-cancelled assignment -> 409."""
         actor = create_test_actor(
-            SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin"
+            SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin"
         )
         template_id = self._create_template(actor)
 
@@ -180,7 +180,7 @@ class TestScheduleAssignmentCRUD:
     def test_get_nonexistent_assignment_returns_404(self, schedule_entitlement):
         """Getting non-existent assignment -> 404."""
         actor = create_test_actor(
-            SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin"
+            SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin"
         )
         with override_actor_dependency(actor):
             with _mock_feature_enabled():
@@ -190,10 +190,10 @@ class TestScheduleAssignmentCRUD:
     def test_cross_tenant_assignment_isolation(self, schedule_entitlement):
         """Company B cannot access Company A assignment."""
         actor_a = create_test_actor(
-            SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin"
+            SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin"
         )
         actor_b_obj = create_test_actor(
-            SCHEDULE_COMPANY_B, user_id=TEST_USER_ID, role_id="admin"
+            SCHEDULE_COMPANY_B, user_id=TEST_USER_ID, role_id="company_admin"
         )
         template_id = self._create_template(actor_a)
 
@@ -260,7 +260,7 @@ class TestAssignmentListFilter:
 
     def test_template_id_filter_general_list(self, schedule_entitlement):
         """template_id filter on general list path returns only matching assignments."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin")
         tid_a = self._create_template(actor, code=f"FLTA_{uuid4().hex[:4].upper()}")
         tid_b = self._create_template(actor, code=f"FLTB_{uuid4().hex[:4].upper()}")
 
@@ -280,7 +280,7 @@ class TestAssignmentListFilter:
 
     def test_status_filter_scheduled(self, schedule_entitlement):
         """status=scheduled filter returns only scheduled assignments."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin")
         tid = self._create_template(actor, code=f"FLTS_{uuid4().hex[:4].upper()}")
 
         aid_sched = self._create_assignment(actor, tid, "2026-07-10")
@@ -304,7 +304,7 @@ class TestAssignmentListFilter:
 
     def test_status_filter_cancelled(self, schedule_entitlement):
         """status=cancelled filter returns only cancelled assignments."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin")
         tid = self._create_template(actor, code=f"FLTC_{uuid4().hex[:4].upper()}")
 
         aid_sched = self._create_assignment(actor, tid, "2026-07-20")
@@ -327,7 +327,7 @@ class TestAssignmentListFilter:
 
     def test_invalid_status_returns_422(self, schedule_entitlement):
         """Invalid status value -> 422 from FastAPI enum validation."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin")
         with override_actor_dependency(actor):
             with _mock_feature_enabled():
                 r = client.get(
@@ -338,7 +338,7 @@ class TestAssignmentListFilter:
 
     def test_filter_on_work_date_path(self, schedule_entitlement):
         """template_id filter applies on work_date path (work_date precedence maintained)."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin")
         tid_a = self._create_template(actor, code=f"WDPA_{uuid4().hex[:4].upper()}")
         tid_b = self._create_template(actor, code=f"WDPB_{uuid4().hex[:4].upper()}")
 
@@ -358,7 +358,7 @@ class TestAssignmentListFilter:
 
     def test_filter_on_user_date_range_path(self, schedule_entitlement):
         """template_id filter applies on user_id + date range path."""
-        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin")
         tid_a = self._create_template(actor, code=f"UDRA_{uuid4().hex[:4].upper()}")
         tid_b = self._create_template(actor, code=f"UDRB_{uuid4().hex[:4].upper()}")
 
@@ -386,8 +386,8 @@ class TestAssignmentListFilter:
 
         Company B cannot see Company A assignments even with valid template_id filter.
         """
-        actor_a = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin")
-        actor_b = create_test_actor(SCHEDULE_COMPANY_B, user_id=TEST_USER_ID, role_id="admin")
+        actor_a = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin")
+        actor_b = create_test_actor(SCHEDULE_COMPANY_B, user_id=TEST_USER_ID, role_id="company_admin")
 
         tid = self._create_template(actor_a, code=f"ISOL_{uuid4().hex[:4].upper()}")
         aid = self._create_assignment(actor_a, tid, "2026-10-01")
@@ -409,7 +409,7 @@ class TestAssignmentListFilter:
         Two assignments on same work_date with different statuses:
         filtering by status=scheduled returns only the scheduled one.
         """
-        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="admin")
+        actor = create_test_actor(SCHEDULE_COMPANY_A, user_id=TEST_USER_ID, role_id="company_admin")
         tid = self._create_template(actor, code=f"WDST_{uuid4().hex[:4].upper()}")
 
         aid_sched = self._create_assignment(actor, tid, "2026-08-15")

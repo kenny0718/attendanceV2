@@ -8,30 +8,27 @@
         請登入以繼續使用
       </p>
       
-      <!-- 錯誤提示 -->
       <div v-if="error" class="mb-4 p-3 bg-error-bg border border-red-300 rounded-lg text-error text-sm">
         {{ error }}
       </div>
       
-      <!-- 登入表單 -->
       <form @submit.prevent="handleLogin" class="space-y-4">
-        <!-- 公司 ID -->
         <div>
           <label for="company_id" class="block text-sm font-medium text-text-primary mb-1">
-            公司 ID
+            公司 ID / 統一編號
           </label>
           <input
             id="company_id"
             v-model="form.company_id"
             type="text"
             required
-            placeholder="例如: company-a"
+            placeholder="例如: company-a 或 24536806"
             class="w-full px-4 py-2 border border-border-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             :disabled="isLoading"
           />
+          <p class="mt-1 text-xs text-text-hint">可輸入公司 ID 或公司統一編號登入</p>
         </div>
         
-        <!-- 用戶名 -->
         <div>
           <label for="username" class="block text-sm font-medium text-text-primary mb-1">
             用戶名
@@ -47,7 +44,6 @@
           />
         </div>
         
-        <!-- 密碼 -->
         <div>
           <label for="password" class="block text-sm font-medium text-text-primary mb-1">
             密碼
@@ -63,7 +59,6 @@
           />
         </div>
         
-        <!-- 登入按鈕 -->
         <button
           type="submit"
           :disabled="isLoading"
@@ -74,10 +69,9 @@
         </button>
       </form>
       
-      <!-- 測試帳號提示 -->
       <div class="mt-6 p-4 bg-primary-lightest rounded-lg">
         <p class="text-sm text-text-secondary mb-2">測試帳號：</p>
-        <p class="text-xs text-text-hint">公司 ID: company-a</p>
+        <p class="text-xs text-text-hint">公司 ID / 統編: company-a</p>
         <p class="text-xs text-text-hint">用戶名: testuser</p>
         <p class="text-xs text-text-hint">密碼: (請聯繫管理員)</p>
       </div>
@@ -108,8 +102,6 @@ const handleLogin = async () => {
   
   try {
     await authStore.login(form.value)
-    
-    // 登入成功，跳轉到首頁
     router.push('/')
   } catch (err) {
     error.value = err.message || '登入失敗，請檢查帳號密碼'

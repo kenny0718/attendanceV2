@@ -21,7 +21,7 @@ class TestAuditFeatureGate:
 
     def test_audit_logs_feature_enabled(self, test_db):
         """audit.core enabled -> GET /api/audit/logs 正常回應"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.audit.api.get_feature_service"
@@ -35,7 +35,7 @@ class TestAuditFeatureGate:
 
     def test_audit_logs_feature_disabled(self, test_db):
         """audit.core disabled -> GET /api/audit/logs 回傳 403 FEATURE_DISABLED"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.audit.api.get_feature_service"
@@ -51,7 +51,7 @@ class TestAuditFeatureGate:
 
     def test_audit_export_feature_disabled(self, test_db):
         """audit.core disabled -> GET /api/audit/export 回傳 403 FEATURE_DISABLED"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.audit.api.get_feature_service"
@@ -65,7 +65,7 @@ class TestAuditFeatureGate:
 
     def test_audit_retention_feature_disabled(self, test_db):
         """audit.core disabled -> GET /api/audit/retention 回傳 403"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.audit.api.get_feature_service"
@@ -79,7 +79,7 @@ class TestAuditFeatureGate:
 
     def test_gate_rejection_schema_consistent(self, test_db):
         """Feature Gate 拒絕 schema 一致性驗證"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.audit.api.get_feature_service"

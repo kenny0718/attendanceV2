@@ -53,7 +53,7 @@ class TestLeaveFeatureGate:
 
     def test_pending_feature_disabled(self):
         """leave.core disabled -> GET /api/v1/leave/pending 回傳 403"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.leave.api.get_feature_service"
@@ -67,7 +67,7 @@ class TestLeaveFeatureGate:
 
     def test_approve_feature_disabled(self):
         """leave.core disabled -> POST /api/v1/leave/requests/{id}/approve 回傳 403"""
-        actor = create_test_actor("company-A", role_id="admin")
+        actor = create_test_actor("company-A", role_id="company_admin")
         with override_actor_dependency(actor):
             with patch(
                 "app.modules.leave.api.get_feature_service"

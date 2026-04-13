@@ -89,7 +89,7 @@ def register_routes(router: APIRouter) -> None:
         try:
             mem_uuid = _uuid.UUID(membership_id)
         except ValueError:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
 
         membership = db.query(MembershipModel).filter(MembershipModel.id == mem_uuid).first()
         if membership is None:
@@ -113,7 +113,7 @@ def register_routes(router: APIRouter) -> None:
 
         role = db.query(RoleModel).filter(RoleModel.id == request.role_id).first()
         if role is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"code": "INVALID_ROLE", "message": f"Role '{request.role_id}' does not exist"})
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_ROLE", "message": f"Role '{request.role_id}' does not exist"})
 
         auth_repo = AuthRepository(db)
         try:
@@ -171,7 +171,7 @@ def register_routes(router: APIRouter) -> None:
             update_fields['uses_schedule'] = request.uses_schedule
 
         if not update_fields:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"code": "NO_FIELDS_TO_UPDATE", "message": "At least one field must be provided"})
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "NO_FIELDS_TO_UPDATE", "message": "At least one field must be provided"})
 
         try:
             result = tenant_svc.update_member(membership_id=membership_id, company_id=company_id, **update_fields)
@@ -180,9 +180,9 @@ def register_routes(router: APIRouter) -> None:
             if 'MEMBERSHIP_NOT_FOUND' in err:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "MEMBERSHIP_NOT_FOUND", "message": f"Membership '{membership_id}' not found in company '{company_id}'"})
             if 'INVALID_ROLE' in err:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"code": "INVALID_ROLE", "message": str(e)})
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_ROLE", "message": str(e)})
             if 'INVALID_MEMBERSHIP_ID' in err:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
             if 'DUPLICATE_LOGIN_USERNAME' in err:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": "DUPLICATE_LOGIN_USERNAME", "message": "此登入帳號在該公司已被使用，請換一個"})
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"code": "INTERNAL_ERROR", "message": str(e)})
@@ -216,9 +216,9 @@ def register_routes(router: APIRouter) -> None:
             if 'MEMBERSHIP_NOT_FOUND' in err:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"code": "MEMBERSHIP_NOT_FOUND", "message": f"Membership '{membership_id}' not found in company '{company_id}'"})
             if 'PASSWORD_TOO_SHORT' in err:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"code": "PASSWORD_TOO_SHORT", "message": "Password must be at least 6 characters"})
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "PASSWORD_TOO_SHORT", "message": "Password must be at least 6 characters"})
             if 'INVALID_MEMBERSHIP_ID' in err:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"code": "INVALID_MEMBERSHIP_ID", "message": "membership_id must be a valid UUID"})
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"code": "INTERNAL_ERROR", "message": "An unexpected error occurred"})
 
         return ResetMemberPasswordResponse(membership_id=result['membership_id'], user_id=result['user_id'], message='密碼已成功重設')

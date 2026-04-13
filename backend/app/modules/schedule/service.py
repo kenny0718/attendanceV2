@@ -7,21 +7,33 @@ Responsibilities:
   - Business rules for ShiftTemplate management.
   - Business rules for ShiftAssignment CRUD.
   - Tenant isolation enforcement (all ops scoped to company_id).
+
+Tenant Isolation (P0):
+  - Every public method receives company_id.
+  - Methods do not cross company boundaries.
+  - company_id is always passed down to repo layer.
+
+Out of scope (future tickets):
+  - Conflict detection / scheduling engine
+  - Roster generation / recurring rules
+  - Leave overlay / attendance integration
+  - Role permission integration
 """
 
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from .models import (
     ASSIGNMENT_STATUS_CANCELLED,
+    ASSIGNMENT_STATUS_CONFIRMED,
     ASSIGNMENT_STATUS_SCHEDULED,
+    ASSIGNMENT_STATUS_VALUES,
     ShiftAssignment,
     ShiftTemplate,
 )
@@ -32,18 +44,69 @@ from .schemas import (
     ShiftAssignmentRead,
     ShiftAssignmentUpdate,
     ShiftSegmentCreate,
-    ShiftSegmentRead,
     ShiftTemplateCreate,
     ShiftTemplateRead,
     ShiftTemplateUpdate,
 )
 
 logger = logging.getLogger(__name__)
-TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 
 
 def _utcnow() -> datetime:
+    """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
+def _segment_window(seg: ShiftSegmentCreate) -> tuple[int, int]:
+    start_minutes = seg.day_offset_start * 1440 + seg.start_time.hour * 60 + seg.start_time.minute
+    end_minutes = seg.day_offset_end * 1440 + seg.end_time.hour * 60 + seg.end_time.minute
+    if end_minutes <= start_minutes:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Shift segment end must be after start.",
+        )
+    return start_minutes, end_minutes
+
+
+def _normalize_segments(segments: Optional[List[ShiftSegmentCreate]]) -> Optional[List[dict]]:
+    if segments is None:
+        return None
+
+    normalized: List[dict] = []
+    seen_indexes = set()
+    windows: List[tuple[int, int, int]] = []
+
+    for seg in sorted(segments, key=lambda s: s.segment_index):
+        if seg.segment_index in seen_indexes:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Duplicate shift segment index.",
+            )
+        seen_indexes.add(seg.segment_index)
+
+        start_minutes, end_minutes = _segment_window(seg)
+        for existing_start, existing_end, existing_index in windows:
+            if start_minutes < existing_end and end_minutes > existing_start:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        f"Shift segments overlap: segment {seg.segment_index} overlaps "
+                        f"with segment {existing_index}."
+                    ),
+                )
+        windows.append((start_minutes, end_minutes, seg.segment_index))
+        normalized.append(
+            {
+                "segment_index": seg.segment_index,
+                "start_time": seg.start_time,
+                "end_time": seg.end_time,
+                "day_offset_start": seg.day_offset_start,
+                "day_offset_end": seg.day_offset_end,
+                "is_active": seg.is_active,
+            }
+        )
+
+    return normalized
 
 
 @dataclass(frozen=True)
@@ -58,8 +121,8 @@ class ScheduleBaselineSegment:
 @dataclass(frozen=True)
 class ScheduleBaseline:
     segments: List[ScheduleBaselineSegment]
-    normalized_windows: List[Tuple[datetime, datetime]]
-    metadata: Dict[str, object]
+    normalized_windows: List[tuple[datetime, datetime]]
+    metadata: dict[str, object]
 
 
 class ScheduleBaselineResolver:
@@ -77,20 +140,18 @@ class ScheduleBaselineResolver:
         self,
         work_date: date,
         segments: List[ScheduleBaselineSegment],
-    ) -> List[Tuple[datetime, datetime]]:
-        windows: List[Tuple[datetime, datetime]] = []
+    ) -> List[tuple[datetime, datetime]]:
+        windows: List[tuple[datetime, datetime]] = []
         for seg in sorted(segments, key=lambda x: x.segment_index):
-            start_local = datetime.combine(
+            start_dt = datetime.combine(
                 work_date + timedelta(days=seg.day_offset_start),
                 seg.start_time,
-                tzinfo=TZ_TAIPEI,
             )
-            end_local = datetime.combine(
+            end_dt = datetime.combine(
                 work_date + timedelta(days=seg.day_offset_end),
                 seg.end_time,
-                tzinfo=TZ_TAIPEI,
             )
-            windows.append((start_local, end_local))
+            windows.append((start_dt, end_dt))
         return windows
 
     def _fallback_from_template(self, template: ShiftTemplate) -> List[ScheduleBaselineSegment]:
@@ -117,18 +178,13 @@ class ScheduleBaselineResolver:
         ]
 
     def resolve(self, company_id: str, user_id: UUID, work_date: date) -> ScheduleBaseline:
-        assignment = self.assignment_repo.get_effective_assignment(
-            company_id=company_id,
-            user_id=user_id,
-            work_date=work_date,
-        )
-
+        assignment = self.assignment_repo.get_effective_assignment(company_id, user_id, work_date)
         if assignment is None:
             segments = self._default_segments()
             return ScheduleBaseline(
                 segments=segments,
                 normalized_windows=self._normalize_windows(work_date, segments),
-                metadata={"template_id": None, "assignment_id": None, "source": "default_fallback"},
+                metadata={"source": "default"},
             )
 
         template = self.template_repo.get_by_id(assignment.shift_template_id, company_id)
@@ -137,10 +193,10 @@ class ScheduleBaselineResolver:
             return ScheduleBaseline(
                 segments=segments,
                 normalized_windows=self._normalize_windows(work_date, segments),
-                metadata={"template_id": None, "assignment_id": assignment.id, "source": "default_fallback"},
+                metadata={"source": "default_missing_template", "assignment_id": assignment.id},
             )
 
-        seg_rows = self.template_repo.list_segments(template.id, company_id, active_only=True)
+        seg_rows = self.template_repo.list_segments(template.id, template.company_id, active_only=True)
         if seg_rows:
             segments = [
                 ScheduleBaselineSegment(
@@ -152,118 +208,41 @@ class ScheduleBaselineResolver:
                 )
                 for s in seg_rows
             ]
-            source = "assignment_segments"
+            source = "template_segments"
         else:
             segments = self._fallback_from_template(template)
-            source = "assignment_template_fallback"
+            source = "template_fallback"
 
-        segments = sorted(segments, key=lambda x: x.segment_index)
         return ScheduleBaseline(
-            segments=segments,
+            segments=sorted(segments, key=lambda x: x.segment_index),
             normalized_windows=self._normalize_windows(work_date, segments),
-            metadata={"template_id": template.id, "assignment_id": assignment.id, "source": source},
+            metadata={
+                "template_id": template.id,
+                "assignment_id": assignment.id,
+                "source": source,
+            },
         )
 
 
 class ScheduleService:
-    """Business-logic layer for schedule module."""
+    """
+    Business-logic layer for the schedule module.
+
+    Tenant Isolation contract:
+      - Every public method MUST receive company_id.
+      - Methods must not cross company boundaries.
+      - company_id is always passed down to repo layer.
+    """
 
     def __init__(self, db: Session) -> None:
         self.db = db
         self.template_repo = ShiftTemplateRepo(db)
         self.assignment_repo = ShiftAssignmentRepo(db)
 
-    # ------------------------------------------------------------------
-    # ShiftTemplate operations
-    # ------------------------------------------------------------------
-
-    def _segment_to_absolute_minutes(self, day_offset: int, t: time) -> int:
-        return day_offset * 1440 + (t.hour * 60 + t.minute)
-
-    def _validate_segments_payload(self, segments: List[ShiftSegmentCreate]) -> None:
-        if not segments:
-            return
-
-        indexes = [s.segment_index for s in segments]
-        if len(indexes) != len(set(indexes)):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="segment_index must be unique within the same template.",
-            )
-
-        ordered = sorted(segments, key=lambda s: s.segment_index)
-        ranges = []
-        for seg in ordered:
-            start_abs = self._segment_to_absolute_minutes(seg.day_offset_start, seg.start_time)
-            end_abs = self._segment_to_absolute_minutes(seg.day_offset_end, seg.end_time)
-            if end_abs < start_abs:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="segment end must be greater than or equal to start in absolute timeline.",
-                )
-            ranges.append((seg.segment_index, start_abs, end_abs))
-
-        by_start = sorted(ranges, key=lambda x: (x[1], x[2], x[0]))
-        for i in range(1, len(by_start)):
-            prev_idx, _, prev_end = by_start[i - 1]
-            curr_idx, curr_start, _ = by_start[i]
-            if curr_start < prev_end:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"segments overlap: segment {prev_idx} and {curr_idx}.",
-                )
-
-    def _serialize_segments_for_repo(self, segments: List[ShiftSegmentCreate]) -> List[dict]:
-        return [
-            {
-                "segment_index": s.segment_index,
-                "start_time": s.start_time,
-                "end_time": s.end_time,
-                "day_offset_start": s.day_offset_start,
-                "day_offset_end": s.day_offset_end,
-                "is_active": s.is_active,
-            }
-            for s in sorted(segments, key=lambda x: x.segment_index)
-        ]
-
-    def _build_fallback_segments(self, template: ShiftTemplate) -> List[ShiftSegmentRead]:
-        day_offset_end = 1 if bool(template.is_overnight) else 0
-        return [
-            ShiftSegmentRead(
-                id=None,
-                segment_index=1,
-                start_time=template.start_time,
-                end_time=template.end_time,
-                day_offset_start=0,
-                day_offset_end=day_offset_end,
-                is_active=True,
-            )
-        ]
-
-    def _compose_template_read(self, template: ShiftTemplate) -> ShiftTemplateRead:
-        seg_objs = self.template_repo.list_segments(template.id, template.company_id, active_only=True)
-        if seg_objs:
-            segments = [ShiftSegmentRead.model_validate(s) for s in seg_objs]
-        else:
-            segments = self._build_fallback_segments(template)
-
-        return ShiftTemplateRead(
-            id=template.id,
-            company_id=template.company_id,
-            code=template.code,
-            name=template.name,
-            start_time=template.start_time,
-            end_time=template.end_time,
-            break_minutes=template.break_minutes,
-            is_overnight=template.is_overnight,
-            is_active=template.is_active,
-            created_at=template.created_at,
-            updated_at=template.updated_at,
-            segments=segments,
-        )
-
-    def create_shift_template(self, company_id: str, payload: ShiftTemplateCreate) -> ShiftTemplateRead:
-        if payload.company_id != company_id:
+    def create_shift_template(
+        self, company_id: str, payload: ShiftTemplateCreate
+    ) -> ShiftTemplateRead:
+        if payload.company_id is not None and payload.company_id != company_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="company_id mismatch: cannot create template for another company.",
@@ -276,9 +255,6 @@ class ScheduleService:
                 detail=f"ShiftTemplate code '{payload.code}' already exists in this company.",
             )
 
-        segments_payload = payload.segments or []
-        self._validate_segments_payload(segments_payload)
-
         obj = ShiftTemplate(
             company_id=company_id,
             code=payload.code,
@@ -289,35 +265,35 @@ class ScheduleService:
             is_overnight=payload.is_overnight,
             is_active=payload.is_active,
         )
+        self.db.add(obj)
+        self.db.flush()
 
-        if segments_payload:
-            try:
-                self.db.add(obj)
-                self.db.flush()
-                rows = self._serialize_segments_for_repo(segments_payload)
-                self.template_repo.replace_segments_no_commit(obj.id, company_id, rows)
-                self.db.commit()
-                self.db.refresh(obj)
-            except Exception:
-                self.db.rollback()
-                raise
-        else:
-            obj = self.template_repo.create(obj)
+        normalized_segments = _normalize_segments(payload.segments)
+        if normalized_segments is not None:
+            self.template_repo.replace_segments_no_commit(obj.id, company_id, normalized_segments)
 
-        return self._compose_template_read(obj)
+        self.db.commit()
+        self.db.refresh(obj)
+        return ShiftTemplateRead.model_validate(obj)
 
-    def get_shift_template(self, company_id: str, template_id: UUID) -> ShiftTemplateRead:
+    def get_shift_template(
+        self, company_id: str, template_id: UUID
+    ) -> ShiftTemplateRead:
         obj = self.template_repo.get_by_id(template_id, company_id)
         if obj is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"ShiftTemplate {template_id} not found.",
             )
-        return self._compose_template_read(obj)
+        return ShiftTemplateRead.model_validate(obj)
 
-    def list_shift_templates(self, company_id: str, active_only: bool = True) -> List[ShiftTemplateRead]:
-        objs = self.template_repo.list_by_company(company_id=company_id, active_only=active_only)
-        return [self._compose_template_read(o) for o in objs]
+    def list_shift_templates(
+        self, company_id: str, active_only: bool = True
+    ) -> List[ShiftTemplateRead]:
+        objs = self.template_repo.list_by_company(
+            company_id=company_id, active_only=active_only
+        )
+        return [ShiftTemplateRead.model_validate(o) for o in objs]
 
     def update_shift_template(
         self,
@@ -345,56 +321,52 @@ class ScheduleService:
         if payload.is_active is not None:
             obj.is_active = payload.is_active
 
-        if payload.segments is not None:
-            self._validate_segments_payload(payload.segments)
-            try:
-                obj.updated_at = _utcnow()
-                rows = self._serialize_segments_for_repo(payload.segments)
-                self.template_repo.replace_segments_no_commit(template_id, company_id, rows)
-                self.db.commit()
-                self.db.refresh(obj)
-            except Exception:
-                self.db.rollback()
-                raise
-            saved = obj
-        else:
-            saved = self.template_repo.update(obj)
+        normalized_segments = _normalize_segments(payload.segments)
+        if normalized_segments is not None:
+            self.template_repo.replace_segments_no_commit(obj.id, company_id, normalized_segments)
 
-        return self._compose_template_read(saved)
+        obj.updated_at = _utcnow()
+        self.db.commit()
+        self.db.refresh(obj)
+        return ShiftTemplateRead.model_validate(obj)
 
-    def deactivate_shift_template(self, company_id: str, template_id: UUID) -> ShiftTemplateRead:
+    def deactivate_shift_template(
+        self, company_id: str, template_id: UUID
+    ) -> ShiftTemplateRead:
         obj = self.template_repo.set_active(template_id, company_id, is_active=False)
         if obj is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"ShiftTemplate {template_id} not found.",
             )
-        return self._compose_template_read(obj)
+        return ShiftTemplateRead.model_validate(obj)
 
-    def activate_shift_template(self, company_id: str, template_id: UUID) -> ShiftTemplateRead:
+    def activate_shift_template(
+        self, company_id: str, template_id: UUID
+    ) -> ShiftTemplateRead:
         obj = self.template_repo.set_active(template_id, company_id, is_active=True)
         if obj is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"ShiftTemplate {template_id} not found.",
             )
-        return self._compose_template_read(obj)
+        return ShiftTemplateRead.model_validate(obj)
 
-    # ------------------------------------------------------------------
-    # ShiftAssignment operations
-    # ------------------------------------------------------------------
-
-    def create_shift_assignment(self, company_id: str, payload: ShiftAssignmentCreate) -> ShiftAssignmentRead:
-        if payload.company_id != company_id:
+    def create_shift_assignment(
+        self, company_id: str, payload: ShiftAssignmentCreate
+    ) -> ShiftAssignmentRead:
+        if payload.company_id is not None and payload.company_id != company_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="company_id mismatch: cannot create assignment for another company.",
             )
 
-        template = self.template_repo.get_by_id(payload.shift_template_id, company_id)
+        template = self.template_repo.get_by_id(
+            payload.shift_template_id, company_id
+        )
         if template is None:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"ShiftTemplate {payload.shift_template_id} not found "
                     "in this company."
@@ -402,7 +374,7 @@ class ScheduleService:
             )
         if not template.is_active:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"ShiftTemplate {payload.shift_template_id} is not active.",
             )
 
@@ -417,7 +389,9 @@ class ScheduleService:
         saved = self.assignment_repo.create(obj)
         return ShiftAssignmentRead.model_validate(saved)
 
-    def get_shift_assignment(self, company_id: str, assignment_id: UUID) -> ShiftAssignmentRead:
+    def get_shift_assignment(
+        self, company_id: str, assignment_id: UUID
+    ) -> ShiftAssignmentRead:
         obj = self.assignment_repo.get_by_id(assignment_id, company_id)
         if obj is None:
             raise HTTPException(
@@ -497,10 +471,12 @@ class ScheduleService:
             )
 
         if payload.shift_template_id is not None:
-            template = self.template_repo.get_by_id(payload.shift_template_id, company_id)
+            template = self.template_repo.get_by_id(
+                payload.shift_template_id, company_id
+            )
             if template is None:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail=(
                         f"ShiftTemplate {payload.shift_template_id} not found "
                         "in this company."
@@ -508,13 +484,19 @@ class ScheduleService:
                 )
             if not template.is_active:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail=f"ShiftTemplate {payload.shift_template_id} is not active.",
                 )
             obj.shift_template_id = payload.shift_template_id
 
         if payload.status is not None:
-            obj.status = payload.status.value
+            new_status = payload.status.value
+            if new_status not in ASSIGNMENT_STATUS_VALUES:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid status '{new_status}'.",
+                )
+            obj.status = new_status
 
         if payload.notes is not None:
             obj.notes = payload.notes
@@ -522,26 +504,32 @@ class ScheduleService:
         saved = self.assignment_repo.update(obj)
         return ShiftAssignmentRead.model_validate(saved)
 
-    def cancel_shift_assignment(self, company_id: str, assignment_id: UUID) -> ShiftAssignmentRead:
+    def cancel_shift_assignment(
+        self,
+        company_id: str,
+        assignment_id: UUID,
+    ) -> ShiftAssignmentRead:
         obj = self.assignment_repo.get_by_id(assignment_id, company_id)
         if obj is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"ShiftAssignment {assignment_id} not found.",
             )
+
         if obj.status == ASSIGNMENT_STATUS_CANCELLED:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Assignment is already cancelled.",
+                detail="Assignment already cancelled.",
             )
 
-        cancelled = self.assignment_repo.cancel(assignment_id, company_id)
-        return ShiftAssignmentRead.model_validate(cancelled)
+        obj.status = ASSIGNMENT_STATUS_CANCELLED
+        saved = self.assignment_repo.update(obj)
+        return ShiftAssignmentRead.model_validate(saved)
 
+
+# ---------------------------------------------------------------------------
+# Factory
+# ---------------------------------------------------------------------------
 
 def get_schedule_service(db: Session) -> ScheduleService:
     return ScheduleService(db)
-
-
-def get_schedule_baseline_resolver(db: Session) -> ScheduleBaselineResolver:
-    return ScheduleBaselineResolver(db)

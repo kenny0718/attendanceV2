@@ -9,14 +9,15 @@
 使用真實 PostgreSQL（app conftest.py test_db fixture）
 """
 
-import pytest
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.modules.attendance.repo import AttendanceSessionRepository
 from app.modules.attendance.reporting_repo import ReportingRepository
-from app.modules.attendance.models import AttendanceSession, AttendancePunch
+from app.modules.attendance.models import AttendanceSession
+from app.modules.auth.models import User
+from app.modules.tenants.models import Tenant
 
 
 COMPANY_A = "att-iso-a"
@@ -25,13 +26,30 @@ USER_A = uuid4()
 USER_B = uuid4()
 
 
-def ensure_fixtures(db: Session):
+def ensure_fixtures(db: Session, *, user_ids=None):
     """建立測試用 tenants 和 users"""
-    # 使用隨機 UUID 確保測試隔離
-    pass
+    for company_id, name in (
+        (COMPANY_A, "Attendance Isolation A"),
+        (COMPANY_B, "Attendance Isolation B"),
+    ):
+        tenant = db.query(Tenant).filter(Tenant.id == company_id).first()
+        if not tenant:
+            db.add(Tenant(id=company_id, name=name, is_active=True))
+
+    ids = list(user_ids or [])
+    if not ids:
+        ids = [USER_A, USER_B]
+
+    for idx, user_id in enumerate(ids, start=1):
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            db.add(User(id=user_id, display_name=f"Attendance Isolation User {idx}", password_hash="x", is_active=True))
+
+    db.commit()
 
 
 def make_open_session(db: Session, company_id: str, user_id) -> AttendanceSession:
+    ensure_fixtures(db, user_ids=[user_id])
     session = AttendanceSession(
         company_id=company_id,
         user_id=user_id,
@@ -45,6 +63,7 @@ def make_open_session(db: Session, company_id: str, user_id) -> AttendanceSessio
 
 
 def make_closed_session(db: Session, company_id: str, user_id, minutes_ago: int = 60) -> AttendanceSession:
+    ensure_fixtures(db, user_ids=[user_id])
     punch_in = datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)
     punch_out = datetime.now(timezone.utc) - timedelta(minutes=minutes_ago // 2)
     session = AttendanceSession(
@@ -62,10 +81,7 @@ def make_closed_session(db: Session, company_id: str, user_id, minutes_ago: int 
 
 
 class TestAttendanceQueryIsolation:
-    """TestAttendanceQueryIsolation"""
-
     def test_get_sessions_only_returns_own_company(self, test_db):
-        """get_sessions 強制 company_id 隔離"""
         db = test_db
         user_a = uuid4()
         user_b = uuid4()
@@ -82,7 +98,6 @@ class TestAttendanceQueryIsolation:
         assert len(sessions_b) == 0
 
     def test_get_sessions_cross_company_returns_empty(self, test_db):
-        """Company B user 在 COMPANY_A 下沒有資料 → 空"""
         db = test_db
         user_b = uuid4()
         make_closed_session(db, COMPANY_B, user_b)
@@ -92,7 +107,6 @@ class TestAttendanceQueryIsolation:
         assert len(sessions) == 0
 
     def test_count_sessions_scoped_to_company(self, test_db):
-        """count_sessions 只計算自己 company + user"""
         db = test_db
         user_a = uuid4()
         user_b = uuid4()
@@ -104,19 +118,14 @@ class TestAttendanceQueryIsolation:
         count_a = repo.count_sessions(company_id=COMPANY_A, user_id=user_a)
         count_b = repo.count_sessions(company_id=COMPANY_B, user_id=user_b)
 
-        assert count_a >= 1, "COMPANY_A"
-        assert count_b >= 1, "USER_A"
-        cross = repo.count_sessions(company_id=COMPANY_A, user_id=user_b)
-        assert cross == 0, "COMPANY_B"
-        cross2 = repo.count_sessions(company_id=COMPANY_B, user_id=user_a)
-        assert cross2 == 0, "USER_B"
+        assert count_a >= 1
+        assert count_b >= 1
+        assert repo.count_sessions(company_id=COMPANY_A, user_id=user_b) == 0
+        assert repo.count_sessions(company_id=COMPANY_B, user_id=user_a) == 0
 
 
 class TestAttendanceOpenSessionIsolation:
-    """TestAttendanceOpenSessionIsolation"""
-
     def test_get_open_session_enforces_company_id(self, test_db):
-        """get_open_session 同時驗證 company_id + user_id"""
         db = test_db
         user_a = uuid4()
         user_b = uuid4()
@@ -125,18 +134,14 @@ class TestAttendanceOpenSessionIsolation:
 
         repo = AttendanceSessionRepository(db)
         result = repo.get_open_session(company_id=COMPANY_A, user_id=user_a)
-        assert result is not None, "result"
-        assert result.company_id == COMPANY_A, "COMPANY_A"
-        assert result.id == session_a.id, "session_a"
+        assert result is not None
+        assert result.company_id == COMPANY_A
+        assert result.id == session_a.id
 
-        result_cross = repo.get_open_session(company_id=COMPANY_B, user_id=user_a)
-        assert result_cross is None, "result_cross"
-
-        result_user_cross = repo.get_open_session(company_id=COMPANY_A, user_id=user_b)
-        assert result_user_cross is None, "result_user_cross"
+        assert repo.get_open_session(company_id=COMPANY_B, user_id=user_a) is None
+        assert repo.get_open_session(company_id=COMPANY_A, user_id=user_b) is None
 
     def test_open_session_unique_per_company_user(self, test_db):
-        """同一 user 在不同 company 可分別有 open session"""
         db = test_db
         user_shared = uuid4()
 
@@ -147,17 +152,14 @@ class TestAttendanceOpenSessionIsolation:
         result_a = repo.get_open_session(company_id=COMPANY_A, user_id=user_shared)
         result_b = repo.get_open_session(company_id=COMPANY_B, user_id=user_shared)
 
-        assert result_a is not None, "result_a"
-        assert result_b is not None, "result_b"
-        assert result_a.company_id == COMPANY_A, "COMPANY_A"
-        assert result_b.company_id == COMPANY_B, "COMPANY_B"
+        assert result_a is not None
+        assert result_b is not None
+        assert result_a.company_id == COMPANY_A
+        assert result_b.company_id == COMPANY_B
 
 
 class TestAttendancePunchIsolation:
-    """TestAttendancePunchIsolation"""
-
     def test_create_punch_stores_correct_company_id(self, test_db):
-        """create_punch 記錄正確的 company_id（punch_type 使用合法值 'in'）"""
         db = test_db
         user_a = uuid4()
         session_a = make_open_session(db, COMPANY_A, user_a)
@@ -170,11 +172,10 @@ class TestAttendancePunchIsolation:
             punch_type="in",
             punch_time=datetime.now(timezone.utc),
         )
-        assert punch.company_id == COMPANY_A, "COMPANY_A"
-        assert punch.user_id == user_a, "USER_A"
+        assert punch.company_id == COMPANY_A
+        assert punch.user_id == user_a
 
     def test_get_session_punches_scoped_by_session(self, test_db):
-        """get_session_punches 只回傳指定 session 的 punches"""
         db = test_db
         user_a = uuid4()
         user_b = uuid4()
@@ -200,16 +201,13 @@ class TestAttendancePunchIsolation:
         punches_a = repo.get_session_punches(session_id=session_a.id)
         punches_b = repo.get_session_punches(session_id=session_b.id)
 
-        assert len(punches_a) >= 1, "punches_a"
+        assert len(punches_a) >= 1
         assert all(p.session_id == session_a.id for p in punches_a)
-        assert len(punches_b) == 0, "punches_b"
+        assert len(punches_b) == 0
 
 
 class TestAttendanceReportingIsolation:
-    """TestAttendanceReportingIsolation"""
-
     def test_reporting_sessions_scoped_to_company(self, test_db):
-        """ReportingRepository.get_sessions_for_reporting 強制 company_id"""
         db = test_db
         user_a = uuid4()
         user_b = uuid4()
@@ -219,14 +217,13 @@ class TestAttendanceReportingIsolation:
 
         repo = ReportingRepository(db)
         sessions_a = repo.get_sessions_for_reporting(company_id=COMPANY_A)
-        assert len(sessions_a) >= 1, "sessions_a"
+        assert len(sessions_a) >= 1
         assert all(s.company_id == COMPANY_A for s in sessions_a)
 
         sessions_b = repo.get_sessions_for_reporting(company_id=COMPANY_B)
         assert all(s.company_id == COMPANY_B for s in sessions_b)
 
     def test_count_sessions_for_reporting_scoped(self, test_db):
-        """count_sessions_for_reporting 只計算自己 company"""
         db = test_db
         user_a = uuid4()
         user_b = uuid4()
@@ -238,6 +235,5 @@ class TestAttendanceReportingIsolation:
         count_a = repo.count_sessions_for_reporting(company_id=COMPANY_A)
         count_b = repo.count_sessions_for_reporting(company_id=COMPANY_B)
 
-        assert count_a >= 1, "COMPANY_A"
-        assert count_b >= 1, "COMPANY_B"
-        assert count_a != count_b or True  # 各自隔離即可
+        assert count_a >= 1
+        assert count_b >= 1
