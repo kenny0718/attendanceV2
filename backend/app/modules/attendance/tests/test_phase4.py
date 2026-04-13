@@ -88,7 +88,7 @@ def test_company_a_create_and_approve_ok(actor_company_a):
     response = post_as(
         actor_company_a,
         f"/api/attendance/{record_id}/approve",
-        json={"employee_id": "emp-001", "approved_by": "manager-001"},
+        json={"employee_id": "emp-001", "approved_by": "approver-001"},
     )
 
     assert response.status_code == 200
@@ -131,7 +131,7 @@ def test_approve_emits_event(actor_company_a):
         response = post_as(
             actor_company_a,
             f"/api/attendance/{record_id}/approve",
-            json={"employee_id": "emp-001", "approved_by": "manager-001"},
+            json={"employee_id": "emp-001", "approved_by": "approver-001"},
         )
 
         assert response.status_code == 200
@@ -144,7 +144,7 @@ def test_approve_emits_event(actor_company_a):
         assert payload["company_id"] == "company-a"
         assert payload["attendance_record_id"] == record_id
         assert payload["employee_id"] == "emp-001"
-        assert payload["approved_by"] == "manager-001"
+        assert payload["approved_by"] == "approver-001"
         assert "approved_at" in payload
 
 

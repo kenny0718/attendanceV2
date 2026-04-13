@@ -45,7 +45,7 @@ def test_phase1():
         }
         payload = {
             "employee_id": "emp-456",
-            "approved_by": "manager-789"
+            "approved_by": "approver-789"
         }
         response = requests.post(
             f"{BASE_URL}/api/attendance/{attendance_record_id}/approve",

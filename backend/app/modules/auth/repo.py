@@ -173,7 +173,7 @@ class AuthRepository:
         Args:
             user_id: User ID
             company_id: Company ID
-            role_id: Role ID (e.g., 'employee', 'manager')
+            role_id: Role ID (e.g., 'employee', 'company_admin')
             login_username: Per-company login username (unique per company)
             login_email: Per-company login email (optional)
             is_active: Membership active status (default: True)

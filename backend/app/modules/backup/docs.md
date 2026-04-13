@@ -83,7 +83,7 @@ Phase 6+ 將支援：
         "id": "660e8400-e29b-41d4-a716-446655440001",
         "company_id": "company-123",
         "employee_id": "emp-001",
-        "approved_by": "manager-001",
+        "approved_by": "approver-001",
         "approved_at": "2026-01-14T11:00:00.000000Z",
         "created_at": "2026-01-14T10:00:00.000000Z"
       }
@@ -234,7 +234,7 @@ curl -X POST "http://localhost:8000/api/backup/restore?clear_existing=true" \
 # 若 employees.manager_id 引用 employees.id
 # 必須檢查所有 manager_id 都在 employees 表內
 if employee.get("manager_id") and employee["manager_id"] not in employee_ids_in_backup:
-    raise ValueError("FK Closure 失敗: 缺少 manager 資料")
+    raise ValueError("FK Closure 失敗: 缺少 approver/manager 關聯資料")
 ```
 
 ---

@@ -92,7 +92,7 @@ class TestAttendanceTenantValidation:
         result = attendance_repo.approve_attendance_record(
             company_id="company-B",
             record_id=record.id,
-            approved_by="manager-B"
+            approved_by="approver-B"
         )
         
         # Should return None (tenant isolation)
@@ -102,11 +102,11 @@ class TestAttendanceTenantValidation:
         result = attendance_repo.approve_attendance_record(
             company_id="company-A",
             record_id=record.id,
-            approved_by="manager-A"
+            approved_by="approver-A"
         )
         
         assert result is not None
-        assert result.approved_by == "manager-A"
+        assert result.approved_by == "approver-A"
         assert result.approved_at is not None
     
     def test_get_attendance_records_with_tenant_isolation(self, test_db):

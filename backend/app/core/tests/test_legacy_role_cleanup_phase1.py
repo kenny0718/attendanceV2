@@ -17,6 +17,7 @@ def test_phase1a_admin_hr_still_resolve_to_company_user_via_default_path():
     assert _map_role_id_to_user_role("hr") == UserRole.COMPANY_USER
 
 
-def test_phase1a_manager_and_system_admin_mapping_remain_intact():
-    assert _map_role_id_to_user_role("manager") == UserRole.COMPANY_USER
+def test_phase1a_company_role_mapping_and_system_admin_remain_intact():
+    assert _map_role_id_to_user_role("company_admin") == UserRole.COMPANY_USER
+    assert _map_role_id_to_user_role("hr_manager") == UserRole.COMPANY_USER
     assert _map_role_id_to_user_role("system_admin") == UserRole.SUPER_ADMIN

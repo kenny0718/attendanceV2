@@ -36,7 +36,7 @@ async def create_allowed_location(
 ):
     """建立允許打卡地點 (WP-11-13)
 
-    權限：需為該公司的管理員（admin / manager / hr）或 super_admin
+    權限：需為該公司的管理員（company_admin / hr_manager）或 super_admin
 
     Args:
         request: 建立請求
@@ -170,7 +170,7 @@ async def update_allowed_location(
 ):
     """更新允許打卡地點 (WP-11-13)
 
-    權限：需為該公司的管理員（admin / manager / hr）或 super_admin
+    權限：需為該公司的管理員（company_admin / hr_manager）或 super_admin
 
     Args:
         location_id: 地點 ID
@@ -228,7 +228,7 @@ async def delete_allowed_location(
 ):
     """刪除允許打卡地點 (WP-11-13)
 
-    權限：需為該公司的管理員（admin / manager / hr）或 super_admin
+    權限：需為該公司的管理員（company_admin / hr_manager）或 super_admin
 
     Args:
         location_id: 地點 ID

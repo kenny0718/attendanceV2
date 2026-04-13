@@ -90,7 +90,7 @@ Phase 2 實作資料庫層與事件訂閱，支援單一租戶備份需求。
         "employee_id": "emp-456",
         "attendance_record_id": "record-789",
         "approved_at": "2026-01-14T10:30:00.000000Z",
-        "approved_by": "manager-001"
+        "approved_by": "approver-001"
       },
       "created_at": "2026-01-14T10:30:01.000000Z"
     }
@@ -202,7 +202,7 @@ curl -X POST http://localhost:8000/api/attendance/mock-create \
 curl -X POST http://localhost:8000/api/attendance/{id}/approve \
   -H "Content-Type: application/json" \
   -H "X-Company-ID: company-123" \
-  -d '{"employee_id": "emp-456", "approved_by": "manager-789"}'
+  -d '{"employee_id": "emp-456", "approved_by": "approver-789"}'
 
 # 2. 查詢通知記錄
 curl -X GET http://localhost:8000/api/notifications \

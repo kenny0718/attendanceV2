@@ -142,7 +142,7 @@ def get_company_summary(
     attendance_api._require_attendance_feature(actor.active_company_id, db)
 
     if not actor.is_admin():
-        raise HTTPException(status_code=403, detail="Company summary requires manager or admin role")
+        raise HTTPException(status_code=403, detail="Company summary requires company_admin or hr_manager role")
 
     _validate_datetime_range(start_date, end_date)
     start_utc, end_utc = resolve_reporting_query_range_to_utc(start_date, end_date)

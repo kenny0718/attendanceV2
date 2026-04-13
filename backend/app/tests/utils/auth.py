@@ -46,7 +46,7 @@ def create_test_actor(
     Args:
         company_id: 測試公司 ID（對應 active_company_id）
         user_id: 測試使用者 UUID（預設使用固定 UUID）
-        role_id: 公司內角色（"company_admin" / "employee" / "manager" / "hr_manager"）
+        role_id: 公司內角色（"company_admin" / "employee" / "hr_manager"）
         platform_role: 平台層角色（預設 COMPANY_USER）
 
     Returns:

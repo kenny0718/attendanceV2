@@ -96,7 +96,7 @@ class Actor:
         判斷依據：active_role_id in ('company_admin', 'hr_manager')
         Super Admin（平台層）一律視為 admin。
 
-        Note: 舊相容角色 admin / manager / hr 已於 S1-11D 移除。
+        Note: 舊相容角色 admin / hr / manager 已移除。
 
         Returns:
             bool

@@ -14,15 +14,16 @@ def seed_roles(db):
     """Seed roles data (required for FK constraints)"""
     roles_data = [
         ("employee", "Employee", "Regular employee (can create own attendance)"),
-        ("manager", "Manager", "Can approve attendance for team members"),
         ("company_admin", "Company Admin", "Full access within company"),
+        ("hr_manager", "HR Manager", "HR admin access within company"),
         ("customer_service", "Customer Service", "Can access multiple companies (assigned list)"),
+        ("super_admin", "Super Admin", "Platform super admin"),
     ]
-    
+
     for role_id, name, description in roles_data:
         role = Role(id=role_id, name=name, description=description)
         db.add(role)
-    
+
     db.commit()
 
 
@@ -42,11 +43,11 @@ def seed_permissions(db):
         ("tenants:read", "tenants", "read", "Read tenant information"),
         ("tenants:manage", "tenants", "manage", "Manage tenants"),
     ]
-    
+
     for perm_id, resource, action, description in permissions_data:
         permission = Permission(id=perm_id, resource=resource, action=action, description=description)
         db.add(permission)
-    
+
     db.commit()
 
 
@@ -57,11 +58,6 @@ def seed_role_permissions(db, seed_roles, seed_permissions):
         # employee
         ("employee", "attendance:create:self"),
         ("employee", "notifications:read:self"),
-        # manager
-        ("manager", "attendance:create:self"),
-        ("manager", "attendance:approve"),
-        ("manager", "notifications:read:self"),
-        ("manager", "audit:read"),
         # company_admin
         ("company_admin", "attendance:create:self"),
         ("company_admin", "attendance:approve"),
@@ -74,16 +70,21 @@ def seed_role_permissions(db, seed_roles, seed_permissions):
         ("company_admin", "audit:purge"),
         ("company_admin", "tenants:read"),
         ("company_admin", "tenants:manage"),
+        # hr_manager
+        ("hr_manager", "attendance:create:self"),
+        ("hr_manager", "notifications:read:self"),
+        ("hr_manager", "tenants:read"),
+        ("hr_manager", "tenants:manage"),
         # customer_service
         ("customer_service", "attendance:approve"),
         ("customer_service", "audit:read"),
         ("customer_service", "tenants:read"),
     ]
-    
+
     for role_id, permission_id in role_permissions_data:
         rp = RolePermission(id=uuid.uuid4(), role_id=role_id, permission_id=permission_id)
         db.add(rp)
-    
+
     db.commit()
 
 

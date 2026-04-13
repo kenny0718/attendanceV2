@@ -57,7 +57,7 @@
 
 公司內部還可能再拆：
 - `admin`（管理者）
-- `manager`（主管）
+- `hr_manager`（HR 管理）
 - `employee`（員工）
 
 白話講：

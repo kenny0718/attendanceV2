@@ -34,7 +34,7 @@ class TestEventHandlers:
             "employee_id": "emp-001",
             "attendance_record_id": "record-001",
             "approved_at": "2026-01-14T10:00:00.000000Z",
-            "approved_by": "manager-001"
+            "approved_by": "approver-001"
         }
         
         # 處理事件（注入測試 DB）

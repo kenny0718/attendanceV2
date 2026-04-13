@@ -124,7 +124,7 @@ class TestTenantIsolation:
             f"/api/attendance/{TEST_UUID_A}/approve",
             json={
                 "employee_id": "emp-001",
-                "approved_by": "manager-001"
+                "approved_by": "approver-001"
             }
         )
         
@@ -140,7 +140,7 @@ class TestTenantIsolation:
                 f"/api/attendance/{TEST_UUID_A}/approve",
                 json={
                     "employee_id": "emp-A-001",
-                    "approved_by": "manager-A-001"
+                    "approved_by": "approver-A-001"
                 }
             )
         
@@ -159,7 +159,7 @@ class TestTenantIsolation:
                 f"/api/attendance/{TEST_UUID_B}/approve",
                 json={
                     "employee_id": "emp-B-001",
-                    "approved_by": "manager-B-001"
+                    "approved_by": "approver-B-001"
                 }
             )
         
@@ -183,7 +183,7 @@ class TestTenantIsolation:
                 json={
                     "company_id": "company-B",  # 嘗試偽造成 B 公司
                     "employee_id": "emp-001",
-                    "approved_by": "manager-001"
+                    "approved_by": "approver-001"
                 }
             )
         
@@ -321,7 +321,7 @@ class TestCrossCompanyIsolation:
         with override_actor_dependency(actor_a):
             response = client.post(
                 f"/api/attendance/{record_id}/approve",
-                json={"employee_id": "emp-001", "approved_by": "manager-001"}
+                json={"employee_id": "emp-001", "approved_by": "approver-001"}
             )
         
         # Must return 404 (tenant isolation)

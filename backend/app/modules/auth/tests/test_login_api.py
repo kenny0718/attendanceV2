@@ -122,7 +122,7 @@ def test_jwt_token_contains_required_claims(db, test_tenant, seed_roles):
     auth_repo.create_membership(
         user_id=user.id,
         company_id="company-A",
-        role_id="manager",
+        role_id="hr_manager",
         login_username="jane.smith",
     )
 
@@ -143,6 +143,6 @@ def test_jwt_token_contains_required_claims(db, test_tenant, seed_roles):
 
     assert decoded["sub"] == str(user.id)
     assert decoded["company_id"] == "company-A"
-    assert decoded["role_id"] == "manager"
+    assert decoded["role_id"] == "hr_manager"
     assert "exp" in decoded
     assert "iat" in decoded

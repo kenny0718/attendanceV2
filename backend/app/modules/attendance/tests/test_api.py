@@ -65,7 +65,7 @@ class TestAttendanceAPI:
                 f"/api/attendance/{record_id}/approve",
                 json={
                     "employee_id": "emp-001",
-                    "approved_by": "manager-001"
+                    "approved_by": "approver-001"
                 }
             )
         
@@ -82,7 +82,7 @@ class TestAttendanceAPI:
         assert payload["employee_id"] == "emp-001"
         assert payload["attendance_record_id"] == record_id
         assert "approved_at" in payload
-        assert payload["approved_by"] == "manager-001"
+        assert payload["approved_by"] == "approver-001"
         
         # 驗證 approved_at 是 ISO8601 格式
         assert "T" in payload["approved_at"]
@@ -127,7 +127,7 @@ class TestAttendanceAPI:
             response = client.post(
                 f"/api/attendance/{record_id}/approve",
                 json={
-                    "approved_by": "manager-001"
+                    "approved_by": "approver-001"
                     # 缺少 employee_id
                 }
             )
@@ -154,7 +154,7 @@ class TestEventEmission:
                     f"/api/attendance/{record_id}/approve",
                     json={
                         "employee_id": "emp-004",
-                        "approved_by": "manager-004"
+                        "approved_by": "approver-004"
                     }
                 )
         

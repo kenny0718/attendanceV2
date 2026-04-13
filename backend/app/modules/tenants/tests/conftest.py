@@ -33,7 +33,6 @@ def db_session(test_engine):
 
     roles_data = [
         ("employee", "Employee", "Regular employee"),
-        ("manager", "Manager", "Can approve attendance for team members"),
         ("company_admin", "Company Admin", "Full access within company"),
         ("customer_service", "Customer Service", "Can access multiple companies"),
         ("hr_manager", "HR Manager", "HR admin access"),
