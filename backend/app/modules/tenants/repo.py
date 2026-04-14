@@ -4,6 +4,7 @@ WP-11-04A: Added CompanyEntitlement repository methods
 """
 
 import logging
+from types import SimpleNamespace
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -27,6 +28,63 @@ class TenantRepository:
         """
         self.db = db
         self.model = Tenant
+
+    def _to_legacy_compatible_tenant(self, row):
+        if row is None:
+            return None
+        return SimpleNamespace(
+            id=row.id,
+            name=row.name,
+            tax_id=row.tax_id,
+            display_name=None,
+            owner_name=None,
+            registered_address=None,
+            contact_address=None,
+            contact_phone=None,
+            contact_email=None,
+            logo_url=None,
+            is_active=row.is_active,
+            timezone=row.timezone,
+            created_at=row.created_at,
+        )
+
+    def _legacy_compatible_query(self):
+        return self.db.query(
+            Tenant.id,
+            Tenant.name,
+            Tenant.tax_id,
+            Tenant.is_active,
+            Tenant.timezone,
+            Tenant.created_at,
+        )
+
+    def list_all_legacy_compatible(self, limit: int = 50, offset: int = 0):
+        tenants = (
+            self._legacy_compatible_query()
+            .order_by(Tenant.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
+        return [self._to_legacy_compatible_tenant(row) for row in tenants]
+
+    def get_by_id_legacy_compatible(self, tenant_id: str):
+        tenant = (
+            self._legacy_compatible_query()
+            .filter(Tenant.id == tenant_id)
+            .first()
+        )
+        logger.debug(f"Get tenant by id (legacy compatible): {tenant_id}, found={tenant is not None}")
+        return self._to_legacy_compatible_tenant(tenant)
+
+    def get_by_tax_id_legacy_compatible(self, tax_id: str):
+        tenant = (
+            self._legacy_compatible_query()
+            .filter(Tenant.tax_id == tax_id)
+            .first()
+        )
+        logger.debug(f"Get tenant by tax_id (legacy compatible): {tax_id}, found={tenant is not None}")
+        return self._to_legacy_compatible_tenant(tenant)
 
     def create(
         self,
@@ -157,7 +215,7 @@ class TenantRepository:
         Returns:
             bool: True if exists
         """
-        count = self.db.query(Tenant).filter(Tenant.id == tenant_id).count()
+        count = self.db.query(Tenant.id).filter(Tenant.id == tenant_id).count()
         return count > 0
 
     def exists_by_tax_id(self, tax_id: str, exclude_tenant_id: str | None = None) -> bool:
@@ -166,7 +224,7 @@ class TenantRepository:
 
     def tax_id_exists(self, tax_id: str, exclude_tenant_id: str | None = None) -> bool:
         """Check if tax ID already exists."""
-        query = self.db.query(Tenant).filter(Tenant.tax_id == tax_id)
+        query = self.db.query(Tenant.id).filter(Tenant.tax_id == tax_id)
         if exclude_tenant_id is not None:
             query = query.filter(Tenant.id != exclude_tenant_id)
         return query.count() > 0
@@ -180,7 +238,7 @@ class TenantRepository:
         Returns:
             bool: True if active (False if not found or inactive)
         """
-        tenant = self.get_by_id(tenant_id)
+        tenant = self.get_by_id_legacy_compatible(tenant_id)
         return tenant.is_active if tenant else False
 
     def get_member_summary(self, tenant_id: str) -> Dict[str, int | bool]:

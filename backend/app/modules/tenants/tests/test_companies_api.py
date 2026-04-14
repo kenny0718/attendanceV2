@@ -349,6 +349,21 @@ class TestLookupByTaxId:
 
 class TestCompanyLogoApi:
 
+    def test_logo_upload_route_exists_and_requires_valid_body(self, db_session, client):
+        db_session.add(Tenant(id="logo-route-co", name="Logo Route Co", timezone="UTC", is_active=True))
+        db_session.commit()
+
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.post(
+                "/api/admin/companies/logo-route-co/logo",
+                json={},
+            )
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 422
+
     def test_super_admin_can_upload_company_logo(self, db_session, client):
         db_session.add(Tenant(id="logo-co", name="Logo Co", timezone="UTC", is_active=True))
         db_session.commit()

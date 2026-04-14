@@ -194,7 +194,11 @@ async function handleUploadLogo(file) {
     detailSuccess.value = 'Logo 已上傳'
     await loadCompanies()
   } catch (err) {
-    detailError.value = err.data?.detail?.message || err.message || 'Logo 上傳失敗'
+    if (err.status === 404) {
+      detailError.value = err.data?.detail?.message || `找不到公司「${selectedCompany.value.id}」的 Logo 上傳端點`
+    } else {
+      detailError.value = err.data?.detail?.message || err.message || 'Logo 上傳失敗'
+    }
   } finally {
     detailLoading.value = false
   }

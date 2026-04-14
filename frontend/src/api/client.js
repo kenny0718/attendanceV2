@@ -71,7 +71,7 @@ apiClient.interceptors.response.use(
         status,
         message: typeof data?.detail === 'string'
           ? data.detail
-          : (data?.detail?.error || data?.message || '請求失敗'),
+          : (data?.detail?.message || data?.detail?.error || data?.message || '請求失敗'),
         data
       })
     } else if (error.request) {

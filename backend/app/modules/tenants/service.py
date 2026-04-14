@@ -1,6 +1,6 @@
 """Tenants services
 
-Reconstructed service layer for companies, onboarding, entitlements, and members.
+Service layer for companies, onboarding, entitlements, and members.
 """
 
 from __future__ import annotations
@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import logging
 import uuid
+from types import SimpleNamespace
 from typing import Any, Optional
 
 from sqlalchemy.exc import IntegrityError
@@ -64,10 +65,10 @@ class TenantService:
         )
 
     def get_tenant(self, tenant_id: str):
-        return self.repo.get_by_id(tenant_id)
+        return self.repo.get_by_id_legacy_compatible(tenant_id)
 
     def list_tenants(self, limit: int = 50, offset: int = 0):
-        return self.repo.list_all(limit=limit, offset=offset)
+        return self.repo.list_all_legacy_compatible(limit=limit, offset=offset)
 
     def update_tenant(self, tenant_id: str, **fields):
         tax_id = fields.get("tax_id")
@@ -87,8 +88,48 @@ class TenantService:
     def tenant_is_active(self, tenant_id: str) -> bool:
         return self.repo.is_active(tenant_id)
 
+    def resolve_company(self, company_input: str):
+        company_key = company_input.strip()
+        if not company_key:
+            return None
+
+        def _to_company_ref(row):
+            if row is None:
+                return None
+            return SimpleNamespace(
+                id=row.id,
+                name=row.name,
+                tax_id=row.tax_id,
+                is_active=row.is_active,
+            )
+
+        tenant = (
+            self.db.query(
+                TenantModel.id,
+                TenantModel.name,
+                TenantModel.tax_id,
+                TenantModel.is_active,
+            )
+            .filter(TenantModel.id == company_key)
+            .first()
+        )
+        if tenant is not None:
+            return _to_company_ref(tenant)
+
+        tenant = (
+            self.db.query(
+                TenantModel.id,
+                TenantModel.name,
+                TenantModel.tax_id,
+                TenantModel.is_active,
+            )
+            .filter(TenantModel.tax_id == company_key)
+            .first()
+        )
+        return _to_company_ref(tenant)
+
     def get_company_detail(self, company_id: str) -> Optional[dict[str, Any]]:
-        company = self.repo.get_by_id(company_id)
+        company = self.repo.get_by_id_legacy_compatible(company_id)
         if company is None:
             return None
         return {
@@ -265,88 +306,7 @@ class TenantService:
         return {"membership_id": str(membership.id), "user_id": str(user.id)}
 
 
-class OnboardingService:
-    def __init__(self, db: Session):
-        self.db = db
-        self.tenant_repo = TenantRepository(db)
-        self.auth_repo = AuthRepository(db)
-
-    def onboard(
-        self,
-        company_id: str,
-        company_name: str,
-        company_timezone: str = "UTC",
-        company_tax_id: str | None = None,
-        display_name: str | None = None,
-        owner_name: str | None = None,
-        registered_address: str | None = None,
-        contact_address: str | None = None,
-        contact_phone: str | None = None,
-        contact_email: str | None = None,
-        user_display_name: str = "",
-        user_login_username: str = "",
-        user_password: str = "",
-        user_email: str | None = None,
-        user_role_id: str = "company_admin",
-    ) -> dict[str, Any]:
-        if self.tenant_repo.exists(company_id):
-            raise ValueError("DUPLICATE_COMPANY: Company ID already exists")
-        if company_tax_id and self.tenant_repo.tax_id_exists(company_tax_id):
-            raise ValueError("DUPLICATE_TAX_ID: Tax ID already exists")
-
-        role = self.db.query(RoleModel).filter(RoleModel.id == user_role_id).first()
-        if role is None:
-            raise ValueError(f"INVALID_ROLE: role '{user_role_id}' does not exist")
-
-        try:
-            company = TenantModel(
-                id=company_id,
-                name=company_name,
-                timezone=company_timezone,
-                is_active=True,
-                tax_id=company_tax_id,
-                display_name=display_name,
-                owner_name=owner_name,
-                registered_address=registered_address,
-                contact_address=contact_address,
-                contact_phone=contact_phone,
-                contact_email=contact_email,
-            )
-            self.db.add(company)
-            self.db.flush()
-
-            user = self.auth_repo.create_user_no_commit(
-                display_name=user_display_name,
-                plain_password=user_password,
-                email=user_email,
-            )
-            membership = self.auth_repo.create_membership_no_commit(
-                user_id=user.id,
-                company_id=company_id,
-                role_id=user_role_id,
-                login_username=user_login_username,
-                login_email=user_email,
-            )
-
-            self.db.commit()
-            self.db.refresh(company)
-            self.db.refresh(user)
-            self.db.refresh(membership)
-        except IntegrityError as exc:
-            self.db.rollback()
-            err_str = str(exc.orig) if hasattr(exc, "orig") else str(exc)
-            if "uq_memberships_company_login" in err_str:
-                raise ValueError("DUPLICATE_LOGIN_USERNAME: Login username already exists in this company")
-            if "duplicate key" in err_str.lower() or "tenants_pkey" in err_str:
-                raise ValueError("DUPLICATE_COMPANY: Company ID already exists")
-            if "tax_id" in err_str.lower():
-                raise ValueError("DUPLICATE_TAX_ID: Tax ID already exists")
-            raise
-
-        return {"company": company, "user": user, "membership": membership}
-
-
-class CompanyEntitlementService:
+class EntitlementService:
     def __init__(self, db: Session):
         self.db = db
         self.repo = CompanyEntitlementRepository(db)
@@ -354,6 +314,8 @@ class CompanyEntitlementService:
 
     def list_company_entitlements(self, actor: Actor, company_id: str) -> dict[str, Any]:
         assert_company_scope(actor, company_id, self.db)
+        if not self.tenant_repo.exists(company_id):
+            raise ValueError(f"COMPANY_NOT_FOUND: {company_id}")
         return {
             "company_id": company_id,
             "entitlements": self.repo.get_all_entitlements(company_id),
@@ -361,22 +323,27 @@ class CompanyEntitlementService:
 
     def update_entitlement(self, actor: Actor, company_id: str, feature_key: str, enabled: bool) -> dict[str, Any]:
         if not actor.is_super_admin():
-            raise ScopeError("Only super_admin can update company entitlements", company_id=company_id)
+            raise ScopeError("Only super_admin can update entitlements", company_id=company_id)
+        if not self.tenant_repo.exists(company_id):
+            raise ValueError(f"COMPANY_NOT_FOUND: {company_id}")
+
         FeatureKeys.validate(feature_key)
-        result = self.repo.upsert_entitlement(company_id, feature_key, enabled, actor.user_id)
+        entitlement = self.repo.upsert_entitlement(company_id, feature_key, enabled, actor.user_id)
         return {
-            "company_id": result.company_id,
-            "feature_key": result.feature_key,
-            "enabled": result.enabled,
-            "updated_by": str(result.updated_by_user_id) if result.updated_by_user_id else None,
-            "updated_at": result.updated_at,
+            "company_id": entitlement.company_id,
+            "feature_key": entitlement.feature_key,
+            "enabled": entitlement.enabled,
+            "updated_by": str(entitlement.updated_by_user_id) if entitlement.updated_by_user_id else None,
+            "updated_at": entitlement.updated_at,
         }
 
     def apply_plan_defaults(self, actor: Actor, company_id: str, plan_code: str) -> dict[str, Any]:
         if not actor.is_super_admin():
             raise ScopeError("Only super_admin can apply plan defaults", company_id=company_id)
+        if not self.tenant_repo.exists(company_id):
+            raise ValueError(f"COMPANY_NOT_FOUND: {company_id}")
         if plan_code not in PLAN_DEFAULTS:
-            raise ValueError(f"Unknown plan_code: {plan_code}")
+            raise ValueError(f"Unknown plan code: {plan_code}")
 
         updated_count = 0
         for feature_key, enabled in PLAN_DEFAULTS[plan_code].items():
@@ -390,13 +357,92 @@ class CompanyEntitlementService:
         }
 
 
+class OnboardingService:
+    def __init__(self, db: Session):
+        self.db = db
+        self.tenant_service = TenantService(db)
+        self.auth_repo = AuthRepository(db)
+
+    def onboard(
+        self,
+        company_id: str,
+        company_name: str,
+        company_timezone: str,
+        company_tax_id: str | None,
+        display_name: str | None,
+        owner_name: str | None,
+        registered_address: str | None,
+        contact_address: str | None,
+        contact_phone: str | None,
+        contact_email: str | None,
+        user_display_name: str,
+        user_login_username: str,
+        user_password: str,
+        user_email: str | None,
+        user_role_id: str,
+    ) -> dict[str, Any]:
+        if self.tenant_service.tenant_exists(company_id):
+            raise ValueError(f"DUPLICATE_COMPANY: company '{company_id}' already exists")
+        if company_tax_id and self.tenant_service.repo.tax_id_exists(company_tax_id):
+            raise ValueError(f"DUPLICATE_TAX_ID: tax_id '{company_tax_id}' already exists")
+
+        role = self.db.query(RoleModel).filter(RoleModel.id == user_role_id).first()
+        if role is None:
+            raise ValueError(f"INVALID_ROLE: role '{user_role_id}' does not exist")
+
+        try:
+            company = self.tenant_service.repo.create(
+                tenant_id=company_id,
+                name=company_name,
+                timezone=company_timezone,
+                is_active=True,
+                tax_id=company_tax_id,
+                display_name=display_name,
+                owner_name=owner_name,
+                registered_address=registered_address,
+                contact_address=contact_address,
+                contact_phone=contact_phone,
+                contact_email=contact_email,
+            )
+            user = self.auth_repo.create_user_no_commit(
+                display_name=user_display_name,
+                plain_password=user_password,
+                email=user_email,
+            )
+            membership = self.auth_repo.create_membership_no_commit(
+                user_id=user.id,
+                company_id=company_id,
+                role_id=user_role_id,
+                login_username=user_login_username,
+                login_email=user_email,
+            )
+            self.db.commit()
+            self.db.refresh(company)
+            self.db.refresh(user)
+            self.db.refresh(membership)
+        except IntegrityError as exc:
+            self.db.rollback()
+            err_str = str(exc.orig) if hasattr(exc, "orig") else str(exc)
+            if "uq_memberships_company_login" in err_str:
+                raise ValueError("DUPLICATE_LOGIN_USERNAME")
+            if "tenants_pkey" in err_str or "duplicate key" in err_str.lower():
+                raise ValueError("DUPLICATE_COMPANY")
+            raise
+
+        return {
+            "company": company,
+            "user": user,
+            "membership": membership,
+        }
+
+
 def get_tenant_service(db: Session) -> TenantService:
     return TenantService(db)
 
 
+def get_entitlement_service(db: Session) -> EntitlementService:
+    return EntitlementService(db)
+
+
 def get_onboarding_service(db: Session) -> OnboardingService:
     return OnboardingService(db)
-
-
-def get_entitlement_service(db: Session) -> CompanyEntitlementService:
-    return CompanyEntitlementService(db)
