@@ -370,12 +370,12 @@ class TestCompanyLogoApi:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["company_id"] == "logo-co"
-        assert data["logo_url"] == "/uploads/company-logos/logo-co/logo.png"
+        assert data["logo_url"] == "/static/company-logos/logo-co.png"
         tenant = db_session.query(Tenant).filter(Tenant.id == "logo-co").first()
-        assert tenant.logo_url == "/uploads/company-logos/logo-co/logo.png"
+        assert tenant.logo_url == "/static/company-logos/logo-co.png"
 
     def test_company_admin_can_delete_own_company_logo(self, db_session, client):
-        db_session.add(Tenant(id="dev-tenant", name="Dev Tenant", timezone="UTC", is_active=True, logo_url="/uploads/company-logos/dev-tenant/logo.png"))
+        db_session.add(Tenant(id="dev-tenant", name="Dev Tenant", timezone="UTC", is_active=True, logo_url="/static/company-logos/dev-tenant.png"))
         db_session.commit()
 
         _override_actor(client, _make_company_admin_actor("dev-tenant"))

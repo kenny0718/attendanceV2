@@ -107,9 +107,13 @@ async function loadCompanyDetail(companyId) {
   detailError.value = null
   try {
     const data = await adminApi.getCompany(companyId)
-    selectedCompany.value = data.company
-    selectedCompanySummary.value = data.member_summary || null
-    updateEditForm(data.company)
+    const company = data?.company ?? data
+    if (!company?.id) {
+      throw new Error('公司詳情資料格式不正確')
+    }
+    selectedCompany.value = company
+    selectedCompanySummary.value = data?.member_summary ?? null
+    updateEditForm(company)
   } catch (err) {
     detailError.value = err.message || '無法載入公司詳情，請稍後再試'
   } finally {

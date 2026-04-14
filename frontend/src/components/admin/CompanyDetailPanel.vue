@@ -285,8 +285,8 @@
               placeholder="service@example.com"
               @input="$emit('update:form', { ...form, contact_email: $event.target.value })"
             >
-          </div>
-          <div class="form-group">
+        </div>
+        <div class="form-group">
             <label
               class="form-label"
               for="d-tz"
@@ -324,7 +324,7 @@
               <option value="Europe/Paris">
                 Europe/Paris（巴黎）
               </option>
-            </select>
+          </select>
           </div>
         </div>
 

@@ -116,7 +116,7 @@ class TenantService:
         if tenant is None:
             raise FileNotFoundError(company_id)
 
-        allowed_types = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}
+        allowed_types = {"image/png", "image/jpeg", "image/jpg"}
         if content_type not in allowed_types:
             raise ValueError("Unsupported content_type")
 
