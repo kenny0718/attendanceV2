@@ -42,28 +42,6 @@
       </div>
 
       <div
-        v-if="memberSummary"
-        class="summary-panel"
-      >
-        <div class="summary-card">
-          <span class="summary-label">管理角色總數</span>
-          <strong class="summary-value">{{ memberSummary.admin_count }}</strong>
-        </div>
-        <div class="summary-card">
-          <span class="summary-label">啟用中的管理角色</span>
-          <strong class="summary-value">{{ memberSummary.active_admin_count }}</strong>
-        </div>
-        <div class="summary-card">
-          <span class="summary-label">company_admin</span>
-          <strong class="summary-value">{{ memberSummary.has_company_admin ? '有' : '無' }}</strong>
-        </div>
-        <div class="summary-card">
-          <span class="summary-label">hr_manager</span>
-          <strong class="summary-value">{{ memberSummary.has_hr_manager ? '有' : '無' }}</strong>
-        </div>
-      </div>
-
-      <div
         v-if="success"
         class="alert alert-success"
       >
@@ -228,8 +206,8 @@
               placeholder="service@example.com"
               @input="$emit('update:form', { ...form, contact_email: $event.target.value })"
             >
-        </div>
-        <div class="form-group">
+          </div>
+          <div class="form-group">
             <label
               class="form-label"
               for="d-tz"
@@ -267,7 +245,7 @@
               <option value="Europe/Paris">
                 Europe/Paris（巴黎）
               </option>
-          </select>
+            </select>
           </div>
         </div>
 
@@ -300,7 +278,7 @@
               stroke-linejoin="round"
               d="M5 13l4 4L19 7"
             /></svg>
-            {{ loading ? '儲存中…' : '儲存變更' }}
+            <span class="btn-label">{{ loading ? '儲存中…' : '儲存變更' }}</span>
           </button>
         </div>
       </form>
@@ -344,10 +322,6 @@ const props = defineProps({
 .detail-meta-item { padding: 14px; border-radius: 16px; background: rgba(248, 250, 252, 0.92); border: 1px solid rgba(226, 232, 240, 0.9); }
 .detail-meta-label { display: block; font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 6px; }
 .detail-meta-val { font-size: 15px; line-height: 1.45; color: #0f172a; }
-.summary-panel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.summary-card { padding: 14px; border-radius: 16px; background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(14, 165, 233, 0.16); }
-.summary-label { display: block; font-size: 13px; font-weight: 700; color: #0369a1; margin-bottom: 8px; }
-.summary-value { font-size: 24px; color: #0f172a; }
 .mono { font-family: monospace; }
 .detail-form { display: grid; gap: 14px; }
 .form-grid { display: grid; gap: 14px; }
@@ -358,9 +332,45 @@ const props = defineProps({
 .form-input { min-height: 46px; padding: 0 14px; border: 1px solid rgba(148, 163, 184, 0.32); border-radius: 16px; font-size: 15px; color: #0f172a; background: rgba(255, 255, 255, 0.92); outline: none; }
 .form-input:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25); }
 .detail-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
-.btn-submit { background: #0ea5e9; color: #ffffff; }
-.btn-toggle { background: #e2e8f0; color: #334155; }
-.btn-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
+.btn-submit,
+.btn-toggle {
+  width: 190px;
+  min-width: 190px;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-submit {
+  border: none;
+  background: #4A6FA5;
+  color: #ffffff;
+}
+.btn-submit svg,
+.btn-toggle svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.btn-label {
+  white-space: nowrap;
+}
+.btn-toggle {
+  border: 1px solid #4A6FA5;
+  background: #ffffff;
+  color: #4A6FA5;
+}
+.btn-submit:disabled,
+.btn-toggle:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; flex-shrink: 0; }
 .alert { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
 .alert svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
 .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
@@ -370,7 +380,7 @@ const props = defineProps({
 .badge-active { background: #dcfce7; color: #15803d; }
 .badge-inactive { background: #f1f5f9; color: #64748b; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 1100px) { .detail-meta, .summary-panel, .form-grid-triple { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 900px) {  }
-@media (max-width: 720px) { .detail-actions { flex-direction: column; align-items: stretch; }}
+@media (max-width: 1100px) { .detail-meta, .form-grid-triple { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { }
+@media (max-width: 720px) { .detail-actions { flex-direction: column; align-items: stretch; } }
 </style>

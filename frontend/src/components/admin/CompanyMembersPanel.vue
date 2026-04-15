@@ -1,5 +1,8 @@
 <template>
-  <PageCard v-if="company">
+  <section
+    v-if="company"
+    class="members-section"
+  >
     <AdminSectionHeader
       :title="`成員管理 — ${company.name}`"
       align="between"
@@ -42,7 +45,7 @@
     <AdminStateBox
       v-else-if="members.length === 0"
       variant="empty"
-      message="目前尚無成員，可展開下方「新增公司成員」表單建立第一位成員。"
+      message="目前尚無成員，可直接使用下方表單建立第一位成員。"
       icon-path="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
     />
     <div
@@ -92,165 +95,124 @@
       </p>
     </div>
 
-    <div class="add-member-section">
-      <button
-        type="button"
-        class="add-member-header"
-        @click="$emit('toggle-add-form')"
-      >
-        <div class="add-member-title-wrap">
-          <div class="add-member-title">
-            <svg
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              stroke-width="2"
-            ><path
+    <section class="add-member-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <svg
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          >
+            <path
               stroke-linecap="round"
               stroke-linejoin="round"
               d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-            /></svg>
-            <span>新增公司成員</span>
-          </div>
-          <p class="add-member-subtitle">
-            建立登入帳號、設定顯示名稱與角色。
-          </p>
-        </div>
-        <svg
-          class="chevron"
-          :class="{ open: showAddMember }"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          stroke-width="2"
-        ><path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M19 9l-7 7-7-7"
-        /></svg>
-      </button>
+            />
+          </svg>
+          新增成員
+        </h2>
+      </div>
 
       <div
-        v-if="showAddMember"
-        class="add-member-body"
+        v-if="addSuccess"
+        class="alert alert-success"
       >
-        <div
-          v-if="addSuccess"
-          class="alert alert-success"
-        >
-          <svg
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-          /></svg>
-          <span>{{ addSuccess }}</span>
-        </div>
-        <div
-          v-if="addError"
-          class="alert alert-error"
-        >
-          <svg
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          /></svg>
-          <span>{{ addError }}</span>
+        {{ addSuccess }}
+      </div>
+      <div
+        v-if="addError"
+        class="alert alert-error"
+      >
+        {{ addError }}
+      </div>
+
+      <form
+        class="create-form"
+        novalidate
+        @submit.prevent="$emit('submit-add-member')"
+      >
+        <div class="form-grid">
+          <div class="form-group">
+            <label
+              class="form-label"
+              for="am-dispname"
+            >顯示名稱</label>
+            <input
+              id="am-dispname"
+              :value="form.display_name"
+              type="text"
+              class="form-input"
+              maxlength="100"
+              @input="$emit('update:form', { ...form, display_name: $event.target.value })"
+            >
+          </div>
+          <div class="form-group">
+            <label
+              class="form-label"
+              for="am-username"
+            >登入帳號</label>
+            <input
+              id="am-username"
+              :value="form.login_username"
+              type="text"
+              class="form-input"
+              maxlength="100"
+              autocomplete="off"
+              @input="$emit('update:form', { ...form, login_username: $event.target.value })"
+            >
+          </div>
+          <div class="form-group">
+            <label
+              class="form-label"
+              for="am-password"
+            >初始密碼</label>
+            <input
+              id="am-password"
+              :value="form.password"
+              type="password"
+              class="form-input"
+              maxlength="255"
+              autocomplete="new-password"
+              @input="$emit('update:form', { ...form, password: $event.target.value })"
+            >
+          </div>
+          <div class="form-group">
+            <label
+              class="form-label"
+              for="am-email"
+            >電子郵件（選填）</label>
+            <input
+              id="am-email"
+              :value="form.email"
+              type="email"
+              class="form-input"
+              maxlength="255"
+              @input="$emit('update:form', { ...form, email: $event.target.value })"
+            >
+          </div>
+          <div class="form-group">
+            <label
+              class="form-label"
+              for="am-role"
+            >角色</label>
+            <select
+              id="am-role"
+              :value="form.role_id"
+              class="form-input"
+              @change="$emit('update:form', { ...form, role_id: $event.target.value })"
+            >
+              <option value="employee">
+                員工
+              </option>
+              <option value="company_admin">
+                公司管理員
+              </option>
+            </select>
+          </div>
         </div>
 
-        <form
-          class="add-member-form"
-          novalidate
-          @submit.prevent="$emit('submit-add-member')"
-        >
-          <div class="am-grid">
-            <div class="form-group">
-              <label
-                class="form-label"
-                for="am-dispname"
-              >顯示名稱 <span class="label-hint">必填</span></label>
-              <input
-                id="am-dispname"
-                :value="form.display_name"
-                type="text"
-                class="form-input"
-                maxlength="100"
-                @input="$emit('update:form', { ...form, display_name: $event.target.value })"
-              >
-            </div>
-            <div class="form-group">
-              <label
-                class="form-label"
-                for="am-username"
-              >登入帳號 <span class="label-hint">必填</span></label>
-              <input
-                id="am-username"
-                :value="form.login_username"
-                type="text"
-                class="form-input"
-                maxlength="100"
-                autocomplete="off"
-                @input="$emit('update:form', { ...form, login_username: $event.target.value })"
-              >
-            </div>
-            <div class="form-group">
-              <label
-                class="form-label"
-                for="am-password"
-              >初始密碼 <span class="label-hint">最少 6 字</span></label>
-              <input
-                id="am-password"
-                :value="form.password"
-                type="password"
-                class="form-input"
-                maxlength="255"
-                autocomplete="new-password"
-                @input="$emit('update:form', { ...form, password: $event.target.value })"
-              >
-            </div>
-            <div class="form-group">
-              <label
-                class="form-label"
-                for="am-email"
-              >電子郵件 <span class="label-hint">選填</span></label>
-              <input
-                id="am-email"
-                :value="form.email"
-                type="email"
-                class="form-input"
-                maxlength="255"
-                @input="$emit('update:form', { ...form, email: $event.target.value })"
-              >
-            </div>
-            <div class="form-group">
-              <label
-                class="form-label"
-                for="am-role"
-              >角色</label>
-              <select
-                id="am-role"
-                :value="form.role_id"
-                class="form-input"
-                @change="$emit('update:form', { ...form, role_id: $event.target.value })"
-              >
-                <option value="employee">
-                  員工
-                </option>
-                <option value="company_admin">
-                  公司管理員
-                </option>
-              </select>
-            </div>
-          </div>
+        <div class="actions-row">
           <button
             type="submit"
             class="btn-submit"
@@ -258,33 +220,21 @@
           >
             <span
               v-if="addLoading"
-              class="btn-spinner"
+              class="btn-spinner-sm"
             />
-            <svg
-              v-else
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              stroke-width="2"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M12 4v16m8-8H4"
-            /></svg>
-            {{ addLoading ? '新增中…' : '新增成員' }}
+            <span v-else>新增成員</span>
           </button>
-        </form>
-      </div>
-    </div>
-  </PageCard>
+        </div>
+      </form>
+    </section>
+  </section>
 </template>
 
 <script setup>
-import PageCard from '@/components/PageCard.vue'
 import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
 import AdminStateBox from '@/components/admin/AdminStateBox.vue'
 
-defineEmits(['reload', 'toggle-member', 'toggle-add-form', 'submit-add-member', 'update:form'])
+defineEmits(['reload', 'toggle-member', 'submit-add-member', 'update:form'])
 
 defineProps({
   company: { type: Object, default: null },
@@ -292,7 +242,6 @@ defineProps({
   loading: { type: Boolean, default: false },
   error: { type: String, default: '' },
   actionLoadingId: { type: [String, Number, null], default: null },
-  showAddMember: { type: Boolean, default: false },
   addLoading: { type: Boolean, default: false },
   addSuccess: { type: String, default: '' },
   addError: { type: String, default: '' },
@@ -308,6 +257,10 @@ function formatRole(roleId) {
 </script>
 
 <style scoped>
+.members-section {
+  display: grid;
+  gap: 18px;
+}
 .state-loading {
   min-height: 160px;
   display: flex;
@@ -413,69 +366,71 @@ function formatRole(roleId) {
   color: #b91c1c;
 }
 .btn-status-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
-.add-member-section { margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(226, 232, 240, 0.9); }
-.add-member-header {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
+.add-member-section {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
 }
-.add-member-title-wrap { display: grid; gap: 4px; text-align: left; }
-.add-member-title {
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.section-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #0f172a;
-  font-size: 18px;
-  line-height: 1.35;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1C3B6B;
+  margin: 0;
 }
-.add-member-subtitle { margin: 0; font-size: 14px; line-height: 1.5; color: #64748b; }
-.add-member-title svg, .chevron { width: 18px; height: 18px; color: #0ea5e9; }
-.chevron { transition: transform 0.2s ease; margin-top: 2px; }
-.chevron.open { transform: rotate(180deg); }
-.add-member-body { margin-top: 14px; display: grid; gap: 12px; }
-.alert { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
-.alert svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+.section-title svg { width: 18px; height: 18px; color: #4A6FA5; }
+.alert { padding: 12px 14px; border-radius: 10px; font-size: 13px; }
 .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
 .alert-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
-.add-member-form { display: grid; gap: 14px; }
-.am-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.create-form { display: grid; gap: 16px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .form-group { display: grid; gap: 6px; }
-.form-label { font-size: 14px; font-weight: 700; color: #334155; }
-.label-hint { color: #64748b; font-weight: 500; }
-.form-input { min-height: 46px; padding: 0 14px; border: 1px solid rgba(148, 163, 184, 0.32); border-radius: 16px; font-size: 15px; color: #0f172a; background: rgba(255, 255, 255, 0.92); outline: none; }
-.form-input:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25); }
+.form-label { font-size: 12px; font-weight: 600; color: #5A6C7D; }
+.form-input {
+  padding: 10px 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #2D3A52;
+  background: #fff;
+  outline: none;
+}
+.form-input:focus { border-color: #4A6FA5; box-shadow: 0 0 0 3px rgba(74,111,165,0.12); }
+.actions-row { display: flex; justify-content: flex-end; }
 .btn-submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 148px;
-  min-height: 46px;
-  padding: 0 20px;
+  min-width: 132px;
+  min-height: 40px;
+  padding: 0 16px;
   border: none;
-  border-radius: 14px;
-  font-size: 15px;
-  line-height: 1;
-  font-weight: 700;
-  white-space: nowrap;
+  border-radius: 10px;
+  background: #4A6FA5;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  background: #0ea5e9;
-  color: #ffffff;
 }
 .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; }
-.btn-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
+.btn-spinner-sm {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 900px) { .am-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .form-grid { grid-template-columns: 1fr; } }
 @media (max-width: 720px) {
   .btn-submit { width: 100%; }
   .members-table { min-width: 640px; }
-  .add-member-header { align-items: stretch; }
+  .actions-row { justify-content: stretch; }
 }
 </style>

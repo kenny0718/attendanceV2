@@ -812,11 +812,13 @@ function resetOnboarding() {
   color: #334155;
 }
 
+.field-error {
   margin: 0 0 4px;
   font-size: 13px;
   font-weight: 800;
 }
 
+.field-hint {
   margin: 0;
 }
 
@@ -839,12 +841,6 @@ function resetOnboarding() {
 .input-error {
   border-color: #f87171;
   box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.12);
-}
-
-.field-error {
-  margin: 0;
-  font-size: 12px;
-  color: #dc2626;
 }
 
 .ob-alert,

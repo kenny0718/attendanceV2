@@ -1,6 +1,7 @@
 <template>
   <div class="stack-layout">
     <CompanyListPanel
+      v-if="showCompanyList"
       :companies="companies"
       :loading="listLoading"
       :error="listError || ''"
@@ -22,35 +23,20 @@
       @toggle-active="handleToggleActive"
       @update:form="updateEditForm"
     />
-
-    <CompanyMembersPanel
-      v-if="selectedCompany"
-      :company="selectedCompany"
-      :members="members"
-      :loading="membersLoading"
-      :error="membersError || ''"
-      :action-loading-id="memberActionLoading"
-      :show-add-member="showAddMember"
-      :add-loading="addMemberLoading"
-      :add-success="addMemberSuccess || ''"
-      :add-error="addMemberError || ''"
-      :form="addForm"
-      :format-date="formatDate"
-      @reload="loadMembers"
-      @toggle-member="handleToggleMembership"
-      @toggle-add-form="showAddMember = !showAddMember"
-      @submit-add-member="handleAddMember"
-      @update:form="updateAddForm"
-    />
   </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { adminApi } from '@/api/admin'
+import { useAuthStore } from '@/stores/auth'
 import CompanyListPanel from '@/components/admin/CompanyListPanel.vue'
 import CompanyDetailPanel from '@/components/admin/CompanyDetailPanel.vue'
-import CompanyMembersPanel from '@/components/admin/CompanyMembersPanel.vue'
+
+const authStore = useAuthStore()
+const isTenantScopedAdmin = computed(() => ['company_admin', 'hr_manager'].includes(authStore.userRole))
+const tenantCompanyId = computed(() => authStore.companyId || '')
+const showCompanyList = computed(() => !isTenantScopedAdmin.value)
 
 const companies = ref([])
 const listLoading = ref(false)
@@ -68,8 +54,6 @@ async function loadCompanies() {
     listLoading.value = false
   }
 }
-
-onMounted(loadCompanies)
 
 const selectedCompany = ref(null)
 const selectedCompanySummary = ref(null)
@@ -125,13 +109,17 @@ function selectCompany(company) {
   updateEditForm(company)
   detailError.value = null
   detailSuccess.value = null
-  members.value = []
-  showAddMember.value = false
-  addMemberSuccess.value = null
-  addMemberError.value = null
   loadCompanyDetail(company.id)
-  loadMembers()
 }
+
+onMounted(async () => {
+  if (isTenantScopedAdmin.value) {
+    await loadCompanyDetail(tenantCompanyId.value)
+    return
+  }
+
+  await loadCompanies()
+})
 
 async function handleUpdate() {
   if (!selectedCompany.value) return
@@ -152,7 +140,9 @@ async function handleUpdate() {
     })
     await loadCompanyDetail(selectedCompany.value.id)
     detailSuccess.value = '變更已儲存'
-    await loadCompanies()
+    if (!isTenantScopedAdmin.value) {
+      await loadCompanies()
+    }
   } catch (err) {
     const code = err.data?.detail?.code
     if (code === 'DUPLICATE_TAX_ID') {
@@ -177,7 +167,9 @@ async function handleToggleActive() {
     await adminApi.updateCompany(selectedCompany.value.id, { is_active: target })
     await loadCompanyDetail(selectedCompany.value.id)
     detailSuccess.value = `公司已${label}`
-    await loadCompanies()
+    if (!isTenantScopedAdmin.value) {
+      await loadCompanies()
+    }
   } catch (err) {
     detailError.value = err.message || `${label}失敗，請稍後再試`
   } finally {
@@ -189,89 +181,6 @@ function formatDate(val) {
   if (!val) return '—'
   const d = new Date(val)
   return d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })
-}
-
-const members = ref([])
-const membersLoading = ref(false)
-const membersError = ref(null)
-const memberActionLoading = ref(null)
-
-const showAddMember = ref(false)
-const addForm = reactive({ display_name: '', login_username: '', password: '', email: '', role_id: 'employee' })
-const addMemberLoading = ref(false)
-const addMemberSuccess = ref(null)
-const addMemberError = ref(null)
-
-function updateAddForm(next) {
-  addForm.display_name = next.display_name ?? ''
-  addForm.login_username = next.login_username ?? ''
-  addForm.password = next.password ?? ''
-  addForm.email = next.email ?? ''
-  addForm.role_id = next.role_id ?? 'employee'
-}
-
-async function loadMembers() {
-  if (!selectedCompany.value) return
-  membersLoading.value = true
-  membersError.value = null
-  try {
-    const data = await adminApi.listCompanyMembers(selectedCompany.value.id)
-    members.value = data.members || []
-  } catch (err) {
-    membersError.value = err.message || '無法載入成員列表'
-  } finally {
-    membersLoading.value = false
-  }
-}
-
-async function handleToggleMembership(member) {
-  const target = !member.membership_is_active
-  const label = target ? '啟用' : '停用'
-  if (!confirm(`確認要${label}成員「${member.display_name}」的帳號？`)) return
-  memberActionLoading.value = member.membership_id
-  try {
-    await adminApi.toggleMembershipActive(selectedCompany.value.id, member.membership_id, target)
-    await loadMembers()
-    await loadCompanyDetail(selectedCompany.value.id)
-  } catch (err) {
-    alert(err.message || `${label}失敗`)
-  } finally {
-    memberActionLoading.value = null
-  }
-}
-
-async function handleAddMember() {
-  addMemberSuccess.value = null
-  addMemberError.value = null
-  if (!addForm.display_name || !addForm.login_username || !addForm.password) {
-    addMemberError.value = '顯示名稱、登入帳號、初始密碼為必填'
-    return
-  }
-  addMemberLoading.value = true
-  try {
-    const created = await adminApi.createCompanyMember(selectedCompany.value.id, {
-      display_name: addForm.display_name,
-      login_username: addForm.login_username,
-      password: addForm.password,
-      email: addForm.email || undefined,
-      role_id: addForm.role_id,
-    })
-    addMemberSuccess.value = `成員「${created.display_name}」已新增`
-    updateAddForm({ display_name: '', login_username: '', password: '', email: '', role_id: 'employee' })
-    await loadMembers()
-    await loadCompanyDetail(selectedCompany.value.id)
-  } catch (err) {
-    const code = err.data?.detail?.code
-    if (code === 'DUPLICATE_LOGIN_USERNAME') {
-      addMemberError.value = `登入帳號「${addForm.login_username}」已存在於此公司`
-    } else if (code === 'INVALID_ROLE') {
-      addMemberError.value = '角色無效'
-    } else {
-      addMemberError.value = err.message || '新增失敗，請稍後再試'
-    }
-  } finally {
-    addMemberLoading.value = false
-  }
 }
 </script>
 

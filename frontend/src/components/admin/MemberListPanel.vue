@@ -176,8 +176,8 @@ defineProps({
 .badge-inactive { background: #fee2e2; color: #b91c1c; }
 .action-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn-secondary, .btn-toggle { min-height: 34px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
-.btn-secondary { border: 1px solid #CBD5E1; background: #fff; color: #334155; }
-.btn-toggle { border: 1px solid #BFDBFE; background: #DBEAFE; color: #1D4ED8; }
-.btn-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { border: 1px solid #4A6FA5; background: #fff; color: #4A6FA5; }
+.btn-toggle { border: none; background: #4A6FA5; color: #ffffff; }
+.btn-toggle:disabled, .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

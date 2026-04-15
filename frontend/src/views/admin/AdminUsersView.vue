@@ -1,6 +1,9 @@
 <template>
   <div class="stack-layout">
-    <div class="panel selector-panel">
+    <div
+      v-if="showCompanySelector"
+      class="panel selector-panel"
+    >
       <div class="panel-header">
         <h2 class="panel-title">
           <svg
@@ -163,12 +166,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { adminApi } from '@/api/admin'
+import { useAuthStore } from '@/stores/auth'
 import MemberEditModal from '@/components/admin/MemberEditModal.vue'
 import MemberCreatePanel from '@/components/admin/MemberCreatePanel.vue'
 import MemberPasswordModal from '@/components/admin/MemberPasswordModal.vue'
 import MemberListPanel from '@/components/admin/MemberListPanel.vue'
+
+const authStore = useAuthStore()
+const isTenantScopedAdmin = computed(() => ['company_admin', 'hr_manager'].includes(authStore.userRole))
+const tenantCompanyId = computed(() => authStore.companyId || '')
+const showCompanySelector = computed(() => !isTenantScopedAdmin.value)
 
 const companies = ref([])
 const companiesLoading = ref(false)
@@ -186,8 +195,6 @@ async function loadCompanies() {
     companiesLoading.value = false
   }
 }
-
-onMounted(loadCompanies)
 
 const selectedCompanyId = ref('')
 const members = ref([])
@@ -214,6 +221,16 @@ function onCompanyChange() {
   toggleError.value = null
   loadMembers()
 }
+
+onMounted(async () => {
+  if (isTenantScopedAdmin.value) {
+    selectedCompanyId.value = tenantCompanyId.value
+    await loadMembers()
+    return
+  }
+
+  await loadCompanies()
+})
 
 const togglingId = ref(null)
 const toggleError = ref(null)
