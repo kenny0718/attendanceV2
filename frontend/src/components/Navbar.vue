@@ -5,20 +5,7 @@
         to="/"
         class="brand-block"
       >
-        <div
-          v-if="companyLogo"
-          class="brand-logo-wrap"
-        >
-          <img
-            :src="companyLogo"
-            :alt="`${companyDisplayName} logo`"
-            class="brand-logo"
-          >
-        </div>
-        <div
-          v-else
-          class="brand-text"
-        >
+        <div class="brand-text">
           {{ companyDisplayName }}
         </div>
       </router-link>
@@ -61,7 +48,6 @@ const authStore = useAuthStore()
 const companyDisplayName = computed(
   () => authStore.company?.display_name || authStore.company?.name || '未指定公司'
 )
-const companyLogo = computed(() => authStore.company?.logo_url || '')
 const userDisplayName = computed(
   () => authStore.currentUser?.display_name || authStore.currentUser?.name || authStore.currentUser?.email || '未登入使用者'
 )
@@ -93,24 +79,6 @@ async function handleLogout() {
   text-decoration: none;
 }
 
-.brand-logo-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.brand-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
 
 .brand-text {
   font-size: 1.25rem;

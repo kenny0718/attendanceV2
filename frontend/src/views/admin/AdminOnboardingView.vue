@@ -73,9 +73,6 @@
               </p>
             </div>
           </div>
-          <div class="onboarding-note">
-            Logo 請於公司建立完成後，到公司詳情頁使用上傳功能設定。
-          </div>
           <button
             class="btn-ob-again"
             @click="resetOnboarding"
@@ -293,14 +290,6 @@
                       placeholder="service@example.com"
                     >
                   </div>
-                </div>
-                <div class="logo-note-box">
-                  <p class="logo-note-title">
-                    Logo 不是開通欄位
-                  </p>
-                  <p class="logo-note-text">
-                    公司建立完成後，請到公司詳情頁使用 Logo 上傳功能；這裡不需要輸入任何 URL。
-                  </p>
                 </div>
                 <div class="form-group">
                   <label
@@ -804,7 +793,6 @@ function resetOnboarding() {
 }
 
 .lookup-state,
-.logo-note-box,
 .onboarding-note {
   padding: 10px 12px;
   border-radius: 14px;
@@ -818,20 +806,17 @@ function resetOnboarding() {
   color: #0369a1;
 }
 
-.logo-note-box,
 .onboarding-note {
   background: rgba(15, 23, 42, 0.04);
   border: 1px solid rgba(148, 163, 184, 0.16);
   color: #334155;
 }
 
-.logo-note-title {
   margin: 0 0 4px;
   font-size: 13px;
   font-weight: 800;
 }
 
-.logo-note-text {
   margin: 0;
 }
 

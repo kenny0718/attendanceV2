@@ -21,8 +21,6 @@
       @submit="handleUpdate"
       @toggle-active="handleToggleActive"
       @update:form="updateEditForm"
-      @upload-logo="handleUploadLogo"
-      @remove-logo="handleRemoveLogo"
     />
 
     <CompanyMembersPanel
@@ -165,75 +163,6 @@ async function handleUpdate() {
   } finally {
     detailLoading.value = false
   }
-}
-
-async function handleUploadLogo(file) {
-  if (!selectedCompany.value || !file) return
-
-  const allowedTypes = ['image/png', 'image/jpeg']
-  if (!allowedTypes.includes(file.type)) {
-    detailError.value = 'Logo 僅支援 PNG / JPG / JPEG'
-    return
-  }
-  if (file.size > 2 * 1024 * 1024) {
-    detailError.value = 'Logo 檔案大小不可超過 2MB'
-    return
-  }
-
-  detailError.value = null
-  detailSuccess.value = null
-  detailLoading.value = true
-  try {
-    const contentBase64 = await fileToBase64(file)
-    await adminApi.uploadCompanyLogo(selectedCompany.value.id, {
-      filename: file.name,
-      content_type: file.type,
-      content_base64: contentBase64,
-    })
-    await loadCompanyDetail(selectedCompany.value.id)
-    detailSuccess.value = 'Logo 已上傳'
-    await loadCompanies()
-  } catch (err) {
-    if (err.status === 404) {
-      detailError.value = err.data?.detail?.message || `找不到公司「${selectedCompany.value.id}」的 Logo 上傳端點`
-    } else {
-      detailError.value = err.data?.detail?.message || err.message || 'Logo 上傳失敗'
-    }
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-async function handleRemoveLogo() {
-  if (!selectedCompany.value) return
-  if (!confirm(`確認要移除公司「${selectedCompany.value.name}」的 Logo？`)) return
-
-  detailError.value = null
-  detailSuccess.value = null
-  detailLoading.value = true
-  try {
-    await adminApi.deleteCompanyLogo(selectedCompany.value.id)
-    await loadCompanyDetail(selectedCompany.value.id)
-    detailSuccess.value = 'Logo 已移除'
-    await loadCompanies()
-  } catch (err) {
-    detailError.value = err.data?.detail?.message || err.message || 'Logo 移除失敗'
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = String(reader.result || '')
-      const base64 = result.includes(',') ? result.split(',')[1] : result
-      resolve(base64)
-    }
-    reader.onerror = () => reject(new Error('檔案讀取失敗'))
-    reader.readAsDataURL(file)
-  })
 }
 
 async function handleToggleActive() {

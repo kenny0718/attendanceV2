@@ -191,7 +191,6 @@
   - `id`
   - `name`
   - `display_name`（若已有）
-  - `logo_url`（若已有）
 - `role`
   - `id`
   - `name`

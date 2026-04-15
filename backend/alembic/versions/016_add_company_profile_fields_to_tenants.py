@@ -22,11 +22,9 @@ def upgrade() -> None:
     op.add_column('tenants', sa.Column('contact_address', sa.String(length=500), nullable=True, comment='Company contact address'))
     op.add_column('tenants', sa.Column('contact_phone', sa.String(length=50), nullable=True, comment='Company contact phone'))
     op.add_column('tenants', sa.Column('contact_email', sa.String(length=255), nullable=True, comment='Company contact email'))
-    op.add_column('tenants', sa.Column('logo_url', sa.String(length=500), nullable=True, comment='Company logo URL'))
 
 
 def downgrade() -> None:
-    op.drop_column('tenants', 'logo_url')
     op.drop_column('tenants', 'contact_email')
     op.drop_column('tenants', 'contact_phone')
     op.drop_column('tenants', 'contact_address')

@@ -5,7 +5,6 @@ Service layer for companies, onboarding, entitlements, and members.
 
 from __future__ import annotations
 
-import base64
 import logging
 import uuid
 from types import SimpleNamespace
@@ -145,38 +144,6 @@ class TenantService:
             "registered_address": None,
             "found": False,
         }
-
-    def upload_company_logo(
-        self,
-        company_id: str,
-        filename: str,
-        content_type: str,
-        content_base64: str,
-    ) -> dict[str, Any]:
-        tenant = self.repo.get_by_id(company_id)
-        if tenant is None:
-            raise FileNotFoundError(company_id)
-
-        allowed_types = {"image/png", "image/jpeg", "image/jpg"}
-        if content_type not in allowed_types:
-            raise ValueError("Unsupported content_type")
-
-        try:
-            base64.b64decode(content_base64, validate=True)
-        except Exception as exc:  # pragma: no cover
-            raise ValueError("Invalid base64 content") from exc
-
-        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
-        logo_url = f"/static/company-logos/{company_id}.{ext}"
-        tenant = self.repo.update(company_id, logo_url=logo_url)
-        return {"company_id": company_id, "logo_url": tenant.logo_url}
-
-    def delete_company_logo(self, company_id: str) -> dict[str, Any]:
-        tenant = self.repo.get_by_id(company_id)
-        if tenant is None:
-            raise FileNotFoundError(company_id)
-        self.repo.update(company_id, logo_url=None)
-        return {"company_id": company_id, "logo_url": None}
 
     def create_member(
         self,

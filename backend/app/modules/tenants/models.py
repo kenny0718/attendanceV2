@@ -36,7 +36,6 @@ class Tenant(Base):
     contact_address = Column(String(500), nullable=True, comment="Company contact address")
     contact_phone = Column(String(50), nullable=True, comment="Company contact phone")
     contact_email = Column(String(255), nullable=True, comment="Company contact email")
-    logo_url = Column(String(500), nullable=True, comment="Company logo URL")
     is_active = Column(Boolean, nullable=False, default=True, comment="Active status")
     timezone = Column(String(50), nullable=False, default="UTC", comment="Company timezone")
     

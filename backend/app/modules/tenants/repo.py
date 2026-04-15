@@ -42,7 +42,6 @@ class TenantRepository:
             contact_address=None,
             contact_phone=None,
             contact_email=None,
-            logo_url=None,
             is_active=row.is_active,
             timezone=row.timezone,
             created_at=row.created_at,
@@ -99,7 +98,6 @@ class TenantRepository:
         contact_address: str | None = None,
         contact_phone: str | None = None,
         contact_email: str | None = None,
-        logo_url: str | None = None,
     ) -> Tenant:
         """Create a new tenant
 
@@ -123,7 +121,6 @@ class TenantRepository:
             contact_address=contact_address,
             contact_phone=contact_phone,
             contact_email=contact_email,
-            logo_url=logo_url,
             timezone=timezone,
             is_active=is_active,
         )

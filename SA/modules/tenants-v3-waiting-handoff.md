@@ -144,7 +144,6 @@ Phase 1 改成回傳：
 - `contact_address`
 - `contact_phone`
 - `contact_email`
-- `logo_url`
 
 ### 6.2 不新增
 - `attendance_address`

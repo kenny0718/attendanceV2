@@ -96,63 +96,6 @@
         <span>{{ error }}</span>
       </div>
 
-      <div class="logo-panel">
-        <div class="logo-preview-wrap">
-          <div
-            v-if="company.logo_url"
-            class="logo-preview-box"
-          >
-            <img
-              :src="company.logo_url"
-              alt="Company logo"
-              class="logo-preview"
-            >
-          </div>
-          <div
-            v-else
-            class="logo-empty"
-          >
-            尚未設定 Logo
-          </div>
-        </div>
-        <div class="logo-meta">
-          <p class="logo-label">
-            目前 Logo URL
-          </p>
-          <p class="logo-url mono">
-            {{ company.logo_url || '—' }}
-          </p>
-          <p class="logo-hint">
-            僅支援 PNG / JPG / JPEG，檔案上限 2MB。Logo 需以上傳方式設定，不能手動輸入 URL。
-          </p>
-          <div class="logo-actions">
-            <input
-              ref="logoInput"
-              type="file"
-              accept="image/png,image/jpeg"
-              class="visually-hidden"
-              @change="onFileChange"
-            >
-            <button
-              type="button"
-              class="btn-logo"
-              :disabled="loading"
-              @click="triggerLogoUpload"
-            >
-              上傳 Logo
-            </button>
-            <button
-              type="button"
-              class="btn-logo btn-logo-secondary"
-              :disabled="loading || !company.logo_url"
-              @click="$emit('remove-logo')"
-            >
-              移除 Logo
-            </button>
-          </div>
-        </div>
-      </div>
-
       <form
         class="detail-form"
         novalidate
@@ -366,13 +309,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import PageCard from '@/components/PageCard.vue'
 import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
 
-const logoInput = ref(null)
-
-const emit = defineEmits(['submit', 'toggle-active', 'update:form', 'upload-logo', 'remove-logo'])
+defineEmits(['submit', 'toggle-active', 'update:form'])
 
 const props = defineProps({
   company: { type: Object, default: null },
@@ -383,18 +323,6 @@ const props = defineProps({
   success: { type: String, default: '' },
   formatDate: { type: Function, required: true },
 })
-
-function triggerLogoUpload() {
-  if (props.loading) return
-  logoInput.value?.click()
-}
-
-function onFileChange(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
-  emit('upload-logo', file)
-  event.target.value = ''
-}
 </script>
 
 <style scoped>
@@ -430,16 +358,8 @@ function onFileChange(event) {
 .form-input { min-height: 46px; padding: 0 14px; border: 1px solid rgba(148, 163, 184, 0.32); border-radius: 16px; font-size: 15px; color: #0f172a; background: rgba(255, 255, 255, 0.92); outline: none; }
 .form-input:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25); }
 .detail-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
-.btn-submit,
-.btn-toggle,
-.btn-logo { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 144px; min-height: 46px; padding: 0 20px; border: none; border-radius: 16px; font-size: 15px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .btn-submit { background: #0ea5e9; color: #ffffff; }
 .btn-toggle { background: #e2e8f0; color: #334155; }
-.btn-logo { background: #0f172a; color: #ffffff; }
-.btn-logo-secondary { background: #e2e8f0; color: #334155; }
-.btn-submit:disabled,
-.btn-toggle:disabled,
-.btn-logo:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
 .alert { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
 .alert svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
@@ -449,19 +369,8 @@ function onFileChange(event) {
 .badge-inactive { display: inline-flex; align-items: center; justify-content: center; min-width: 72px; min-height: 32px; padding: 0 12px; border-radius: 999px; font-size: 14px; font-weight: 700; }
 .badge-active { background: #dcfce7; color: #15803d; }
 .badge-inactive { background: #f1f5f9; color: #64748b; }
-.logo-panel { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; padding: 16px; border: 1px solid rgba(226, 232, 240, 0.9); border-radius: 18px; background: rgba(248, 250, 252, 0.7); }
-.logo-preview-wrap { display: flex; align-items: center; justify-content: center; }
-.logo-preview-box, .logo-empty { width: 180px; height: 120px; border-radius: 16px; border: 1px dashed rgba(148, 163, 184, 0.6); background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.logo-preview { max-width: 140px; max-height: 80px; object-fit: contain; }
-.logo-empty { color: #94a3b8; font-size: 13px; }
-.logo-meta { display: grid; gap: 10px; align-content: start; }
-.logo-label { margin: 0; font-size: 13px; font-weight: 800; color: #334155; }
-.logo-url { margin: 0; font-size: 13px; color: #0f172a; word-break: break-all; }
-.logo-hint { margin: 0; font-size: 12px; color: #64748b; line-height: 1.6; }
-.logo-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.visually-hidden { display: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 1100px) { .detail-meta, .summary-panel, .form-grid-triple { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 900px) { .detail-meta, .summary-panel, .form-grid-double, .form-grid-triple, .logo-panel { grid-template-columns: 1fr; } }
-@media (max-width: 720px) { .detail-actions { flex-direction: column; align-items: stretch; } .btn-submit, .btn-toggle, .btn-logo { width: 100%; } }
+@media (max-width: 900px) {  }
+@media (max-width: 720px) { .detail-actions { flex-direction: column; align-items: stretch; }}
 </style>

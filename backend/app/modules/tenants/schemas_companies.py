@@ -132,7 +132,6 @@ class CompanyResponse(BaseModel):
     contact_address: Optional[str] = Field(None, description="Company contact address")
     contact_phone: Optional[str] = Field(None, description="Company contact phone")
     contact_email: Optional[str] = Field(None, description="Company contact email")
-    logo_url: Optional[str] = Field(None, description="Company logo URL")
     is_active: bool = Field(..., description="Active status")
     timezone: str = Field(..., description="Company timezone")
     created_at: datetime = Field(..., description="Created timestamp (UTC)")
@@ -181,27 +180,3 @@ class LookupCompanyByTaxIdResponse(BaseModel):
     owner_name: Optional[str] = Field(None, description="Company owner name")
     registered_address: Optional[str] = Field(None, description="Company registered address")
     found: bool = Field(..., description="Whether lookup found a record")
-
-
-class UploadCompanyLogoRequest(BaseModel):
-    filename: str = Field(..., min_length=1, max_length=255, description="Original file name")
-    content_type: str = Field(..., min_length=1, max_length=100, description="Image MIME type")
-    content_base64: str = Field(..., min_length=1, description="Base64-encoded image content")
-
-    @field_validator("filename", "content_type", "content_base64")
-    @classmethod
-    def normalize_required_text(cls, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("Field cannot be empty")
-        return normalized
-
-
-class UploadCompanyLogoResponse(BaseModel):
-    company_id: str = Field(..., description="Company ID")
-    logo_url: str = Field(..., description="Readable logo URL for frontend display")
-
-
-class DeleteCompanyLogoResponse(BaseModel):
-    company_id: str = Field(..., description="Company ID")
-    logo_url: Optional[str] = Field(None, description="Logo URL after deletion, always null")

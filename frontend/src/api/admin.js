@@ -59,14 +59,4 @@ export const adminApi = {
   // PATCH /api/admin/companies/{company_id}
   updateCompany: (companyId, payload) =>
     apiClient.patch(`/admin/companies/${companyId}`, payload),
-
-  // Companies v3: Upload company logo
-  // POST /api/admin/companies/{company_id}/logo
-  uploadCompanyLogo: (companyId, payload) =>
-    apiClient.post(`/admin/companies/${companyId}/logo`, payload),
-
-  // Companies v3: Delete company logo
-  // DELETE /api/admin/companies/{company_id}/logo
-  deleteCompanyLogo: (companyId) =>
-    apiClient.delete(`/admin/companies/${companyId}/logo`),
 }

@@ -16,7 +16,6 @@
 - 公司成員在這裡管理
 - onboarding 在這裡管理
 - entitlements 在這裡管理
-- 公司品牌資訊在這裡管理
 
 一句話：
 
@@ -32,7 +31,7 @@
 - 公司成員
 - onboarding
 - feature entitlements
-- 公司品牌資訊（例如 `display_name`、`logo_url`）
+- 公司顯示名稱等主資料欄位（例如 `display_name`）
 - 公司層級識別欄位（例如 `company_id`、`tax_id`）
 
 ### `tenants` 不負責
@@ -59,9 +58,6 @@
 ### 3.4 Feature Entitlements
 管理公司可使用哪些功能。
 
-### 3.5 Company Branding
-管理公司品牌資訊，例如正式名稱、顯示名稱、Logo。
-
 ---
 
 ## 4. 功能拆分治理原則（正式）
@@ -87,7 +83,6 @@
 - onboarding
 - members 管理
 - entitlements
-- branding
 
 ### 4.2 什麼不算功能級
 
@@ -102,7 +97,6 @@
 
 例如：
 
-- `Logo upload API` 本身通常不算一個完整功能
 - `tax id lookup API` 本身通常不算一個完整功能
 - `company detail endpoint` 本身通常不算一個完整功能
 
@@ -139,7 +133,6 @@
 - `api_onboarding.py`
 - `api_members.py`
 - `api_entitlements.py`
-- 未來若 branding 持續成長，才考慮 `api_branding.py`
 
 ### 5.3 不應該怎麼拆
 
@@ -164,8 +157,6 @@
 補充原則：
 
 - 若某能力仍屬 company 主資料的一部分，先留在 `api.py`
-- 若 branding 還只是少量能力，不要因為 `logo upload` 就先拆 `api_logo.py`
-- 只有 branding 成長成明確子領域時，才拆 `api_branding.py`
 
 ---
 
@@ -243,8 +234,7 @@
 - members 管理
 - entitlement 管理
 - onboarding
-- 公司品牌欄位（`name`、`display_name`、`logo_url`）
-- 公司 Logo 上傳能力與 Logo 顯示欄位治理
+- 公司主資料欄位（`name`、`display_name`）
 - 公司詳情 / 編輯可維護的品牌資訊欄位
 - 公司主資料 detail API
 - 公司統編查詢帶入規則
@@ -325,15 +315,12 @@
 #### 4. `api_entitlements.py` 獨立，合理
 `entitlements` 是明確子領域，且權限、資料模型、操作邏輯都與 company CRUD 不同，因此獨立合理。
 
-#### 5. company 主資料、tax id lookup、logo upload 仍留在 `api.py`，目前合理
 依照本文件原則，單一 lookup、單一 upload、單一 patch 動作本身不構成拆檔理由。
 
 因此目前把以下能力留在 `api.py`：
 - company list / create / detail / update
 - tax id lookup
-- logo upload / delete
 
-目前判定為合理，因為它們仍屬 company 主資料 / branding 附屬能力的一部分，尚未長成獨立功能級模組。
 
 ### 10.3 目前屬於「偏碎，但尚可接受」的地方
 
@@ -346,7 +333,6 @@
 - 這不算嚴重過碎
 - 但已經接近「一個子功能一組 schema 檔」的上限
 - 在目前規模下可接受
-- 不應再繼續往 `schemas_logo.py`、`schemas_tax_lookup.py`、`schemas_company_detail.py` 這種更細方向拆
 
 正式原則：
 
@@ -355,7 +341,6 @@
 #### 2. `service.py` 內已混有多個子領域邏輯
 目前 `service.py` 內同時存在：
 - tenant / company 主資料邏輯
-- logo upload / delete
 - tax id lookup provider
 - member update / reset password
 - entitlement service 類別
@@ -363,7 +348,6 @@
 正式判定：
 - 目前仍可接受
 - 但已呈現「多子領域共存」狀態
-- 後續若再持續增加 onboarding / members / branding / entitlements 細節，`service.py` 很容易變成過胖協調檔
 
 因此目前結論不是立刻拆，而是：
 
@@ -401,10 +385,7 @@
 
 以下目前不建議重構，避免為了整理而整理：
 
-#### 1. 不建議把 `logo upload/delete` 再拆成 `api_logo.py`
 理由：
-- 目前只是 branding 底下的一小部分能力
-- 尚未形成完整 branding 子模組
 - 若現在拆，屬於以單一 API 動作拆檔，違反本文件原則
 
 #### 2. 不建議把 `lookup-by-tax-id` 再拆成 `api_lookup.py`
@@ -427,7 +408,6 @@
 - `api_onboarding.py`
 - `api_members.py`
 - `api_entitlements.py`
-- company 主資料與 branding 附屬能力仍集中在 `api.py`
 
 #### 偏碎但可接受
 - 功能級 schema 多檔拆分
@@ -435,7 +415,6 @@
 - `service.py` 內多子領域共存
 
 #### 目前不應再往下拆
-- logo upload / delete
 - tax id lookup
 - company detail / update
 - members 底下單一操作
@@ -447,7 +426,6 @@
 1. **先維持 `api.py` 為單一主入口**
 2. **先避免新增小型 `api_xxx.py`**
 3. **若 `members` 持續變大，優先考慮整理其 service 邊界，而不是把單一 members 動作再切碎**
-4. **若 `branding` 持續增長成一組穩定能力，再評估 `api_branding.py` / `service_branding.py`**
 5. **schema 拆分停在功能級，不再往單一 API 細拆**
 
 本文件因此正式認定：
@@ -462,9 +440,7 @@
 2. 把公司管理頁面的所有東西都塞進 `tenants`，變成後台雜物箱
 3. 把每個小功能都拆成一個檔，導致結構過碎
 4. 把單一 API 誤判成一個完整子模組
-5. 把 company 主資料、branding、members 的邊界混在一起
 6. 把 schema 繼續往單一 API 細拆
-7. 把 `logo_url` 當成 onboarding 時要人工輸入的欄位，而不是 Logo 資產結果欄位
 
 ---
 
@@ -495,10 +471,7 @@
 - 短期可接受，但不應再把更多 members 細節堆進 API 層
 - 若後續 members 繼續長大，應優先把這些業務協調收斂進單一 `members` 功能級 service，而不是把每個 members 動作再拆成多個小 service
 
-#### 3. `branding` 只有在真正長成穩定子領域時才升級獨立模組
 正式要求：
-- 若未來 branding 形成一組穩定能力，再評估 `api_branding.py` / `service_branding.py`
-- 在此之前，Logo 相關能力仍視為 company 主資料 / branding 附屬能力
 
 #### 4. schema 拆分停在功能級
 正式要求：
@@ -507,8 +480,6 @@
 
 ### 12.2 現在不應調整的地方
 
-#### 1. 不應新增 `api_logo.py`
-理由：目前 Logo 仍只是 branding 底下的一小部分能力，尚未形成完整功能級子模組。
 
 #### 2. 不應新增 `api_lookup.py`
 理由：`lookup-by-tax-id` 仍屬 company 主資料輔助能力，不構成功能級模組。
@@ -527,7 +498,6 @@
 1. 先維持 `api.py` 為單一主入口
 2. 先避免新增小型 `api_xxx.py`
 3. 若 `members` 持續變大，優先整理其 service 邊界
-4. 若 `branding` 形成穩定子領域，再評估 `api_branding.py` / `service_branding.py`
 5. schema 拆分停在功能級，不再往單一 API 細拆
 
 ### 12.4 簡化判斷句
@@ -556,7 +526,6 @@
 - 公司識別欄位改了
 - 公司工商資料查詢規則改了
 - company detail API 結構改了
-- Logo 上傳 / 顯示 contract 改了
 - 新增任何 `api_xxx.py`
 - 新增任何 `service_xxx.py`
 - 前端把一個 View 拆成多個功能子元件

@@ -4,7 +4,6 @@ GET  /api/admin/companies  — list all companies (super_admin only)
 POST /api/admin/companies  — create company   (super_admin only)
 """
 
-from base64 import b64encode
 from uuid import uuid4
 
 from app.core.scope import Actor, UserRole
@@ -345,81 +344,3 @@ class TestLookupByTaxId:
 
         assert response.status_code == 403
         assert response.json()["detail"]["code"] == "SCOPE_FORBIDDEN"
-
-
-class TestCompanyLogoApi:
-
-    def test_logo_upload_route_exists_and_requires_valid_body(self, db_session, client):
-        db_session.add(Tenant(id="logo-route-co", name="Logo Route Co", timezone="UTC", is_active=True))
-        db_session.commit()
-
-        _override_actor(client, _make_super_admin_actor())
-        try:
-            response = client.post(
-                "/api/admin/companies/logo-route-co/logo",
-                json={},
-            )
-        finally:
-            _clear_actor()
-
-        assert response.status_code == 422
-
-    def test_super_admin_can_upload_company_logo(self, db_session, client):
-        db_session.add(Tenant(id="logo-co", name="Logo Co", timezone="UTC", is_active=True))
-        db_session.commit()
-
-        png_base64 = b64encode(b"fake png bytes").decode("utf-8")
-        _override_actor(client, _make_super_admin_actor())
-        try:
-            response = client.post(
-                "/api/admin/companies/logo-co/logo",
-                json={
-                    "filename": "logo.png",
-                    "content_type": "image/png",
-                    "content_base64": png_base64,
-                },
-            )
-        finally:
-            _clear_actor()
-
-        assert response.status_code == 200, response.text
-        data = response.json()
-        assert data["company_id"] == "logo-co"
-        assert data["logo_url"] == "/static/company-logos/logo-co.png"
-        tenant = db_session.query(Tenant).filter(Tenant.id == "logo-co").first()
-        assert tenant.logo_url == "/static/company-logos/logo-co.png"
-
-    def test_company_admin_can_delete_own_company_logo(self, db_session, client):
-        db_session.add(Tenant(id="dev-tenant", name="Dev Tenant", timezone="UTC", is_active=True, logo_url="/static/company-logos/dev-tenant.png"))
-        db_session.commit()
-
-        _override_actor(client, _make_company_admin_actor("dev-tenant"))
-        try:
-            response = client.delete("/api/admin/companies/dev-tenant/logo")
-        finally:
-            _clear_actor()
-
-        assert response.status_code == 200
-        assert response.json()["logo_url"] is None
-        tenant = db_session.query(Tenant).filter(Tenant.id == "dev-tenant").first()
-        assert tenant.logo_url is None
-
-    def test_invalid_logo_content_type_rejected(self, db_session, client):
-        db_session.add(Tenant(id="logo-bad", name="Logo Bad", timezone="UTC", is_active=True))
-        db_session.commit()
-
-        _override_actor(client, _make_super_admin_actor())
-        try:
-            response = client.post(
-                "/api/admin/companies/logo-bad/logo",
-                json={
-                    "filename": "logo.gif",
-                    "content_type": "image/gif",
-                    "content_base64": b64encode(b"gif bytes").decode("utf-8"),
-                },
-            )
-        finally:
-            _clear_actor()
-
-        assert response.status_code == 422
-        assert response.json()["detail"]["code"] == "INVALID_LOGO_UPLOAD"

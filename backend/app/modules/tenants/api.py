@@ -26,9 +26,6 @@ from app.modules.tenants.schemas_companies import (
     CompanyListResponse,
     LookupCompanyByTaxIdRequest,
     LookupCompanyByTaxIdResponse,
-    UploadCompanyLogoRequest,
-    UploadCompanyLogoResponse,
-    DeleteCompanyLogoResponse,
 )
 
 router = APIRouter(prefix="/api/admin/companies", tags=["admin", "entitlements"])
@@ -193,7 +190,7 @@ def update_company(
     db: Session = Depends(get_db),
 ):
     """
-    更新公司基本資訊（不含 Logo 上傳）
+    更新公司基本資訊
 
     權限：
     - super_admin：可更新任意公司
@@ -223,59 +220,6 @@ def update_company(
             detail={"code": "DUPLICATE_TAX_ID", "message": str(e)}
         )
     return CompanyResponse.model_validate(tenant)
-
-
-@router.post('/{company_id}/logo', response_model=UploadCompanyLogoResponse)
-def upload_company_logo(
-    company_id: str,
-    request: UploadCompanyLogoRequest,
-    actor: Actor = Depends(get_current_actor),
-    db: Session = Depends(get_db),
-):
-    """Upload company logo and update logo_url."""
-    _assert_admin_company_access(actor, company_id, db)
-
-    service = get_tenant_service(db)
-    try:
-        result = service.upload_company_logo(
-            company_id=company_id,
-            filename=request.filename,
-            content_type=request.content_type,
-            content_base64=request.content_base64,
-        )
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "COMPANY_NOT_FOUND", "message": f"Company {company_id!r} not found"}
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={"code": "INVALID_LOGO_UPLOAD", "message": str(e)}
-        )
-
-    return UploadCompanyLogoResponse.model_validate(result)
-
-
-@router.delete('/{company_id}/logo', response_model=DeleteCompanyLogoResponse)
-def delete_company_logo(
-    company_id: str,
-    actor: Actor = Depends(get_current_actor),
-    db: Session = Depends(get_db),
-):
-    """Delete company logo and clear logo_url."""
-    _assert_admin_company_access(actor, company_id, db)
-
-    service = get_tenant_service(db)
-    try:
-        result = service.delete_company_logo(company_id)
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "COMPANY_NOT_FOUND", "message": f"Company {company_id!r} not found"}
-        )
-
-    return DeleteCompanyLogoResponse.model_validate(result)
 
 
 from app.modules.tenants.api_entitlements import register_routes as _reg_entitlements

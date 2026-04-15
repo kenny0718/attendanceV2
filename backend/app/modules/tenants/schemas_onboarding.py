@@ -33,7 +33,6 @@ class OnboardingCompanyResult(BaseModel):
     contact_address: Optional[str] = None
     contact_phone: Optional[str] = None
     contact_email: Optional[str] = None
-    logo_url: Optional[str] = None
     timezone: str
     is_active: bool
     created_at: datetime

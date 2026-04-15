@@ -127,17 +127,6 @@ class TestAdminOnboarding:
         assert data["company"]["contact_address"] == "台北市中山區南京東路 2 號"
         assert data["company"]["contact_phone"] == "02-12345678"
         assert data["company"]["contact_email"] == "company@example.com"
-        assert data["company"]["logo_url"] is None
-
-    def test_onboarding_rejects_logo_url_input(self, client):
-        payload = _payload(company_fields={"logo_url": "https://example.com/logo.png"})
-        _override(client, _super_admin())
-        try:
-            resp = client.post(URL, json=payload)
-        finally:
-            _clear()
-
-        assert resp.status_code == 422
 
     def test_invalid_tax_id_rejected(self, client):
         payload = _payload(tax_id="12345678")
