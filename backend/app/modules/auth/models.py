@@ -9,11 +9,15 @@ Key changes from v1 (tenant-first):
 - UserRole: removed (replaced by Membership.role_id)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 class User(Base):
@@ -75,6 +79,40 @@ class Membership(Base):
     
     def __repr__(self):
         return f"<Membership(user_id={self.user_id}, company_id={self.company_id}, role_id={self.role_id})>"
+
+
+class AuthSession(Base):
+    """Refresh-token backed auth session for sliding session management."""
+
+    __tablename__ = "auth_sessions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, comment="Auth session ID (PK)")
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, comment="User ID (FK)")
+    company_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, comment="Active company scope")
+    membership_id = Column(UUID(as_uuid=True), ForeignKey('user_company_memberships.id', ondelete='CASCADE'), nullable=False, comment="Membership ID (FK)")
+    role_id = Column(String(50), ForeignKey('roles.id', ondelete='CASCADE'), nullable=False, comment="Role ID in this session")
+    refresh_token_hash = Column(String(255), nullable=False, comment="Hashed refresh token")
+    is_active = Column(Boolean, nullable=False, default=True, comment="Session active state")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, comment="Created timestamp (UTC)")
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now, comment="Updated timestamp (UTC)")
+    last_used_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, comment="Last authenticated activity timestamp (UTC)")
+    expires_at = Column(DateTime(timezone=True), nullable=False, default=lambda: utc_now() + timedelta(days=7), comment="Refresh token expiry (UTC)")
+    absolute_expires_at = Column(DateTime(timezone=True), nullable=False, default=lambda: utc_now() + timedelta(hours=12), comment="Absolute session expiry (UTC)")
+    revoked_at = Column(DateTime(timezone=True), nullable=True, comment="Revoked timestamp (UTC)")
+    revoke_reason = Column(String(100), nullable=True, comment="Why this session was revoked")
+    user_agent = Column(String(500), nullable=True, comment="User agent snapshot")
+    ip_address = Column(String(64), nullable=True, comment="IP address snapshot")
+
+    __table_args__ = (
+        Index('idx_auth_sessions_user_id', 'user_id'),
+        Index('idx_auth_sessions_membership_id', 'membership_id'),
+        Index('idx_auth_sessions_company_id', 'company_id'),
+        Index('idx_auth_sessions_is_active', 'is_active'),
+        Index('idx_auth_sessions_expires_at', 'expires_at'),
+    )
+
+    def __repr__(self):
+        return f"<AuthSession(id={self.id}, user_id={self.user_id}, company_id={self.company_id}, active={self.is_active})>"
 
 
 class Role(Base):

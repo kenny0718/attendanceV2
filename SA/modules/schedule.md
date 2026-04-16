@@ -357,6 +357,13 @@ change_triggers:
 - 與 `attendance` 的欄位契約一致
 - contract 改動時，文件與 consumer 一起更新
 
+#### Real JWT E2E 驗證基線（2026-04-16）
+- 真 JWT 測試 fixture 必須補齊 `roles`、`users`、`user_company_memberships`、`company_entitlements`，不可只建立 token 後直接呼叫 API
+- `schedule` feature gate 的正式 key 為 `schedule.core`，不得寫成 `schedule_core`
+- JWT consumer 目前視 `session_id` 為 access token 必要 claim；測試建立真 JWT 時必須帶入
+- company A / company B 的 entitlement 狀態應明確分開 seed，才能驗證 enabled / disabled 與跨租戶拒絕行為
+- 真 JWT E2E 最低驗證應覆蓋：401（無 token / invalid token）、200（已啟用 company）、403（feature disabled company）、template CRUD 基線、assignment CRUD 基線、cross-tenant 阻擋
+
 ---
 
 ## 9. 依賴與共用元件

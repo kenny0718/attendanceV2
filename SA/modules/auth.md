@@ -344,3 +344,5 @@
 - `uses_schedule` 屬於 Membership / 員工公司內資料欄位，不可由前端自行猜測
 - `uses_schedule` 應由 login response 或 `me/profile` API 提供給前端
 - `auth` 應對齊 `tenants` 所定義的 User / Membership 責任切分，不可在模組內另行發明欄位語意
+- session-based JWT consumer 若要求 `session_id` claim，則 login / refresh / 測試所建立的 access token 都必須維持此契約；真 JWT E2E 不得再以缺少 `session_id` 的測試 token 代表正式登入狀態
+- 若下游功能同時依賴 membership 與 feature gate（例如 `schedule`），真 JWT 測試必須一併 seed `role`、`membership`、`entitlement`，不可只驗 token decode 成功

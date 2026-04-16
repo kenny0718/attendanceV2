@@ -1,7 +1,7 @@
 """JWT Token Utilities (WP-10-04B)
 
 Minimal JWT implementation for login API.
-Uses HS256 algorithm with 900 seconds expiry.
+Supports access and refresh tokens for sliding sessions.
 """
 
 import jwt
@@ -14,65 +14,71 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-def create_access_token(claims: Dict[str, Any], expires_in: int = 900) -> str:
-    """Create JWT access token
-    
-    Args:
-        claims: Token claims (must include 'sub', 'company_id', 'role_id')
-        expires_in: Token expiry in seconds (default: 900 = 15 minutes)
-    
-    Returns:
-        str: JWT token
-    
-    Raises:
-        ValueError: If required claims are missing
-    """
-    # Validate required claims
-    required_claims = ["sub", "company_id", "role_id"]
+ACCESS_REQUIRED_CLAIMS = ["sub", "company_id", "role_id", "session_id", "type"]
+REFRESH_REQUIRED_CLAIMS = ["sub", "session_id", "type"]
+
+
+def _build_payload(claims: Dict[str, Any], expires_in_seconds: int) -> Dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    return {
+        **claims,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(seconds=expires_in_seconds)).timestamp())
+    }
+
+
+def create_access_token(claims: Dict[str, Any], expires_in: int | None = None) -> str:
+    required_claims = ACCESS_REQUIRED_CLAIMS
     for claim in required_claims:
         if claim not in claims:
             raise ValueError(f"Missing required claim: {claim}")
     
-    # Add timestamps
-    now = datetime.now(timezone.utc)
-    payload = {
-        **claims,
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(seconds=expires_in)).timestamp())
-    }
-    
-    # Encode JWT
-    token = jwt.encode(
-        payload,
-        settings.jwt_secret_key,
-        algorithm="HS256"
+    payload = _build_payload(
+        {**claims, "type": "access"},
+        expires_in or settings.access_token_minutes * 60,
     )
-    
-    logger.debug(f"Created JWT token for sub={claims['sub']}, company_id={claims['company_id']}")
-    
+    token = jwt.encode(payload, settings.jwt_secret_key, algorithm="HS256")
+    logger.debug(
+        "Created access token for sub=%s, company_id=%s, session_id=%s",
+        claims['sub'],
+        claims['company_id'],
+        claims['session_id'],
+    )
+    return token
+
+
+def create_refresh_token(claims: Dict[str, Any], expires_in: int | None = None) -> str:
+    required_claims = REFRESH_REQUIRED_CLAIMS
+    for claim in required_claims:
+        if claim not in claims:
+            raise ValueError(f"Missing required claim: {claim}")
+
+    payload = _build_payload(
+        {**claims, "type": "refresh"},
+        expires_in or settings.refresh_token_days * 86400,
+    )
+    token = jwt.encode(payload, settings.jwt_secret_key, algorithm="HS256")
+    logger.debug("Created refresh token for sub=%s, session_id=%s", claims['sub'], claims['session_id'])
     return token
 
 
 def decode_access_token(token: str) -> Dict[str, Any]:
-    """Decode and verify JWT access token
-    
-    Args:
-        token: JWT token string
-    
-    Returns:
-        Dict[str, Any]: Decoded claims
-    
-    Raises:
-        jwt.ExpiredSignatureError: If token is expired
-        jwt.InvalidTokenError: If token is invalid
-    """
+    payload = _decode_token(token)
+    if payload.get("type") != "access":
+        raise jwt.InvalidTokenError("Invalid token type")
+    return payload
+
+
+def decode_refresh_token(token: str) -> Dict[str, Any]:
+    payload = _decode_token(token)
+    if payload.get("type") != "refresh":
+        raise jwt.InvalidTokenError("Invalid token type")
+    return payload
+
+
+def _decode_token(token: str) -> Dict[str, Any]:
     try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret_key,
-            algorithms=["HS256"]
-        )
-        return payload
+        return jwt.decode(token, settings.jwt_secret_key, algorithms=["HS256"])
     except jwt.ExpiredSignatureError:
         logger.warning("JWT token expired")
         raise

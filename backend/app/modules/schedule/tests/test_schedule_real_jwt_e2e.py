@@ -1,121 +1,106 @@
-"""
-WP-S1-06: Schedule Real JWT E2E Tests
-========================================
-
-本檔驗證 Schedule API 在真實 JWT 驗證流程下的端對端行為。
-
-與 WP-S1-05 的關鍵差異：
-- 不使用 override_actor_dependency（dependency_override 捷徑）
-- 使用 create_access_token() 產生真實 HS256 signed JWT
-- 透過 Authorization: Bearer <token> header 傳入
-- 完整走過 get_current_actor → decode_access_token → DB 查詢 → Actor 建立路徑
-
-測試驗證範圍：
-1. 真實 JWT + schedule.core entitlement → PASS (200/201)
-2. 真實 JWT + 無 entitlement → 403 FEATURE_DISABLED
-3. Cross-tenant resource access → 404
-4. 無 JWT → 401
-5. Template CRUD smoke: create / get / list
-6. Assignment CRUD smoke: create / get / cancel
-"""
-
-import os
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
-from app.core.database import Base, get_db
-from app.core.features import FeatureKeys
+from app.main import app
+from app.core.database import get_db
 from app.core.security.jwt import create_access_token
-from app.main import app as fastapi_app
-from app.modules.attendance.models import (  # noqa: F401
-    AttendanceOutCheckpoint,
-    AttendancePolicy,
-    AttendancePunch,
-    AttendanceSession,
-    AllowedLocation,
-)
-from app.modules.schedule.models import ShiftAssignment, ShiftTemplate  # noqa: F401
-from app.modules.auth.models import Membership, Role, User
-from app.modules.tenants.models import CompanyEntitlement, Tenant
+from app.modules.auth.repo import AuthRepository
+from app.modules.tenants.repo import CompanyEntitlementRepository, TenantRepository
+
+client = TestClient(app)
 
 JWT_COMPANY_A = "s106-jwt-company-a"
 JWT_COMPANY_B = "s106-jwt-company-b"
 JWT_USER_ID = UUID("00000000-0000-4000-a000-000000000106")
 JWT_ROLE_ID = "company_admin"
-
-
-client = TestClient(fastapi_app)
-
-
-def _get_test_db_url() -> str:
-    return os.getenv(
-        "TEST_DATABASE_URL",
-        os.getenv(
-            "DATABASE_URL",
-            "postgresql+psycopg2://postgres:Raxcxtjq260!@127.0.0.1:5432/attendance_test_db",
-        ),
-    )
-
-
-_engine = create_engine(_get_test_db_url(), pool_pre_ping=True, echo=False)
-_Session = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+SCHEDULE_FEATURE_KEY = "schedule.core"
 
 
 @pytest.fixture(scope="function")
-def jwt_test_db():
-    Base.metadata.drop_all(bind=_engine, checkfirst=True)
-    Base.metadata.create_all(bind=_engine, checkfirst=True)
+def jwt_test_db(db):
+    auth_repo = AuthRepository(db)
+    entitlement_repo = CompanyEntitlementRepository(db)
+    tenant_repo = TenantRepository(db)
 
-    db = _Session()
+    db.execute(
+        text(
+            """
+            INSERT INTO roles (id, name, description, created_at)
+            VALUES (:id, :name, :description, NOW())
+            ON CONFLICT (id) DO NOTHING
+            """
+        ),
+        {
+            "id": JWT_ROLE_ID,
+            "name": "Company Admin",
+            "description": "JWT test role",
+        },
+    )
+    db.commit()
 
-    if not db.query(Role).filter(Role.id == JWT_ROLE_ID).first():
-        db.add(Role(id=JWT_ROLE_ID, name="Company Admin", description="Full access within company"))
+    user = auth_repo.get_user_by_id(JWT_USER_ID)
+    if not user:
+        db.execute(
+            text(
+                """
+                INSERT INTO users (
+                    id,
+                    display_name,
+                    email,
+                    password_hash,
+                    is_active,
+                    is_otp,
+                    must_change_password,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    :id,
+                    :display_name,
+                    :email,
+                    :password_hash,
+                    TRUE,
+                    FALSE,
+                    FALSE,
+                    NOW(),
+                    NOW()
+                )
+                """
+            ),
+            {
+                "id": str(JWT_USER_ID),
+                "display_name": "JWT Schedule Admin",
+                "email": "jwt.schedule.admin@example.com",
+                "password_hash": "$2b$12$abcdefghijklmnopqrstuuR4x1u4zvA9w8Q2v5W6n7m8o9p0q1r2",
+            },
+        )
+        db.commit()
 
-    for company_id, name in [
-        (JWT_COMPANY_A, "JWT Company A"),
-        (JWT_COMPANY_B, "JWT Company B"),
-    ]:
-        if not db.query(Tenant).filter(Tenant.id == company_id).first():
-            db.add(Tenant(id=company_id, name=name, is_active=True))
+    for company_id, enabled in ((JWT_COMPANY_A, True), (JWT_COMPANY_B, False)):
+        tenant = tenant_repo.get_by_id(company_id)
+        if not tenant:
+            tenant_repo.create(tenant_id=company_id, name=company_id, timezone="Asia/Taipei")
 
-    if not db.query(User).filter(User.id == JWT_USER_ID).first():
-        db.add(User(
-            id=JWT_USER_ID,
-            display_name="JWT Schedule User",
-            password_hash="dummy_hash_not_used",
-            is_active=True,
-        ))
-        db.flush()
-
-    for company_id, login_username in [
-        (JWT_COMPANY_A, "jwt-admin-a"),
-        (JWT_COMPANY_B, "jwt-admin-b"),
-    ]:
-        existing = db.query(Membership).filter(
-            Membership.user_id == JWT_USER_ID,
-            Membership.company_id == company_id,
-        ).first()
-        if not existing:
-            db.add(Membership(
-                id=uuid4(),
+        membership = auth_repo.get_membership(JWT_USER_ID, company_id)
+        if not membership:
+            auth_repo.create_membership(
                 user_id=JWT_USER_ID,
                 company_id=company_id,
                 role_id=JWT_ROLE_ID,
-                login_username=login_username,
+                login_username=f"jwt-{company_id}",
                 is_active=True,
-            ))
+                uses_schedule=True,
+            )
 
-    db.add(CompanyEntitlement(
-        id=uuid4(),
-        company_id=JWT_COMPANY_A,
-        feature_key=FeatureKeys.SCHEDULE_CORE,
-        enabled=True,
-    ))
-    db.commit()
+        entitlement_repo.upsert_entitlement(
+            company_id=company_id,
+            feature_key=SCHEDULE_FEATURE_KEY,
+            enabled=enabled,
+            updated_by_user_id=JWT_USER_ID,
+        )
 
     def _override_get_db():
         try:
@@ -123,13 +108,11 @@ def jwt_test_db():
         finally:
             db.flush()
 
-    fastapi_app.dependency_overrides[get_db] = _override_get_db
-
+    app.dependency_overrides[get_db] = _override_get_db
     try:
         yield db
     finally:
-        db.close()
-        fastapi_app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_db, None)
 
 
 def make_jwt(company_id: str, user_id: UUID = JWT_USER_ID, role_id: str = JWT_ROLE_ID) -> str:
@@ -138,6 +121,8 @@ def make_jwt(company_id: str, user_id: UUID = JWT_USER_ID, role_id: str = JWT_RO
             "sub": str(user_id),
             "company_id": company_id,
             "role_id": role_id,
+            "session_id": "test-session-real-jwt",
+            "type": "access",
         }
     )
 
@@ -147,7 +132,6 @@ def auth_headers(company_id: str) -> dict:
 
 
 class TestRealJWTAuthBaseline:
-
     def test_no_token_returns_401(self, jwt_test_db):
         r = client.get("/api/v1/schedule/shift-templates")
         assert r.status_code == 401, r.text
@@ -167,11 +151,10 @@ class TestRealJWTAuthBaseline:
     def test_valid_jwt_company_b_no_entitlement_returns_403(self, jwt_test_db):
         r = client.get("/api/v1/schedule/shift-templates", headers=auth_headers(JWT_COMPANY_B))
         assert r.status_code == 403, r.text
-        assert r.json()["detail"]["feature"] == FeatureKeys.SCHEDULE_CORE
+        assert r.json()["detail"]["feature"] == SCHEDULE_FEATURE_KEY
 
 
 class TestTemplateRealJWTFlow:
-
     def _template_payload(self, code: str) -> dict:
         return {
             "company_id": JWT_COMPANY_A,
@@ -230,7 +213,6 @@ class TestTemplateRealJWTFlow:
 
 
 class TestAssignmentRealJWTFlow:
-
     def _create_template(self):
         code = f"JWTA_{uuid4().hex[:6].upper()}"
         r = client.post(
@@ -313,7 +295,6 @@ class TestAssignmentRealJWTFlow:
 
 
 class TestNegativeCasesRealJWT:
-
     def _make_company_a_template(self):
         code = f"JWTX_{uuid4().hex[:6].upper()}"
         r = client.post(

@@ -52,3 +52,16 @@ class LoginResponse(BaseModel):
     company: CompanyInfo = Field(..., description="Company information")
     role: RoleInfo = Field(..., description="Role information")
     membership: MembershipInfo = Field(..., description="Membership bootstrap information")
+    idle_timeout_minutes: int = Field(..., description="Session idle timeout in minutes")
+    absolute_timeout_hours: int = Field(..., description="Absolute session lifetime in hours")
+
+
+class RefreshResponse(BaseModel):
+    access_token: str = Field(..., description="New JWT access token")
+    token_type: str = Field(default="bearer", description="Token type")
+    idle_timeout_minutes: int = Field(..., description="Session idle timeout in minutes")
+    absolute_timeout_hours: int = Field(..., description="Absolute session lifetime in hours")
+
+
+class LogoutResponse(BaseModel):
+    success: bool = Field(default=True, description="Whether logout succeeded")

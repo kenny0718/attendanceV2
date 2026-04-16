@@ -13,11 +13,9 @@ def is_testing() -> bool:
     1. pytest 是否在運行
     2. TESTING 環境變數
     """
-    # Check if pytest is running
     if "pytest" in sys.modules:
         return True
     
-    # Check TESTING environment variable
     testing_env = os.getenv("TESTING", "false").lower()
     if testing_env in ("true", "1", "yes"):
         return True
@@ -41,17 +39,22 @@ class Settings(BaseSettings):
     app_name: str = "Attendance V2 API"
     debug: bool = False
 
-    # 資料庫設定：優先吃環境變數 DATABASE_URL，沒有才用預設
     database_url: str = os.getenv(
         "DATABASE_URL",
         "postgresql+psycopg2://postgres:Raxcxtjq260!@127.0.0.1:5432/attendance_db",
     )
 
-    # JWT 設定 (WP-10-04B)
     jwt_secret_key: str = os.getenv(
         "JWT_SECRET_KEY",
         "dev-secret-key-change-in-production-min-32-chars-required",
     )
+    access_token_minutes: int = int(os.getenv("ACCESS_TOKEN_MINUTES", "60"))
+    refresh_token_days: int = int(os.getenv("REFRESH_TOKEN_DAYS", "7"))
+    session_idle_timeout_minutes: int = int(os.getenv("SESSION_IDLE_TIMEOUT_MINUTES", "60"))
+    session_absolute_timeout_hours: int = int(os.getenv("SESSION_ABSOLUTE_TIMEOUT_HOURS", "12"))
+    refresh_cookie_name: str = os.getenv("REFRESH_COOKIE_NAME", "attendance_refresh_token")
+    refresh_cookie_secure: bool = os.getenv("REFRESH_COOKIE_SECURE", "false").lower() in ("true", "1", "yes")
+    refresh_cookie_samesite: str = os.getenv("REFRESH_COOKIE_SAMESITE", "lax")
 
 
 settings = Settings()

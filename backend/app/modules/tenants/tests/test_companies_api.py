@@ -302,6 +302,38 @@ class TestCompanyDetail:
         assert response.status_code == 200
         assert response.json()["company"]["id"] == "dev-tenant"
 
+    def test_company_detail_returns_profile_fields(self, db_session, client):
+        db_session.add(Tenant(
+            id="profile-co",
+            name="YHSI字閎系統整合",
+            tax_id="24906737",
+            display_name="YHSI",
+            owner_name="王小明",
+            registered_address="台北市南港區登記地址 1 號",
+            contact_address="台北市內湖區聯絡地址 2 號",
+            contact_phone="02-12345678",
+            contact_email="service@example.com",
+            timezone="Asia/Taipei",
+            is_active=True,
+        ))
+        db_session.commit()
+
+        _override_actor(client, _make_super_admin_actor())
+        try:
+            response = client.get("/api/admin/companies/profile-co")
+        finally:
+            _clear_actor()
+
+        assert response.status_code == 200
+        company = response.json()["company"]
+        assert company["name"] == "YHSI字閎系統整合"
+        assert company["display_name"] == "YHSI"
+        assert company["registered_address"] == "台北市南港區登記地址 1 號"
+        assert company["contact_address"] == "台北市內湖區聯絡地址 2 號"
+        assert company["contact_phone"] == "02-12345678"
+        assert company["contact_email"] == "service@example.com"
+        assert company["timezone"] == "Asia/Taipei"
+
     def test_employee_cannot_get_company_detail(self, db_session, client):
         db_session.add(Tenant(id="dev-tenant", name="Dev Tenant", timezone="UTC", is_active=True))
         db_session.commit()

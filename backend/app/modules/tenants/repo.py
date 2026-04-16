@@ -36,12 +36,12 @@ class TenantRepository:
             id=row.id,
             name=row.name,
             tax_id=row.tax_id,
-            display_name=None,
-            owner_name=None,
-            registered_address=None,
-            contact_address=None,
-            contact_phone=None,
-            contact_email=None,
+            display_name=row.display_name,
+            owner_name=row.owner_name,
+            registered_address=row.registered_address,
+            contact_address=row.contact_address,
+            contact_phone=row.contact_phone,
+            contact_email=row.contact_email,
             is_active=row.is_active,
             timezone=row.timezone,
             created_at=row.created_at,
@@ -52,6 +52,12 @@ class TenantRepository:
             Tenant.id,
             Tenant.name,
             Tenant.tax_id,
+            Tenant.display_name,
+            Tenant.owner_name,
+            Tenant.registered_address,
+            Tenant.contact_address,
+            Tenant.contact_phone,
+            Tenant.contact_email,
             Tenant.is_active,
             Tenant.timezone,
             Tenant.created_at,
@@ -361,3 +367,27 @@ class CompanyEntitlementRepository:
         logger.info(f"Deleted entitlement: company={company_id}, feature={feature_key}, deleted={result > 0}")
 
         return result > 0
+
+
+def get_tenant_repository(db: Session) -> TenantRepository:
+    """Get TenantRepository instance (FastAPI Dependency)
+
+    Args:
+        db: SQLAlchemy Session
+
+    Returns:
+        TenantRepository: Repository instance
+    """
+    return TenantRepository(db)
+
+
+def get_entitlement_repository(db: Session) -> CompanyEntitlementRepository:
+    """Get CompanyEntitlementRepository instance (FastAPI Dependency)
+
+    Args:
+        db: SQLAlchemy Session
+
+    Returns:
+        CompanyEntitlementRepository: Repository instance
+    """
+    return CompanyEntitlementRepository(db)
