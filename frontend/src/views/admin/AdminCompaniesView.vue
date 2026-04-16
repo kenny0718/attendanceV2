@@ -96,6 +96,9 @@ async function loadCompanyDetail(companyId) {
     selectedCompany.value = company
     selectedCompanySummary.value = data?.member_summary ?? null
     updateEditForm(company)
+    if (company.id === authStore.companyId) {
+      authStore.updateCompanyProfile(company)
+    }
   } catch (err) {
     detailError.value = err.message || '無法載入公司詳情，請稍後再試'
   } finally {
@@ -127,7 +130,7 @@ async function handleUpdate() {
   detailSuccess.value = null
   detailLoading.value = true
   try {
-    await adminApi.updateCompany(selectedCompany.value.id, {
+    const updatedCompany = await adminApi.updateCompany(selectedCompany.value.id, {
       name: editForm.name,
       tax_id: editForm.tax_id || null,
       display_name: editForm.display_name || null,
@@ -138,7 +141,14 @@ async function handleUpdate() {
       contact_email: editForm.contact_email || null,
       timezone: editForm.timezone,
     })
-    await loadCompanyDetail(selectedCompany.value.id)
+    if (updatedCompany?.id) {
+      selectedCompany.value = updatedCompany
+      selectedCompanySummary.value = selectedCompanySummary.value ?? null
+      updateEditForm(updatedCompany)
+      if (updatedCompany.id === authStore.companyId) {
+        authStore.updateCompanyProfile(updatedCompany)
+      }
+    }
     detailSuccess.value = '變更已儲存'
     if (!isTenantScopedAdmin.value) {
       await loadCompanies()

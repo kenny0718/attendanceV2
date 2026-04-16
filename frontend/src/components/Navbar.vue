@@ -28,9 +28,10 @@
         <button
           class="action-btn logout-btn"
           type="button"
+          :disabled="isLoggingOut"
           @click="handleLogout"
         >
-          登出
+          {{ isLoggingOut ? '登出中…' : '登出' }}
         </button>
       </div>
     </div>
@@ -38,12 +39,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const isLoggingOut = ref(false)
 
 const companyDisplayName = computed(
   () => authStore.company?.display_name || authStore.company?.name || '未指定公司'
@@ -54,8 +56,14 @@ const userDisplayName = computed(
 const showAdminEntry = computed(() => authStore.isSuperAdmin || authStore.isAdminAccess)
 
 async function handleLogout() {
-  await authStore.logout()
-  router.push('/login')
+  if (isLoggingOut.value) return
+  isLoggingOut.value = true
+  try {
+    await authStore.logout()
+    router.push('/login')
+  } finally {
+    isLoggingOut.value = false
+  }
 }
 </script>
 
@@ -78,7 +86,6 @@ async function handleLogout() {
   color: inherit;
   text-decoration: none;
 }
-
 
 .brand-text {
   font-size: 1.25rem;
@@ -119,6 +126,12 @@ async function handleLogout() {
 
 .action-btn:hover {
   transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .admin-btn {
